@@ -32,6 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useTeams } from "@/hooks/useTeams";
 import { Plus, Trash2, Edit2, Users, UserPlus, Building } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function TeamManagement() {
   const {
@@ -87,10 +88,18 @@ export default function TeamManagement() {
   };
 
   const handleAssignLeader = async () => {
-    if (!selectedTeamForLeader || !selectedLeader) return;
-    await assignLeaderToTeam(selectedLeader, selectedTeamForLeader);
-    setSelectedTeamForLeader("");
-    setSelectedLeader("");
+    if (!selectedTeamForLeader || !selectedLeader) {
+      toast.error("Selecione um time e um líder");
+      return;
+    }
+    
+    try {
+      await assignLeaderToTeam(selectedLeader, selectedTeamForLeader);
+      setSelectedTeamForLeader("");
+      setSelectedLeader("");
+    } catch (error) {
+      console.error("Erro ao atribuir líder:", error);
+    }
   };
 
   const handleAddMember = async () => {
