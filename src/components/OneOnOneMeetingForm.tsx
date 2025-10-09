@@ -1,22 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
-import { usePDIIntegrated, PDIFormData } from "@/hooks/usePDIIntegrated";
-import { useActionItems } from "@/hooks/useActionItems";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, Mic, Square, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { OneOnOne } from "@/hooks/useOneOnOnes";
 import { PDIFormIntegrated } from "./PDIFormIntegrated";
 import { PDIReviewCard } from "./PDIReviewCard";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Sparkles, Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AudioRecorder } from "./AudioRecorder";
-import { useAudioTranscription } from "@/hooks/useAudioTranscription";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { usePDIIntegrated, PDIFormData } from "@/hooks/usePDIIntegrated";
 
 interface OneOnOneMeetingFormProps {
   oneOnOne: OneOnOne;
@@ -25,625 +20,391 @@ interface OneOnOneMeetingFormProps {
 }
 
 interface MeetingData {
-  aquecimento: {
-    feeling: string;
-    satisfactions: string;
-    external_factors: string;
-  };
-  desenvolvimento: {
-    achievements: string;
-    team_success: string;
-    challenges: string;
-    skills_to_improve: string;
-    culture_alignment: string;
-  };
-  projecao: {
-    next_month_goals: string;
-    learning: string;
-    impact_areas: string;
-    desired_changes: string;
-  };
-  encerramento: {
-    support_needed: string;
-  };
+  pdi_review?: string;
+  roteiro?: string;
+  pdi_mensal?: PDIFormData;
+  transcricao?: string;
   resumo?: string;
-  audio_metadata?: {
-    aquecimento_duration?: number;
-    desenvolvimento_duration?: number;
-    projecao_duration?: number;
-  };
+  audio_duration?: number;
 }
 
-export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMeetingFormProps) => {
-  const { updateOneOnOne } = useOneOnOnes();
+export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMeetingFormProps) => {
+  const queryClient = useQueryClient();
   const { getPDIFromOneOnOne, getLatestPDIForCollaborator, createPDIFromOneOnOne, isCreating } = usePDIIntegrated();
-  const { actionItems, createActionItem, updateActionItem, isCreating: isCreatingAction } = useActionItems(oneOnOne.id);
-  const { transcribeAudio, isTranscribing } = useAudioTranscription();
   
   const { data: existingPDI } = getPDIFromOneOnOne(oneOnOne.id);
   const { data: latestPDI } = getLatestPDIForCollaborator(oneOnOne.collaborator_id);
 
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+  
   const [meetingData, setMeetingData] = useState<MeetingData>({
-    aquecimento: {
-      feeling: (oneOnOne.meeting_structure as any)?.aquecimento?.feeling || "",
-      satisfactions: (oneOnOne.meeting_structure as any)?.aquecimento?.satisfactions || "",
-      external_factors: (oneOnOne.meeting_structure as any)?.aquecimento?.external_factors || "",
-    },
-    desenvolvimento: {
-      achievements: (oneOnOne.meeting_structure as any)?.desenvolvimento?.achievements || "",
-      team_success: (oneOnOne.meeting_structure as any)?.desenvolvimento?.team_success || "",
-      challenges: (oneOnOne.meeting_structure as any)?.desenvolvimento?.challenges || "",
-      skills_to_improve: (oneOnOne.meeting_structure as any)?.desenvolvimento?.skills_to_improve || "",
-      culture_alignment: (oneOnOne.meeting_structure as any)?.desenvolvimento?.culture_alignment || "",
-    },
-    projecao: {
-      next_month_goals: (oneOnOne.meeting_structure as any)?.projecao?.next_month_goals || "",
-      learning: (oneOnOne.meeting_structure as any)?.projecao?.learning || "",
-      impact_areas: (oneOnOne.meeting_structure as any)?.projecao?.impact_areas || "",
-      desired_changes: (oneOnOne.meeting_structure as any)?.projecao?.desired_changes || "",
-    },
-    encerramento: {
-      support_needed: (oneOnOne.meeting_structure as any)?.encerramento?.support_needed || "",
-    },
-    resumo: (oneOnOne.meeting_structure as any)?.resumo || "",
-    audio_metadata: (oneOnOne.meeting_structure as any)?.audio_metadata || {},
+    pdi_review: "",
+    roteiro: "",
   });
 
-  const [newActionItem, setNewActionItem] = useState({
-    description: "",
-    assigned_to: oneOnOne.collaborator_id,
-    due_date: "",
-  });
+  useEffect(() => {
+    if (open && oneOnOne?.meeting_structure) {
+      setMeetingData(oneOnOne.meeting_structure as MeetingData);
+    } else if (open) {
+      setMeetingData({ pdi_review: "", roteiro: "" });
+      setCurrentStep(0);
+      setIsRecording(false);
+      setRecordingTime(0);
+      setAudioBlob(null);
+    }
+  }, [open, oneOnOne]);
 
-  const handleSaveMeetingData = () => {
-    updateOneOnOne({
-      id: oneOnOne.id,
-      input: {
-        meeting_structure: meetingData,
-        status: "completed",
-      },
-    });
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 24000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start(1000);
+      startTimeRef.current = Date.now();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      toast.success("Gravação iniciada!");
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast.error("Erro ao acessar microfone. Verifique as permissões.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setIsRecording(false);
+      toast.info("Gravação finalizada. Processando...");
+    }
   };
 
   const handlePDISubmit = (data: PDIFormData) => {
-    createPDIFromOneOnOne({
-      oneOnOneId: oneOnOne.id,
-      collaboratorId: oneOnOne.collaborator_id,
-      data,
-    });
+    setMeetingData({ ...meetingData, pdi_mensal: data });
+    toast.success("PDI salvo!");
   };
 
-  const handleAddActionItem = () => {
-    if (newActionItem.description.trim()) {
-      createActionItem({
-        one_on_one_id: oneOnOne.id,
-        ...newActionItem,
-      });
-      setNewActionItem({
-        description: "",
-        assigned_to: oneOnOne.collaborator_id,
-        due_date: "",
-      });
+  const handleFinalize = async () => {
+    if (!audioBlob) {
+      toast.error("Nenhuma gravação encontrada");
+      return;
     }
-  };
 
-  const handleAudioRecording = (section: 'aquecimento' | 'desenvolvimento' | 'projecao', field: string) => {
-    return async (audioBase64: string, duration: number) => {
-      const text = await transcribeAudio(audioBase64);
-      if (text) {
-        setMeetingData(prev => ({
-          ...prev,
-          [section]: {
-            ...prev[section],
-            [field]: text
-          },
-          audio_metadata: {
-            ...prev.audio_metadata,
-            [`${section}_duration`]: (prev.audio_metadata?.[`${section}_duration` as keyof typeof prev.audio_metadata] || 0) + duration
-          }
-        }));
-      }
-    };
-  };
-
-  const handleGenerateSummary = async () => {
-    setIsGeneratingSummary(true);
     try {
-      const { data, error } = await supabase.functions.invoke('summarize-meeting', {
-        body: { meetingData }
+      setIsProcessing(true);
+      
+      // Convert audio to base64
+      const reader = new FileReader();
+      const audioBase64 = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
       });
 
-      if (error) throw error;
+      // Transcribe audio
+      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: audioBase64 }
+      });
 
-      if (data?.summary) {
-        setMeetingData(prev => ({
-          ...prev,
-          resumo: data.summary
-        }));
-        toast({
-          title: "Resumo gerado!",
-          description: "O resumo da reunião foi criado com sucesso.",
+      if (transcriptionError) throw transcriptionError;
+
+      const transcription = transcriptionData?.text || "";
+
+      // Generate summary
+      const { data: summaryData, error: summaryError } = await supabase.functions.invoke('summarize-meeting', {
+        body: { 
+          meetingData: {
+            ...meetingData,
+            transcricao: transcription
+          }
+        }
+      });
+
+      if (summaryError) throw summaryError;
+
+      const finalData = {
+        pdi_review: meetingData.pdi_review,
+        roteiro: meetingData.roteiro,
+        pdi_mensal: meetingData.pdi_mensal,
+        transcricao: transcription,
+        resumo: summaryData?.summary || "",
+        audio_duration: Math.floor((Date.now() - startTimeRef.current) / 1000)
+      };
+
+      // Save PDI if exists
+      if (meetingData.pdi_mensal) {
+        await createPDIFromOneOnOne({
+          oneOnOneId: oneOnOne.id,
+          collaboratorId: oneOnOne.collaborator_id,
+          data: meetingData.pdi_mensal,
         });
       }
+
+      // Save to database
+      const { error: updateError } = await supabase
+        .from("one_on_ones")
+        .update({
+          status: "completed",
+          meeting_structure: finalData as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", oneOnOne?.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("1:1 finalizado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
+      onOpenChange(false);
     } catch (error: any) {
-      console.error('Summary error:', error);
-      toast({
-        title: "Erro ao gerar resumo",
-        description: error.message || "Não foi possível gerar o resumo. Tente novamente.",
-        variant: "destructive",
-      });
+      console.error('Error finalizing meeting:', error);
+      toast.error("Erro ao finalizar reunião: " + error.message);
     } finally {
-      setIsGeneratingSummary(false);
+      setIsProcessing(false);
     }
   };
 
-  const hasContent = () => {
-    return Object.values(meetingData.aquecimento).some(v => v.trim()) ||
-           Object.values(meetingData.desenvolvimento).some(v => v.trim()) ||
-           Object.values(meetingData.projecao).some(v => v.trim());
+  const nextStep = () => {
+    if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
+    }
   };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const steps = [
+    { title: "Revisão PDI Anterior", key: "pdi_review" },
+    { title: "Roteiro", key: "roteiro" },
+    { title: "PDI Mensal", key: "pdi_mensal" },
+    { title: "Finalizar", key: "finalize" }
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Reunião 1:1 - {oneOnOne.collaborator?.full_name}</DialogTitle>
+          <DialogTitle>1:1 - {oneOnOne?.collaborator?.full_name}</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="revisao" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="revisao">Revisão PDI</TabsTrigger>
-            <TabsTrigger value="aquecimento">Aquecimento</TabsTrigger>
-            <TabsTrigger value="desenvolvimento">Desenvolvimento</TabsTrigger>
-            <TabsTrigger value="projecao">Projeção</TabsTrigger>
-            <TabsTrigger value="pdi">PDI Mensal</TabsTrigger>
-            <TabsTrigger value="action_items">Action Items</TabsTrigger>
-            <TabsTrigger value="resumo">Resumo</TabsTrigger>
-          </TabsList>
+        {/* Recording Status Bar */}
+        {!isRecording && currentStep === 0 && (
+          <div className="flex justify-center mb-6">
+            <Button onClick={startRecording} size="lg" className="gap-2">
+              <Mic className="h-5 w-5" />
+              Começar 1:1
+            </Button>
+          </div>
+        )}
 
-          {/* Tab: Revisão PDI Anterior */}
-          <TabsContent value="revisao" className="space-y-4">
-            {latestPDI && latestPDI.id !== existingPDI?.id ? (
-              <PDIReviewCard 
-                pdi={latestPDI}
-                onViewDetails={() => {
-                  // TODO: Open PDI details modal
-                }}
-              />
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhum PDI anterior encontrado para revisar.</p>
+        {isRecording && (
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+                <span className="font-medium">Gravando: {formatTime(recordingTime)}</span>
               </div>
-            )}
-          </TabsContent>
-
-          {/* Tab: Aquecimento */}
-          <TabsContent value="aquecimento" className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Como você está se sentindo neste mês?</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('aquecimento', 'feeling')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.aquecimento.feeling}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    aquecimento: { ...meetingData.aquecimento, feeling: e.target.value }
-                  })}
-                  placeholder="Tanto no trabalho quanto pessoalmente..."
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Satisfações ou insatisfações recentes</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('aquecimento', 'satisfactions')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.aquecimento.satisfactions}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    aquecimento: { ...meetingData.aquecimento, satisfactions: e.target.value }
-                  })}
-                  placeholder="Algo que te deixou especialmente satisfeito ou insatisfeito..."
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Fatores externos impactando motivação</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('aquecimento', 'external_factors')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.aquecimento.external_factors}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    aquecimento: { ...meetingData.aquecimento, external_factors: e.target.value }
-                  })}
-                  placeholder="Carga, ambiente, processos..."
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
+              <span className="text-sm text-muted-foreground">
+                A gravação continua durante todo o 1:1
+              </span>
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          {/* Tab: Desenvolvimento */}
-          <TabsContent value="desenvolvimento" className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Principais conquistas neste mês</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'achievements')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.desenvolvimento.achievements}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    desenvolvimento: { ...meetingData.desenvolvimento, achievements: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>O que funcionou bem no time/projetos</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'team_success')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.desenvolvimento.team_success}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    desenvolvimento: { ...meetingData.desenvolvimento, team_success: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Desafios enfrentados e apoio necessário</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'challenges')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.desenvolvimento.challenges}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    desenvolvimento: { ...meetingData.desenvolvimento, challenges: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Habilidades que precisa reforçar</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'skills_to_improve')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.desenvolvimento.skills_to_improve}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    desenvolvimento: { ...meetingData.desenvolvimento, skills_to_improve: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Alinhamento com cultura e valores da empresa</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'culture_alignment')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.desenvolvimento.culture_alignment}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    desenvolvimento: { ...meetingData.desenvolvimento, culture_alignment: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
+        {/* Progress Bar */}
+        {isRecording && (
+          <div className="mb-6">
+            <Progress value={(currentStep / 3) * 100} className="h-2" />
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+              {steps.map((step, idx) => (
+                <span key={idx} className={currentStep === idx ? "font-medium text-foreground" : ""}>
+                  {step.title}
+                </span>
+              ))}
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          {/* Tab: Projeção */}
-          <TabsContent value="projecao" className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>O que gostaria de alcançar no próximo mês</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('projecao', 'next_month_goals')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.projecao.next_month_goals}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    projecao: { ...meetingData.projecao, next_month_goals: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Aprendizado ou habilidade nova a desenvolver</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('projecao', 'learning')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.projecao.learning}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    projecao: { ...meetingData.projecao, learning: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Onde pode gerar mais impacto no time/projetos</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('projecao', 'impact_areas')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.projecao.impact_areas}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    projecao: { ...meetingData.projecao, impact_areas: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Mudanças desejadas na rotina ou processos</Label>
-                <AudioRecorder 
-                  onRecordingComplete={handleAudioRecording('projecao', 'desired_changes')}
-                  disabled={isTranscribing}
-                />
-                <Textarea
-                  value={meetingData.projecao.desired_changes}
-                  onChange={(e) => setMeetingData({
-                    ...meetingData,
-                    projecao: { ...meetingData.projecao, desired_changes: e.target.value }
-                  })}
-                  className="min-h-[80px]"
-                  disabled={isTranscribing}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Tab: PDI Mensal */}
-          <TabsContent value="pdi" className="space-y-4">
-            {existingPDI ? (
-              <div className="text-center py-8">
-                <Badge variant="default" className="mb-4">PDI já criado para esta 1:1</Badge>
-                <p className="text-sm text-muted-foreground">
-                  Um PDI já foi criado para esta reunião.
-                </p>
-              </div>
-            ) : (
-              <PDIFormIntegrated 
-                onSubmit={handlePDISubmit}
-                isSubmitting={isCreating}
-              />
-            )}
-          </TabsContent>
-
-          {/* Tab: Action Items */}
-          <TabsContent value="action_items" className="space-y-4">
-            <div className="space-y-4">
-              {/* Add new action item */}
-              <div className="border rounded-lg p-4 space-y-3">
-                <h3 className="font-semibold">Adicionar Action Item</h3>
-                <div className="space-y-2">
-                  <Label>Descrição</Label>
-                  <Input
-                    value={newActionItem.description}
-                    onChange={(e) => setNewActionItem({ ...newActionItem, description: e.target.value })}
-                    placeholder="Descreva o action item..."
+        {/* Step Content */}
+        {isRecording && (
+          <div className="space-y-6">
+            {currentStep === 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Revisão do PDI Anterior</h3>
+                {latestPDI && latestPDI.id !== existingPDI?.id ? (
+                  <PDIReviewCard 
+                    pdi={latestPDI}
+                    onViewDetails={() => {}}
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Responsável</Label>
-                    <Select
-                      value={newActionItem.assigned_to}
-                      onValueChange={(value) => setNewActionItem({ ...newActionItem, assigned_to: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={oneOnOne.leader_id}>
-                          {oneOnOne.leader?.full_name || "Líder"}
-                        </SelectItem>
-                        <SelectItem value={oneOnOne.collaborator_id}>
-                          {oneOnOne.collaborator?.full_name || "Colaborador"}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Data de vencimento</Label>
-                    <Input
-                      type="date"
-                      value={newActionItem.due_date}
-                      onChange={(e) => setNewActionItem({ ...newActionItem, due_date: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleAddActionItem} disabled={isCreatingAction} className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Action Item
-                </Button>
-              </div>
-
-              {/* List action items */}
-              <div className="space-y-2">
-                <h3 className="font-semibold">Action Items</h3>
-                {actionItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhum action item criado ainda.
-                  </p>
                 ) : (
-                  <div className="space-y-2">
-                    {actionItems.map((item) => (
-                      <div key={item.id} className="border rounded-lg p-3 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <p className="text-sm font-medium flex-1">{item.description}</p>
-                          <Badge variant={
-                            item.status === 'completed' ? 'default' : 
-                            item.status === 'in_progress' ? 'secondary' : 
-                            'outline'
-                          }>
-                            {item.status === 'completed' ? 'Concluído' : 
-                             item.status === 'in_progress' ? 'Em Progresso' : 
-                             'Pendente'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{item.assignee?.full_name}</span>
-                          {item.due_date && <span>Prazo: {new Date(item.due_date).toLocaleDateString()}</span>}
-                        </div>
-                        <Select
-                          value={item.status}
-                          onValueChange={(value) => updateActionItem({
-                            id: item.id,
-                            input: { status: value as any }
-                          })}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pendente</SelectItem>
-                            <SelectItem value="in_progress">Em Progresso</SelectItem>
-                            <SelectItem value="completed">Concluído</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Nenhum PDI anterior encontrado para revisar.</p>
                   </div>
                 )}
+                <Textarea
+                  value={meetingData.pdi_review}
+                  onChange={(e) => setMeetingData({ ...meetingData, pdi_review: e.target.value })}
+                  placeholder="Anote aqui os comentários sobre o PDI anterior..."
+                  className="min-h-[100px]"
+                />
               </div>
-            </div>
-          </TabsContent>
+            )}
 
-          {/* Tab: Resumo */}
-          <TabsContent value="resumo" className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Resumo da Reunião</h3>
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Roteiro da Reunião</h3>
+                <p className="text-sm text-muted-foreground">
+                  Anote aqui os principais tópicos discutidos durante a reunião 1:1
+                </p>
+                <Textarea
+                  value={meetingData.roteiro}
+                  onChange={(e) => setMeetingData({ ...meetingData, roteiro: e.target.value })}
+                  placeholder="• Como está se sentindo?
+• Satisfações e insatisfações
+• Principais conquistas
+• Desafios enfrentados
+• Metas para o próximo mês
+• Aprendizados desejados"
+                  className="min-h-[300px]"
+                />
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">PDI Mensal</h3>
+                {existingPDI ? (
+                  <div className="text-center py-8 space-y-4">
+                    <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+                    <p className="text-muted-foreground">
+                      PDI já criado para esta reunião.
+                    </p>
+                  </div>
+                ) : (
+                  <PDIFormIntegrated 
+                    onSubmit={handlePDISubmit}
+                    isSubmitting={isCreating}
+                  />
+                )}
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Finalizar 1:1</h3>
+                <div className="bg-muted p-6 rounded-lg text-center space-y-4">
+                  <p className="text-muted-foreground">
+                    Ao finalizar, a gravação será parada e processada pela AI para gerar:
+                  </p>
+                  <ul className="text-sm space-y-2">
+                    <li>✅ Transcrição completa da reunião</li>
+                    <li>✅ Resumo estruturado com principais pontos</li>
+                  </ul>
                   <p className="text-sm text-muted-foreground">
-                    Gere um resumo estruturado com IA baseado nos tópicos discutidos
+                    Tempo de gravação: <strong>{formatTime(recordingTime)}</strong>
                   </p>
                 </div>
-                <Button
-                  onClick={handleGenerateSummary}
-                  disabled={!hasContent() || isGeneratingSummary}
-                  className="gap-2"
-                >
-                  {isGeneratingSummary ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Gerar Resumo
-                    </>
-                  )}
-                </Button>
               </div>
-
-              {meetingData.resumo ? (
-                <div className="border rounded-lg p-4 space-y-2 bg-muted/30">
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <div 
-                      dangerouslySetInnerHTML={{ 
-                        __html: meetingData.resumo
-                          .replace(/## /g, '<h2 class="text-lg font-semibold mt-4 mb-2">')
-                          .replace(/\n/g, '<br/>')
-                      }} 
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setMeetingData(prev => ({ ...prev, resumo: "" }))}
-                    className="mt-4"
-                  >
-                    Limpar e Gerar Novo Resumo
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Nenhum resumo gerado ainda.</p>
-                  <p className="text-sm">Preencha os tópicos da reunião e clique em "Gerar Resumo"</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex justify-between items-center gap-2 pt-4 border-t">
-          <Button
-            variant="secondary"
-            onClick={handleGenerateSummary}
-            disabled={!hasContent() || isGeneratingSummary}
-            className="gap-2"
-          >
-            {isGeneratingSummary ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando Resumo...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Gerar Resumo do 1:1
-              </>
             )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex justify-between pt-6 border-t">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            disabled={isProcessing}
+          >
+            Cancelar
           </Button>
+          
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveMeetingData}>
-              Salvar e Finalizar Reunião
-            </Button>
+            {isRecording && currentStep < 3 && (
+              <Button onClick={nextStep} className="gap-2">
+                Próxima Etapa
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+            
+            {isRecording && currentStep === 3 && (
+              <Button 
+                onClick={() => {
+                  stopRecording();
+                  handleFinalize();
+                }}
+                disabled={isProcessing}
+                className="gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-4 w-4" />
+                    Finalizar 1:1
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
