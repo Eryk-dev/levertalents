@@ -1,0 +1,188 @@
+import { useState } from "react";
+import { Sidebar } from "@/components/Sidebar";
+import { Header } from "@/components/Header";
+import { useOneOnOnes } from "@/hooks/useOneOnOnes";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar, Clock, Plus, User } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export default function OneOnOnes() {
+  const [showForm, setShowForm] = useState(false);
+  const [selectedOneOnOne, setSelectedOneOnOne] = useState<any>(null);
+  const { oneOnOnes, isLoading, createOneOnOne } = useOneOnOnes();
+  const [formData, setFormData] = useState({
+    collaborator_id: "",
+    scheduled_date: "",
+    duration_minutes: 60,
+    agenda: "",
+  });
+
+  const { data: teamMembers } = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("team_members")
+        .select("user_id, profiles:user_id(id, full_name)");
+      return data;
+    },
+  });
+
+  const handleSubmit = () => {
+    createOneOnOne(formData);
+    setShowForm(false);
+    setFormData({ collaborator_id: "", scheduled_date: "", duration_minutes: 60, agenda: "" });
+  };
+
+  const statusMap = {
+    scheduled: { label: "Agendada", variant: "default" as const },
+    completed: { label: "Concluída", variant: "secondary" as const },
+    cancelled: { label: "Cancelada", variant: "destructive" as const },
+    rescheduled: { label: "Reagendada", variant: "outline" as const },
+  };
+
+  return (
+    <div className="flex min-h-screen w-full">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <Header />
+        <main className="flex-1 p-8 bg-background">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold">Reuniões 1:1</h1>
+                <p className="text-muted-foreground mt-1">Agende e acompanhe suas reuniões individuais</p>
+              </div>
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Agendar 1:1
+              </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {oneOnOnes.map((oneOnOne) => (
+                <Card key={oneOnOne.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedOneOnOne(oneOnOne)}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {oneOnOne.collaborator?.full_name}
+                        </CardTitle>
+                        <CardDescription className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {format(new Date(oneOnOne.scheduled_date), "dd 'de' MMMM, HH:mm", { locale: ptBR })}
+                        </CardDescription>
+                      </div>
+                      <Badge variant={statusMap[oneOnOne.status].variant}>
+                        {statusMap[oneOnOne.status].label}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        {oneOnOne.duration_minutes} minutos
+                      </div>
+                      {oneOnOne.agenda && (
+                        <p className="text-sm line-clamp-2">{oneOnOne.agenda}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Agendar Nova 1:1</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Colaborador</Label>
+                  <Select value={formData.collaborator_id} onValueChange={(v) => setFormData({...formData, collaborator_id: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamMembers?.map((m: any) => (
+                        <SelectItem key={m.user_id} value={m.user_id}>{m.profiles.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Data e Hora</Label>
+                  <Input type="datetime-local" value={formData.scheduled_date} onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Duração (minutos)</Label>
+                  <Input type="number" value={formData.duration_minutes} onChange={(e) => setFormData({...formData, duration_minutes: Number(e.target.value)})} />
+                </div>
+                <div>
+                  <Label>Pauta</Label>
+                  <Textarea value={formData.agenda} onChange={(e) => setFormData({...formData, agenda: e.target.value})} placeholder="Tópicos a serem discutidos..." />
+                </div>
+                <Button onClick={handleSubmit} className="w-full">Agendar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!selectedOneOnOne} onOpenChange={() => setSelectedOneOnOne(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Detalhes da 1:1</DialogTitle>
+              </DialogHeader>
+              {selectedOneOnOne && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Colaborador</p>
+                      <p className="font-semibold">{selectedOneOnOne.collaborator?.full_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Líder</p>
+                      <p className="font-semibold">{selectedOneOnOne.leader?.full_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Data e Hora</p>
+                      <p className="font-semibold">{format(new Date(selectedOneOnOne.scheduled_date), "dd/MM/yyyy 'às' HH:mm")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Duração</p>
+                      <p className="font-semibold">{selectedOneOnOne.duration_minutes} minutos</p>
+                    </div>
+                  </div>
+                  {selectedOneOnOne.agenda && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Pauta</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedOneOnOne.agenda}</p>
+                    </div>
+                  )}
+                  {selectedOneOnOne.notes && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Notas</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedOneOnOne.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </main>
+      </div>
+    </div>
+  );
+}

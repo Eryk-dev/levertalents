@@ -13,6 +13,10 @@ import RHDashboard from "./pages/RHDashboard";
 import SocioDashboard from "./pages/SocioDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Evaluations from "./pages/Evaluations";
+import OneOnOnes from "./pages/OneOnOnes";
+import Climate from "./pages/Climate";
+import DevelopmentPlans from "./pages/DevelopmentPlans";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +57,10 @@ const App = () => {
             <Route path="/socio" element={isAuthenticated ? <SocioDashboard /> : <Navigate to="/auth" />} />
             <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/auth" />} />
             <Route path="/avaliacoes" element={isAuthenticated ? <Evaluations /> : <Navigate to="/auth" />} />
+            <Route path="/11s" element={isAuthenticated ? <OneOnOnes /> : <Navigate to="/auth" />} />
+            <Route path="/clima" element={isAuthenticated ? <Climate /> : <Navigate to="/auth" />} />
+            <Route path="/pdi" element={isAuthenticated ? <DevelopmentPlans /> : <Navigate to="/auth" />} />
+            <Route path="/perfil" element={isAuthenticated ? <Profile /> : <Navigate to="/auth" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -4,7 +4,7 @@ import logo from "@/assets/lever-logo.png";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { icon: Home, label: "Início", path: "/" },
+  { icon: Home, label: "Início", path: "/colaborador" },
   { icon: FileText, label: "Avaliações", path: "/avaliacoes" },
   { icon: Calendar, label: "1:1s", path: "/11s" },
   { icon: TrendingUp, label: "Meu Clima", path: "/clima" },
