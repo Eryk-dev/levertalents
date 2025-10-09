@@ -10,9 +10,13 @@ import { useActionItems } from "@/hooks/useActionItems";
 import { PDIFormIntegrated } from "./PDIFormIntegrated";
 import { PDIReviewCard } from "./PDIReviewCard";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AudioRecorder } from "./AudioRecorder";
+import { useAudioTranscription } from "@/hooks/useAudioTranscription";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface OneOnOneMeetingFormProps {
   oneOnOne: OneOnOne;
@@ -42,15 +46,24 @@ interface MeetingData {
   encerramento: {
     support_needed: string;
   };
+  resumo?: string;
+  audio_metadata?: {
+    aquecimento_duration?: number;
+    desenvolvimento_duration?: number;
+    projecao_duration?: number;
+  };
 }
 
 export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMeetingFormProps) => {
   const { updateOneOnOne } = useOneOnOnes();
   const { getPDIFromOneOnOne, getLatestPDIForCollaborator, createPDIFromOneOnOne, isCreating } = usePDIIntegrated();
   const { actionItems, createActionItem, updateActionItem, isCreating: isCreatingAction } = useActionItems(oneOnOne.id);
+  const { transcribeAudio, isTranscribing } = useAudioTranscription();
   
   const { data: existingPDI } = getPDIFromOneOnOne(oneOnOne.id);
   const { data: latestPDI } = getLatestPDIForCollaborator(oneOnOne.collaborator_id);
+
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const [meetingData, setMeetingData] = useState<MeetingData>({
     aquecimento: {
@@ -74,6 +87,8 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
     encerramento: {
       support_needed: (oneOnOne.meeting_structure as any)?.encerramento?.support_needed || "",
     },
+    resumo: (oneOnOne.meeting_structure as any)?.resumo || "",
+    audio_metadata: (oneOnOne.meeting_structure as any)?.audio_metadata || {},
   });
 
   const [newActionItem, setNewActionItem] = useState({
@@ -114,6 +129,62 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
     }
   };
 
+  const handleAudioRecording = (section: 'aquecimento' | 'desenvolvimento' | 'projecao', field: string) => {
+    return async (audioBase64: string, duration: number) => {
+      const text = await transcribeAudio(audioBase64);
+      if (text) {
+        setMeetingData(prev => ({
+          ...prev,
+          [section]: {
+            ...prev[section],
+            [field]: text
+          },
+          audio_metadata: {
+            ...prev.audio_metadata,
+            [`${section}_duration`]: (prev.audio_metadata?.[`${section}_duration` as keyof typeof prev.audio_metadata] || 0) + duration
+          }
+        }));
+      }
+    };
+  };
+
+  const handleGenerateSummary = async () => {
+    setIsGeneratingSummary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('summarize-meeting', {
+        body: { meetingData }
+      });
+
+      if (error) throw error;
+
+      if (data?.summary) {
+        setMeetingData(prev => ({
+          ...prev,
+          resumo: data.summary
+        }));
+        toast({
+          title: "Resumo gerado!",
+          description: "O resumo da reunião foi criado com sucesso.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Summary error:', error);
+      toast({
+        title: "Erro ao gerar resumo",
+        description: error.message || "Não foi possível gerar o resumo. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const hasContent = () => {
+    return Object.values(meetingData.aquecimento).some(v => v.trim()) ||
+           Object.values(meetingData.desenvolvimento).some(v => v.trim()) ||
+           Object.values(meetingData.projecao).some(v => v.trim());
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -122,13 +193,14 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
         </DialogHeader>
 
         <Tabs defaultValue="revisao" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="revisao">Revisão PDI</TabsTrigger>
             <TabsTrigger value="aquecimento">Aquecimento</TabsTrigger>
             <TabsTrigger value="desenvolvimento">Desenvolvimento</TabsTrigger>
             <TabsTrigger value="projecao">Projeção</TabsTrigger>
             <TabsTrigger value="pdi">PDI Mensal</TabsTrigger>
             <TabsTrigger value="action_items">Action Items</TabsTrigger>
+            <TabsTrigger value="resumo">Resumo</TabsTrigger>
           </TabsList>
 
           {/* Tab: Revisão PDI Anterior */}
@@ -152,6 +224,10 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Como você está se sentindo neste mês?</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('aquecimento', 'feeling')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.aquecimento.feeling}
                   onChange={(e) => setMeetingData({
@@ -160,11 +236,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                   })}
                   placeholder="Tanto no trabalho quanto pessoalmente..."
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Satisfações ou insatisfações recentes</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('aquecimento', 'satisfactions')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.aquecimento.satisfactions}
                   onChange={(e) => setMeetingData({
@@ -173,11 +254,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                   })}
                   placeholder="Algo que te deixou especialmente satisfeito ou insatisfeito..."
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Fatores externos impactando motivação</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('aquecimento', 'external_factors')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.aquecimento.external_factors}
                   onChange={(e) => setMeetingData({
@@ -186,6 +272,7 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                   })}
                   placeholder="Carga, ambiente, processos..."
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
             </div>
@@ -196,6 +283,10 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Principais conquistas neste mês</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'achievements')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.desenvolvimento.achievements}
                   onChange={(e) => setMeetingData({
@@ -203,11 +294,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     desenvolvimento: { ...meetingData.desenvolvimento, achievements: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>O que funcionou bem no time/projetos</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'team_success')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.desenvolvimento.team_success}
                   onChange={(e) => setMeetingData({
@@ -215,11 +311,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     desenvolvimento: { ...meetingData.desenvolvimento, team_success: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Desafios enfrentados e apoio necessário</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'challenges')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.desenvolvimento.challenges}
                   onChange={(e) => setMeetingData({
@@ -227,11 +328,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     desenvolvimento: { ...meetingData.desenvolvimento, challenges: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Habilidades que precisa reforçar</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'skills_to_improve')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.desenvolvimento.skills_to_improve}
                   onChange={(e) => setMeetingData({
@@ -239,11 +345,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     desenvolvimento: { ...meetingData.desenvolvimento, skills_to_improve: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Alinhamento com cultura e valores da empresa</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('desenvolvimento', 'culture_alignment')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.desenvolvimento.culture_alignment}
                   onChange={(e) => setMeetingData({
@@ -251,6 +362,7 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     desenvolvimento: { ...meetingData.desenvolvimento, culture_alignment: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
             </div>
@@ -261,6 +373,10 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>O que gostaria de alcançar no próximo mês</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('projecao', 'next_month_goals')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.projecao.next_month_goals}
                   onChange={(e) => setMeetingData({
@@ -268,11 +384,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     projecao: { ...meetingData.projecao, next_month_goals: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Aprendizado ou habilidade nova a desenvolver</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('projecao', 'learning')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.projecao.learning}
                   onChange={(e) => setMeetingData({
@@ -280,11 +401,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     projecao: { ...meetingData.projecao, learning: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Onde pode gerar mais impacto no time/projetos</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('projecao', 'impact_areas')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.projecao.impact_areas}
                   onChange={(e) => setMeetingData({
@@ -292,11 +418,16 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     projecao: { ...meetingData.projecao, impact_areas: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Mudanças desejadas na rotina ou processos</Label>
+                <AudioRecorder 
+                  onRecordingComplete={handleAudioRecording('projecao', 'desired_changes')}
+                  disabled={isTranscribing}
+                />
                 <Textarea
                   value={meetingData.projecao.desired_changes}
                   onChange={(e) => setMeetingData({
@@ -304,6 +435,7 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
                     projecao: { ...meetingData.projecao, desired_changes: e.target.value }
                   })}
                   className="min-h-[80px]"
+                  disabled={isTranscribing}
                 />
               </div>
             </div>
@@ -425,15 +557,94 @@ export const OneOnOneMeetingForm = ({ oneOnOne, open, onOpenChange }: OneOnOneMe
               </div>
             </div>
           </TabsContent>
+
+          {/* Tab: Resumo */}
+          <TabsContent value="resumo" className="space-y-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Resumo da Reunião</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Gere um resumo estruturado com IA baseado nos tópicos discutidos
+                  </p>
+                </div>
+                <Button
+                  onClick={handleGenerateSummary}
+                  disabled={!hasContent() || isGeneratingSummary}
+                  className="gap-2"
+                >
+                  {isGeneratingSummary ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Gerar Resumo
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {meetingData.resumo ? (
+                <div className="border rounded-lg p-4 space-y-2 bg-muted/30">
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <div 
+                      dangerouslySetInnerHTML={{ 
+                        __html: meetingData.resumo
+                          .replace(/## /g, '<h2 class="text-lg font-semibold mt-4 mb-2">')
+                          .replace(/\n/g, '<br/>')
+                      }} 
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMeetingData(prev => ({ ...prev, resumo: "" }))}
+                    className="mt-4"
+                  >
+                    Limpar e Gerar Novo Resumo
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Nenhum resumo gerado ainda.</p>
+                  <p className="text-sm">Preencha os tópicos da reunião e clique em "Gerar Resumo"</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+        <div className="flex justify-between items-center gap-2 pt-4 border-t">
+          <Button
+            variant="secondary"
+            onClick={handleGenerateSummary}
+            disabled={!hasContent() || isGeneratingSummary}
+            className="gap-2"
+          >
+            {isGeneratingSummary ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Gerando Resumo...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Gerar Resumo do 1:1
+              </>
+            )}
           </Button>
-          <Button onClick={handleSaveMeetingData}>
-            Salvar e Finalizar Reunião
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveMeetingData}>
+              Salvar e Finalizar Reunião
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

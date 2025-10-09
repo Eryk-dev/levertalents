@@ -1,1 +1,7 @@
 project_id = "neewgjxntjyfvwbwdwgf"
+
+[functions.transcribe-audio]
+verify_jwt = false
+
+[functions.summarize-meeting]
+verify_jwt = false
