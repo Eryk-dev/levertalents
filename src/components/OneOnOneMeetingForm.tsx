@@ -151,14 +151,30 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       return;
     }
 
+    setIsProcessing(true);
+    
     try {
-      setIsProcessing(true);
-      toast.info("Sua 1:1 foi registrada! Você terá a transcrição e resumo em instantes.");
-      
-      // Upload audio to storage
+      // 1. Atualizar status para "processing" e fechar modal IMEDIATAMENTE
+      const { error: statusUpdateError } = await supabase
+        .from('one_on_ones')
+        .update({
+          status: 'processing',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', oneOnOne.id);
+
+      if (statusUpdateError) throw statusUpdateError;
+
+      // Invalidar queries e fechar modal
+      queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
+      toast.info("Processando transcrição e resumo...");
+      onOpenChange(false);
+
+      // 2. Processar em background (upload, transcrição, resumo)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
       
+      // Upload audio
       const audioFileName = `${user.id}/${oneOnOne.id}_${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage
         .from('meeting-recordings')
@@ -195,14 +211,24 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
       const transcription = transcriptionData?.text || "";
 
-      // Generate summary
+      // Generate summary with complete data
+      const meetingDataForSummary = {
+        transcricao: transcription,
+        leader: {
+          id: oneOnOne.leader_id,
+          name: oneOnOne.leader?.full_name || 'Líder'
+        },
+        collaborator: {
+          id: oneOnOne.collaborator_id,
+          name: oneOnOne.collaborator?.full_name || 'Colaborador'
+        },
+        pdi_review: meetingData.pdi_review,
+        roteiro: meetingData.roteiro,
+        pdi_mensal: meetingData.pdi_mensal,
+      };
+
       const { data: summaryData, error: summaryError } = await supabase.functions.invoke('summarize-meeting', {
-        body: { 
-          meetingData: {
-            ...meetingData,
-            transcricao: transcription
-          }
-        }
+        body: { meetingData: meetingDataForSummary }
       });
 
       if (summaryError) throw summaryError;
@@ -226,24 +252,31 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         });
       }
 
-      // Save to database
-      const { error: updateError } = await supabase
+      // 3. Update final data and status to "completed"
+      const { error: finalUpdateError } = await supabase
         .from("one_on_ones")
         .update({
           status: "completed",
           meeting_structure: finalData as any,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", oneOnOne?.id);
+        .eq("id", oneOnOne.id);
 
-      if (updateError) throw updateError;
+      if (finalUpdateError) throw finalUpdateError;
 
-      toast.success("1:1 finalizado com sucesso! Transcrição e resumo foram gerados.");
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      onOpenChange(false);
+      toast.success("1:1 finalizada! Transcrição e resumo disponíveis.");
     } catch (error: any) {
       console.error('Error finalizing meeting:', error);
-      toast.error("Erro ao finalizar reunião: " + error.message);
+      toast.error("Erro ao finalizar: " + error.message);
+      
+      // Reverter status em caso de erro
+      await supabase
+        .from('one_on_ones')
+        .update({ status: 'scheduled' })
+        .eq('id', oneOnOne.id);
+      
+      queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
     } finally {
       setIsProcessing(false);
       setShouldFinalize(false);

@@ -21,35 +21,51 @@ serve(async (req) => {
 
     const prompt = `Você é um assistente especializado em resumir reuniões 1:1 entre líderes e colaboradores. 
 
-Analise os dados da reunião abaixo e crie um resumo estruturado em português do Brasil seguindo este formato:
+Analise a TRANSCRIÇÃO da reunião abaixo e crie um resumo estruturado em português do Brasil focando nos **itens mais relevantes** discutidos.
 
-## 📋 Principais Pontos Discutidos
-[Liste os tópicos mais importantes mencionados]
+## Participantes da Reunião
+- **Líder:** ${meetingData.leader?.name || 'Não informado'}
+- **Colaborador:** ${meetingData.collaborator?.name || 'Não informado'}
 
-## 🎯 Conquistas e Sucessos
-[Destaque realizações e pontos positivos]
+## Formato do Resumo
 
-## ⚠️ Desafios e Necessidades
-[Identifique obstáculos e necessidades de suporte]
+### 📋 Principais Pontos Discutidos
+[Baseie-se NA TRANSCRIÇÃO para listar os tópicos MAIS IMPORTANTES mencionados durante a conversa]
 
-## 🚀 Próximos Passos
-[Liste ações concretas e comprometimentos]
+### 🎯 Conquistas e Sucessos
+[Destaque realizações e pontos positivos mencionados NA TRANSCRIÇÃO]
 
-## 💡 Recomendações
-[Sugira áreas de desenvolvimento e oportunidades]
+### ⚠️ Desafios Identificados
+[Liste obstáculos e necessidades de suporte discutidos NA CONVERSA]
 
-Dados da reunião:
+### 🚀 Ações Definidas
+[Liste ações concretas e comprometimentos mencionados NA REUNIÃO]
 
-**Aquecimento:**
-${JSON.stringify(meetingData.aquecimento, null, 2)}
+### 📅 Próximos Passos
+[Indique próximos passos e acompanhamentos combinados]
 
-**Desenvolvimento:**
-${JSON.stringify(meetingData.desenvolvimento, null, 2)}
+---
 
-**Projeção:**
-${JSON.stringify(meetingData.projecao, null, 2)}
+## Dados da Reunião
 
-Seja objetivo, profissional e mantenha o tom positivo e construtivo. Use markdown para formatação.`;
+**Transcrição da Conversa (FONTE PRINCIPAL):**
+${meetingData.transcricao || 'Não disponível'}
+
+**Contexto Adicional:**
+
+${meetingData.pdi_review ? `- Revisão do PDI anterior: ${meetingData.pdi_review}` : ''}
+${meetingData.roteiro ? `- Roteiro/Notas: ${meetingData.roteiro}` : ''}
+${meetingData.pdi_mensal?.main_objective ? `- Novo PDI criado: ${meetingData.pdi_mensal.main_objective}` : ''}
+
+---
+
+**INSTRUÇÕES IMPORTANTES:**
+- Base seu resumo PRINCIPALMENTE na TRANSCRIÇÃO da conversa
+- Foque nos itens MAIS RELEVANTES, não liste tudo
+- Seja objetivo e profissional
+- Use markdown para formatação
+- Mantenha tom positivo e construtivo
+- Se a transcrição estiver vazia ou incompleta, mencione isso claramente no resumo`;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {

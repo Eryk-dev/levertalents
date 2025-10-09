@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { useClimateSurveys } from "@/hooks/useClimateSurveys";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,16 +11,22 @@ import { Progress } from "@/components/ui/progress";
 import { TrendingUp, Users, Calendar } from "lucide-react";
 
 export default function Climate() {
+  const navigate = useNavigate();
   const { surveys, isLoading } = useClimateSurveys();
 
   const activeSurveys = surveys.filter(s => s.status === 'active');
   const averageScore = 4.2; // Mock data
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   return (
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div>

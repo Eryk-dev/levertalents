@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,11 +28,17 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function CompanyManagement() {
+  const navigate = useNavigate();
   const { companies, loading, refresh } = useTeams();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
 
   const handleSaveCompany = async () => {
     if (!companyName) return;
@@ -96,7 +103,7 @@ export default function CompanyManagement() {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-6">
             <div>

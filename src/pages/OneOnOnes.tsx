@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
+import { useNavigate } from "react-router-dom";
 import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,12 +21,18 @@ import { OneOnOneMeetingForm } from "@/components/OneOnOneMeetingForm";
 import { usePDIIntegrated } from "@/hooks/usePDIIntegrated";
 
 export default function OneOnOnes() {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [selectedOneOnOne, setSelectedOneOnOne] = useState<OneOnOne | null>(null);
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingFormOneOnOne, setMeetingFormOneOnOne] = useState<OneOnOne | null>(null);
   const { oneOnOnes, isLoading, createOneOnOne } = useOneOnOnes();
   const { hasPDIForOneOnOne } = usePDIIntegrated();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
   const [formData, setFormData] = useState({
     collaborator_id: "",
     scheduled_date: "",
@@ -101,7 +108,8 @@ export default function OneOnOnes() {
 
   const statusMap = {
     scheduled: { label: "Agendada", variant: "default" as const },
-    completed: { label: "Concluída", variant: "secondary" as const },
+    processing: { label: "Processando", variant: "secondary" as const },
+    completed: { label: "Concluída", variant: "outline" as const },
     cancelled: { label: "Cancelada", variant: "destructive" as const },
     rescheduled: { label: "Reagendada", variant: "outline" as const },
   };
@@ -110,7 +118,7 @@ export default function OneOnOnes() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">

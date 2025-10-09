@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,9 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 
 export default function DevelopmentPlans() {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const { plans, isLoading, createPlan } = useDevelopmentPlans();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -45,7 +53,7 @@ export default function DevelopmentPlans() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
