@@ -44,6 +44,13 @@ export default function CreateUser() {
     try {
       setIsLoading(true);
 
+      // Save current admin session
+      const { data: { session: adminSession } } = await supabase.auth.getSession();
+      
+      if (!adminSession) {
+        throw new Error("Sessão administrativa não encontrada");
+      }
+
       // 1. Create user in auth.users
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
@@ -59,7 +66,15 @@ export default function CreateUser() {
       if (authError) throw authError;
       if (!authData.user) throw new Error("Erro ao criar usuário");
 
-      // 2. Update profile with additional info
+      const newUserId = authData.user.id;
+
+      // 2. Restore admin session immediately
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+
+      // 3. Update profile with additional info
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -67,15 +82,15 @@ export default function CreateUser() {
           department: data.department || null,
           hire_date: data.hireDate || null,
         })
-        .eq("id", authData.user.id);
+        .eq("id", newUserId);
 
       if (profileError) throw profileError;
 
-      // 3. Assign role
+      // 4. Assign role (now with admin session restored)
       const { error: roleError } = await supabase
         .from("user_roles")
         .insert({
-          user_id: authData.user.id,
+          user_id: newUserId,
           role: data.role,
         });
 
