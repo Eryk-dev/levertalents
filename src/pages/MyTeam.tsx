@@ -21,13 +21,14 @@ export default function MyTeam() {
         .from("team_members")
         .select(`
           *,
-          user:profiles!team_members_user_id_fkey(id, full_name, avatar_url, email, phone, department, hire_date),
+          user:profiles!team_members_user_id_fkey(id, full_name, avatar_url, phone, department, hire_date),
           team:teams(name)
         `)
         .eq("leader_id", user.id);
 
       return data || [];
     },
+    refetchOnMount: true,
   });
 
   const handleLogout = async () => {
@@ -79,12 +80,6 @@ export default function MyTeam() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {member.user?.email && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground truncate">{member.user.email}</span>
-                        </div>
-                      )}
                       {member.user?.phone && (
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="h-4 w-4 text-muted-foreground" />

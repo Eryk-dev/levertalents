@@ -6,23 +6,28 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, TrendingUp, Trash2 } from "lucide-react";
+import { Plus, Target, TrendingUp, Trash2, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ManualPDIForm } from "@/components/ManualPDIForm";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DevelopmentPlans() {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const { plans, isLoading, createPlan, deletePlan } = useDevelopmentPlans();
+  const { userRole } = useAuth();
+  const isLeaderOrRHSocio = userRole === "lider" || userRole === "rh" || userRole === "socio";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -69,10 +74,18 @@ export default function DevelopmentPlans() {
                 <h1 className="text-3xl font-bold">Plano de Desenvolvimento Individual (PDI)</h1>
                 <p className="text-muted-foreground mt-1">Gerencie seu desenvolvimento profissional</p>
               </div>
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo PDI
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setShowForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo PDI
+                </Button>
+                {isLeaderOrRHSocio && (
+                  <Button variant="outline" onClick={() => setShowManualForm(true)}>
+                    <History className="h-4 w-4 mr-2" />
+                    Adicionar PDI Antigo
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -303,6 +316,21 @@ export default function DevelopmentPlans() {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showManualForm} onOpenChange={setShowManualForm}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Adicionar PDI Antigo</DialogTitle>
+                <DialogDescription>
+                  Cadastre um PDI com datas retroativas para manter o histórico completo
+                </DialogDescription>
+              </DialogHeader>
+              <ManualPDIForm
+                onSuccess={() => setShowManualForm(false)}
+                onCancel={() => setShowManualForm(false)}
+              />
             </DialogContent>
           </Dialog>
 
