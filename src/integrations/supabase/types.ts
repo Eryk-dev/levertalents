@@ -14,6 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
+      climate_questions: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          question_order: number
+          question_text: string
+          survey_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          question_order: number
+          question_text: string
+          survey_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          question_order?: number
+          question_text?: string
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "climate_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "climate_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      climate_responses: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          question_id: string
+          score: number
+          survey_id: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          question_id: string
+          score: number
+          survey_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          question_id?: string
+          score?: number
+          survey_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "climate_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "climate_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "climate_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "climate_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "climate_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      climate_surveys: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          end_date: string
+          id: string
+          start_date: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          end_date: string
+          id?: string
+          start_date: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "climate_surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -32,26 +163,382 @@ export type Database = {
         }
         Relationships: []
       }
+      development_plan_updates: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          id: string
+          plan_id: string
+          progress_change: number | null
+          update_text: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          id?: string
+          plan_id: string
+          progress_change?: number | null
+          update_text: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          plan_id?: string
+          progress_change?: number | null
+          update_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_plan_updates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_plan_updates_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "development_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      development_plans: {
+        Row: {
+          action_items: string
+          approved_at: string | null
+          approved_by: string | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          development_area: string
+          goals: string
+          id: string
+          progress_percentage: number | null
+          status: string | null
+          timeline: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          action_items: string
+          approved_at?: string | null
+          approved_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          development_area: string
+          goals: string
+          id?: string
+          progress_percentage?: number | null
+          status?: string | null
+          timeline?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          action_items?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          development_area?: string
+          goals?: string
+          id?: string
+          progress_percentage?: number | null
+          status?: string | null
+          timeline?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_plans_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluations: {
+        Row: {
+          areas_for_improvement: string | null
+          behavioral_score: number | null
+          comments: string | null
+          created_at: string | null
+          evaluated_user_id: string
+          evaluator_user_id: string
+          id: string
+          leadership_score: number | null
+          overall_score: number | null
+          period: string
+          status: string | null
+          strengths: string | null
+          technical_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          areas_for_improvement?: string | null
+          behavioral_score?: number | null
+          comments?: string | null
+          created_at?: string | null
+          evaluated_user_id: string
+          evaluator_user_id: string
+          id?: string
+          leadership_score?: number | null
+          overall_score?: number | null
+          period: string
+          status?: string | null
+          strengths?: string | null
+          technical_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          areas_for_improvement?: string | null
+          behavioral_score?: number | null
+          comments?: string | null
+          created_at?: string | null
+          evaluated_user_id?: string
+          evaluator_user_id?: string
+          id?: string
+          leadership_score?: number | null
+          overall_score?: number | null
+          period?: string
+          status?: string | null
+          strengths?: string | null
+          technical_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluations_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluations_evaluator_user_id_fkey"
+            columns: ["evaluator_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      one_on_one_action_items: {
+        Row: {
+          assigned_to: string
+          completed_at: string | null
+          created_at: string | null
+          description: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          one_on_one_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to: string
+          completed_at?: string | null
+          created_at?: string | null
+          description: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          one_on_one_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          one_on_one_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "one_on_one_action_items_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_action_items_one_on_one_id_fkey"
+            columns: ["one_on_one_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_ones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      one_on_ones: {
+        Row: {
+          agenda: string | null
+          collaborator_feedback: string | null
+          collaborator_id: string
+          created_at: string | null
+          duration_minutes: number | null
+          id: string
+          leader_feedback: string | null
+          leader_id: string
+          notes: string | null
+          scheduled_date: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agenda?: string | null
+          collaborator_feedback?: string | null
+          collaborator_id: string
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          leader_feedback?: string | null
+          leader_id: string
+          notes?: string | null
+          scheduled_date: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agenda?: string | null
+          collaborator_feedback?: string | null
+          collaborator_id?: string
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          leader_feedback?: string | null
+          leader_id?: string
+          notes?: string | null
+          scheduled_date?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "one_on_ones_collaborator_id_fkey"
+            columns: ["collaborator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_ones_leader_id_fkey"
+            columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          related_id: string | null
+          status: string | null
+          task_type: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          related_id?: string | null
+          status?: string | null
+          task_type: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          related_id?: string | null
+          status?: string | null
+          task_type?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string | null
+          department: string | null
           full_name: string
+          hire_date: string | null
           id: string
+          phone: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string | null
+          department?: string | null
           full_name: string
+          hire_date?: string | null
           id: string
+          phone?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string | null
+          department?: string | null
           full_name?: string
+          hire_date?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string | null
         }
         Relationships: []
