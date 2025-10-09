@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { OneOnOneMeetingForm } from "@/components/OneOnOneMeetingForm";
 import { usePDIIntegrated } from "@/hooks/usePDIIntegrated";
+import { LinkedPDIsSection } from "@/components/LinkedPDIsSection";
 
 export default function OneOnOnes() {
   const navigate = useNavigate();
@@ -290,7 +291,7 @@ export default function OneOnOnes() {
 
           {/* Read-only Details Modal */}
           <Dialog open={!!selectedOneOnOne} onOpenChange={() => setSelectedOneOnOne(null)}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Detalhes da 1:1</DialogTitle>
               </DialogHeader>
@@ -314,6 +315,10 @@ export default function OneOnOnes() {
                       <p className="font-semibold">{selectedOneOnOne.duration_minutes} minutos</p>
                     </div>
                   </div>
+                  
+                  {/* PDIs Vinculados */}
+                  <LinkedPDIsSection oneOnOneId={selectedOneOnOne.id} />
+                  
                   {selectedOneOnOne.agenda && (
                     <div>
                       <h3 className="font-semibold mb-2">Pauta</h3>

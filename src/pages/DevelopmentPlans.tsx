@@ -18,6 +18,8 @@ import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ManualPDIForm } from "@/components/ManualPDIForm";
 import { useAuth } from "@/hooks/useAuth";
+import { LinkPDIToOneOnOne } from "@/components/LinkPDIToOneOnOne";
+import { ExternalLink } from "lucide-react";
 
 export default function DevelopmentPlans() {
   const navigate = useNavigate();
@@ -131,6 +133,11 @@ export default function DevelopmentPlans() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 cursor-pointer" onClick={() => setSelectedPlan(plan)}>
                         <CardTitle className="text-lg">{plan.title}</CardTitle>
+                        {plan.user && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Colaborador: {plan.user.full_name}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Badge variant={statusMap[plan.status].variant}>
@@ -226,13 +233,31 @@ export default function DevelopmentPlans() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold text-xl">{selectedPlan.title}</h3>
+                    {selectedPlan.user && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Colaborador: {selectedPlan.user.full_name}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant={statusMap[selectedPlan.status].variant}>
                         {statusMap[selectedPlan.status].label}
                       </Badge>
                       {selectedPlan.one_on_one_id && (
-                        <Badge variant="outline">Vinculado a 1:1</Badge>
+                        <Badge 
+                          variant="outline" 
+                          className="cursor-pointer hover:bg-accent"
+                          onClick={() => navigate(`/11s`)}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Ver 1:1
+                        </Badge>
                       )}
+                    </div>
+                    <div className="mt-3">
+                      <LinkPDIToOneOnOne 
+                        pdiId={selectedPlan.id} 
+                        currentOneOnOneId={selectedPlan.one_on_one_id}
+                      />
                     </div>
                   </div>
                   
