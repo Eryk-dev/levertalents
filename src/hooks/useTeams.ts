@@ -82,7 +82,11 @@ export function useTeams() {
       `)
       .order("name");
 
-    if (error) throw error;
+    if (error) {
+      console.error("Erro ao carregar times:", error);
+      toast.error("Erro ao carregar times");
+      throw error;
+    }
     setTeams(data || []);
   };
 
@@ -91,7 +95,11 @@ export function useTeams() {
       .from("team_members")
       .select("*");
 
-    if (error) throw error;
+    if (error) {
+      console.error("Erro ao carregar membros dos times:", error);
+      toast.error("Erro ao carregar membros dos times");
+      throw error;
+    }
 
     // Load profiles separately
     const userIds = data?.map((m) => m.user_id) || [];
