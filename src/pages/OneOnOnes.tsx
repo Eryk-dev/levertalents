@@ -56,8 +56,8 @@ export default function OneOnOnes() {
           .neq("id", user.id);
         
         userIds = allProfiles?.map(p => p.id) || [];
-      } else {
-        // If leader, get only team members
+      } else if (roleData?.role === 'lider') {
+        // If leader, get only their team members
         const { data } = await supabase
           .from("team_members")
           .select("user_id")
