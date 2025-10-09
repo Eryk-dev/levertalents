@@ -155,7 +155,24 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       setIsProcessing(true);
       toast.info("Sua 1:1 foi registrada! Você terá a transcrição e resumo em instantes.");
       
-      // Convert audio to base64
+      // Upload audio to storage
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+      
+      const audioFileName = `${user.id}/${oneOnOne.id}_${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('meeting-recordings')
+        .upload(audioFileName, audioBlob, {
+          contentType: 'audio/webm',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Erro ao fazer upload do áudio: ' + uploadError.message);
+      }
+
+      // Convert audio to base64 for transcription
       const reader = new FileReader();
       const audioBase64 = await new Promise<string>((resolve, reject) => {
         reader.onloadend = () => {
@@ -196,7 +213,8 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         pdi_mensal: meetingData.pdi_mensal,
         transcricao: transcription,
         resumo: summaryData?.summary || "",
-        audio_duration: Math.floor((Date.now() - startTimeRef.current) / 1000)
+        audio_duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
+        audio_url: audioFileName
       };
 
       // Save PDI if exists

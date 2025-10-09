@@ -5,7 +5,7 @@ import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Clock, Plus, User, FileText, AlertCircle } from "lucide-react";
+import { Calendar, Clock, Plus, User, FileText, AlertCircle, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -277,6 +277,44 @@ export default function OneOnOnes() {
                       <h3 className="font-semibold mb-2">Notas</h3>
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedOneOnOne.notes}</p>
                     </div>
+                  )}
+                  {selectedOneOnOne.meeting_structure && (
+                    <>
+                      {selectedOneOnOne.meeting_structure.audio_url && (
+                        <div>
+                          <h3 className="font-semibold mb-2">Gravação</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const { data } = supabase.storage
+                                .from('meeting-recordings')
+                                .getPublicUrl(selectedOneOnOne.meeting_structure.audio_url);
+                              window.open(data.publicUrl, '_blank');
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Baixar Áudio
+                          </Button>
+                        </div>
+                      )}
+                      {selectedOneOnOne.meeting_structure.transcricao && (
+                        <div>
+                          <h3 className="font-semibold mb-2">Transcrição</h3>
+                          <div className="bg-muted p-4 rounded-lg">
+                            <p className="text-sm whitespace-pre-wrap">{selectedOneOnOne.meeting_structure.transcricao}</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedOneOnOne.meeting_structure.resumo && (
+                        <div>
+                          <h3 className="font-semibold mb-2">Resumo</h3>
+                          <div className="bg-muted p-4 rounded-lg">
+                            <p className="text-sm whitespace-pre-wrap">{selectedOneOnOne.meeting_structure.resumo}</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
