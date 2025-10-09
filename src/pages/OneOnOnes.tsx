@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
-import { useOneOnOnes } from "@/hooks/useOneOnOnes";
+import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Clock, Plus, User } from "lucide-react";
+import { Calendar, Clock, Plus, User, FileText, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +15,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { OneOnOneMeetingForm } from "@/components/OneOnOneMeetingForm";
+import { usePDIIntegrated } from "@/hooks/usePDIIntegrated";
 
 export default function OneOnOnes() {
   const [showForm, setShowForm] = useState(false);
-  const [selectedOneOnOne, setSelectedOneOnOne] = useState<any>(null);
+  const [selectedOneOnOne, setSelectedOneOnOne] = useState<OneOnOne | null>(null);
+  const [showMeetingForm, setShowMeetingForm] = useState(false);
+  const [meetingFormOneOnOne, setMeetingFormOneOnOne] = useState<OneOnOne | null>(null);
   const { oneOnOnes, isLoading, createOneOnOne } = useOneOnOnes();
+  const { getPDIFromOneOnOne } = usePDIIntegrated();
   const [formData, setFormData] = useState({
     collaborator_id: "",
     scheduled_date: "",
@@ -69,38 +74,70 @@ export default function OneOnOnes() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {oneOnOnes.map((oneOnOne) => (
-                <Card key={oneOnOne.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedOneOnOne(oneOnOne)}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          {oneOnOne.collaborator?.full_name}
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          {format(new Date(oneOnOne.scheduled_date), "dd 'de' MMMM, HH:mm", { locale: ptBR })}
-                        </CardDescription>
+              {oneOnOnes.map((oneOnOne) => {
+                const hasPDI = getPDIFromOneOnOne(oneOnOne.id);
+                const needsCompletion = oneOnOne.status === 'scheduled' && 
+                  new Date(oneOnOne.scheduled_date) < new Date() && 
+                  !oneOnOne.meeting_structure;
+                
+                return (
+                  <Card 
+                    key={oneOnOne.id} 
+                    className="hover:shadow-lg transition-shadow cursor-pointer relative" 
+                    onClick={() => {
+                      if (oneOnOne.status === 'scheduled' || needsCompletion) {
+                        setMeetingFormOneOnOne(oneOnOne);
+                        setShowMeetingForm(true);
+                      } else {
+                        setSelectedOneOnOne(oneOnOne);
+                      }
+                    }}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            {oneOnOne.collaborator?.full_name}
+                          </CardTitle>
+                          <CardDescription className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            {format(new Date(oneOnOne.scheduled_date), "dd 'de' MMMM, HH:mm", { locale: ptBR })}
+                          </CardDescription>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Badge variant={statusMap[oneOnOne.status].variant}>
+                            {statusMap[oneOnOne.status].label}
+                          </Badge>
+                          {needsCompletion && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Preencher
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <Badge variant={statusMap[oneOnOne.status].variant}>
-                        {statusMap[oneOnOne.status].label}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {oneOnOne.duration_minutes} minutos
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          {oneOnOne.duration_minutes} minutos
+                        </div>
+                        {oneOnOne.agenda && (
+                          <p className="text-sm line-clamp-2">{oneOnOne.agenda}</p>
+                        )}
+                        {oneOnOne.status === 'completed' && !hasPDI && (
+                          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 pt-2">
+                            <FileText className="h-3 w-3" />
+                            Sem PDI vinculado
+                          </div>
+                        )}
                       </div>
-                      {oneOnOne.agenda && (
-                        <p className="text-sm line-clamp-2">{oneOnOne.agenda}</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
 
@@ -140,6 +177,19 @@ export default function OneOnOnes() {
             </DialogContent>
           </Dialog>
 
+          {/* Meeting Form Modal */}
+          {meetingFormOneOnOne && (
+            <OneOnOneMeetingForm
+              oneOnOne={meetingFormOneOnOne}
+              open={showMeetingForm}
+              onOpenChange={(open) => {
+                setShowMeetingForm(open);
+                if (!open) setMeetingFormOneOnOne(null);
+              }}
+            />
+          )}
+
+          {/* Read-only Details Modal */}
           <Dialog open={!!selectedOneOnOne} onOpenChange={() => setSelectedOneOnOne(null)}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>

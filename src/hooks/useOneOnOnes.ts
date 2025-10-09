@@ -13,6 +13,7 @@ export interface OneOnOne {
   notes: string;
   leader_feedback: string;
   collaborator_feedback: string;
+  meeting_structure?: any;
   created_at: string;
   updated_at: string;
   leader?: { id: string; full_name: string; avatar_url: string | null };

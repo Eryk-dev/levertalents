@@ -208,16 +208,23 @@ export type Database = {
       development_plans: {
         Row: {
           action_items: string
+          anticipated_challenges: string | null
           approved_at: string | null
           approved_by: string | null
+          committed_actions: string | null
           completed_at: string | null
           created_at: string | null
+          deadline: string | null
           description: string | null
           development_area: string
           goals: string
           id: string
+          main_objective: string | null
+          one_on_one_id: string | null
           progress_percentage: number | null
+          required_support: string | null
           status: string | null
+          success_metrics: string | null
           timeline: string | null
           title: string
           updated_at: string | null
@@ -225,16 +232,23 @@ export type Database = {
         }
         Insert: {
           action_items: string
+          anticipated_challenges?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          committed_actions?: string | null
           completed_at?: string | null
           created_at?: string | null
+          deadline?: string | null
           description?: string | null
           development_area: string
           goals: string
           id?: string
+          main_objective?: string | null
+          one_on_one_id?: string | null
           progress_percentage?: number | null
+          required_support?: string | null
           status?: string | null
+          success_metrics?: string | null
           timeline?: string | null
           title: string
           updated_at?: string | null
@@ -242,16 +256,23 @@ export type Database = {
         }
         Update: {
           action_items?: string
+          anticipated_challenges?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          committed_actions?: string | null
           completed_at?: string | null
           created_at?: string | null
+          deadline?: string | null
           description?: string | null
           development_area?: string
           goals?: string
           id?: string
+          main_objective?: string | null
+          one_on_one_id?: string | null
           progress_percentage?: number | null
+          required_support?: string | null
           status?: string | null
+          success_metrics?: string | null
           timeline?: string | null
           title?: string
           updated_at?: string | null
@@ -263,6 +284,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_plans_one_on_one_id_fkey"
+            columns: ["one_on_one_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_ones"
             referencedColumns: ["id"]
           },
           {
@@ -404,6 +432,7 @@ export type Database = {
           id: string
           leader_feedback: string | null
           leader_id: string
+          meeting_structure: Json | null
           notes: string | null
           scheduled_date: string
           status: string | null
@@ -418,6 +447,7 @@ export type Database = {
           id?: string
           leader_feedback?: string | null
           leader_id: string
+          meeting_structure?: Json | null
           notes?: string | null
           scheduled_date: string
           status?: string | null
@@ -432,6 +462,7 @@ export type Database = {
           id?: string
           leader_feedback?: string | null
           leader_id?: string
+          meeting_structure?: Json | null
           notes?: string | null
           scheduled_date?: string
           status?: string | null

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
 
 export default function DevelopmentPlans() {
   const [showForm, setShowForm] = useState(false);
@@ -166,29 +167,92 @@ export default function DevelopmentPlans() {
                 <DialogTitle>Detalhes do PDI</DialogTitle>
               </DialogHeader>
               {selectedPlan && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <h3 className="font-semibold">{selectedPlan.title}</h3>
-                    <Badge variant={statusMap[selectedPlan.status].variant} className="mt-2">
-                      {statusMap[selectedPlan.status].label}
-                    </Badge>
+                    <h3 className="font-semibold text-xl">{selectedPlan.title}</h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant={statusMap[selectedPlan.status].variant}>
+                        {statusMap[selectedPlan.status].label}
+                      </Badge>
+                      {selectedPlan.one_on_one_id && (
+                        <Badge variant="outline">Vinculado a 1:1</Badge>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Área: {selectedPlan.development_area}</p>
-                    <p className="text-sm text-muted-foreground">Prazo: {selectedPlan.timeline}</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Área de Desenvolvimento</p>
+                      <p className="font-medium">{selectedPlan.development_area}</p>
+                    </div>
+                    {selectedPlan.deadline && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Prazo</p>
+                        <p className="font-medium">{format(new Date(selectedPlan.deadline), "dd/MM/yyyy")}</p>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Descrição</h4>
-                    <p className="text-sm whitespace-pre-wrap">{selectedPlan.description}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Objetivos</h4>
-                    <p className="text-sm whitespace-pre-wrap">{selectedPlan.goals}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Plano de Ação</h4>
-                    <p className="text-sm whitespace-pre-wrap">{selectedPlan.action_items}</p>
-                  </div>
+
+                  {/* PDI Specific Questions */}
+                  {selectedPlan.main_objective && (
+                    <div className="space-y-4 border-t pt-4">
+                      <h4 className="font-semibold text-sm text-muted-foreground uppercase">Perguntas do PDI</h4>
+                      
+                      <div>
+                        <h5 className="font-semibold mb-2">1. Objetivo Principal</h5>
+                        <p className="text-sm whitespace-pre-wrap">{selectedPlan.main_objective}</p>
+                      </div>
+
+                      {selectedPlan.committed_actions && (
+                        <div>
+                          <h5 className="font-semibold mb-2">2. Ações Comprometidas</h5>
+                          <p className="text-sm whitespace-pre-wrap">{selectedPlan.committed_actions}</p>
+                        </div>
+                      )}
+
+                      {selectedPlan.required_support && (
+                        <div>
+                          <h5 className="font-semibold mb-2">3. Apoios Necessários</h5>
+                          <p className="text-sm whitespace-pre-wrap">{selectedPlan.required_support}</p>
+                        </div>
+                      )}
+
+                      {selectedPlan.success_metrics && (
+                        <div>
+                          <h5 className="font-semibold mb-2">4. Métricas de Sucesso</h5>
+                          <p className="text-sm whitespace-pre-wrap">{selectedPlan.success_metrics}</p>
+                        </div>
+                      )}
+
+                      {selectedPlan.anticipated_challenges && (
+                        <div>
+                          <h5 className="font-semibold mb-2">5. Desafios Previstos</h5>
+                          <p className="text-sm whitespace-pre-wrap">{selectedPlan.anticipated_challenges}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Legacy Fields (if new fields don't exist) */}
+                  {!selectedPlan.main_objective && (
+                    <>
+                      {selectedPlan.description && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Descrição</h4>
+                          <p className="text-sm whitespace-pre-wrap">{selectedPlan.description}</p>
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-semibold mb-2">Objetivos</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedPlan.goals}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-2">Plano de Ação</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedPlan.action_items}</p>
+                      </div>
+                    </>
+                  )}
+
                   <div>
                     <h4 className="font-semibold mb-2">Progresso</h4>
                     <Progress value={selectedPlan.progress_percentage} />
