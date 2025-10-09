@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { StatCard } from "@/components/StatCard";
@@ -25,14 +26,17 @@ export default function GestorDashboard() {
       <Sidebar />
       
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header userName="Gestor" onLogout={async () => {
+          await supabase.auth.signOut();
+          window.location.href = '/auth';
+        }} />
         
-        <main className="flex-1 p-6 space-y-6">
+        <main className="flex-1 p-6 space-y-6 overflow-auto">
           {/* Welcome Section */}
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold">Minha Equipe</h1>
+            <h1 className="text-3xl font-bold">Olá, Gestor</h1>
             <p className="text-muted-foreground text-lg">
-              8 colaboradores | Score Médio: 4.1/5.0
+              Gerencie sua equipe e acompanhe o desempenho
             </p>
           </div>
           
@@ -83,85 +87,13 @@ export default function GestorDashboard() {
               trendValue="+5% este mês"
             />
           </div>
-          
-          {/* Mini Matriz 9BOX */}
+
+          {/* Minha Equipe */}
           <div className="card-elevated space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Matriz 9BOX - Visão Rápida</h2>
-              <Button variant="outline">Ver Matriz Completa</Button>
+              <h2 className="text-xl font-semibold">Minha Equipe</h2>
+              <Badge>{teamMembers.length} membros</Badge>
             </div>
-            
-            <div className="grid grid-cols-3 gap-2">
-              {/* Row 3 - Alto */}
-              <div className="aspect-square rounded-lg bg-status-green/10 border-2 border-status-green p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Incógnita</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-              </div>
-              <div className="aspect-square rounded-lg bg-status-green/10 border-2 border-status-green p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Promissor</p>
-                  <p className="text-2xl font-bold">2</p>
-                </div>
-              </div>
-              <div className="aspect-square rounded-lg bg-status-green/10 border-2 border-status-green p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Estrela</p>
-                  <p className="text-2xl font-bold">1</p>
-                </div>
-              </div>
-              
-              {/* Row 2 - Médio */}
-              <div className="aspect-square rounded-lg bg-status-yellow/10 border-2 border-status-yellow p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Zona Risco</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-              </div>
-              <div className="aspect-square rounded-lg bg-status-yellow/10 border-2 border-status-yellow p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Regular</p>
-                  <p className="text-2xl font-bold">3</p>
-                </div>
-              </div>
-              <div className="aspect-square rounded-lg bg-status-green/10 border-2 border-status-green p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Confiável</p>
-                  <p className="text-2xl font-bold">2</p>
-                </div>
-              </div>
-              
-              {/* Row 1 - Baixo */}
-              <div className="aspect-square rounded-lg bg-status-red/10 border-2 border-status-red p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Crítico</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-              </div>
-              <div className="aspect-square rounded-lg bg-status-yellow/10 border-2 border-status-yellow p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Precisa Apoio</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-              </div>
-              <div className="aspect-square rounded-lg bg-status-yellow/10 border-2 border-status-yellow p-2 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-xs font-medium mb-1">Desempenho</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-between text-xs text-muted-foreground pt-2">
-              <span>← Baixo Potencial</span>
-              <span>Alto Potencial →</span>
-            </div>
-          </div>
-          
-          {/* Lista da Equipe */}
-          <div className="card-elevated space-y-4">
-            <h2 className="text-xl font-semibold">Minha Equipe</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {teamMembers.map((member) => (
@@ -209,6 +141,63 @@ export default function GestorDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+          
+          {/* Mini Matriz 9BOX - Compacta */}
+          <div className="card-elevated space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Matriz 9BOX</h2>
+              <Button variant="outline" size="sm">Ver Detalhes</Button>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-1 max-w-md">
+              {/* Row 3 - Alto */}
+              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Incógnita</p>
+                <p className="text-sm font-bold">0</p>
+              </div>
+              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Promissor</p>
+                <p className="text-sm font-bold">2</p>
+              </div>
+              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Estrela</p>
+                <p className="text-sm font-bold">1</p>
+              </div>
+              
+              {/* Row 2 - Médio */}
+              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Zona Risco</p>
+                <p className="text-sm font-bold">0</p>
+              </div>
+              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Regular</p>
+                <p className="text-sm font-bold">3</p>
+              </div>
+              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Confiável</p>
+                <p className="text-sm font-bold">2</p>
+              </div>
+              
+              {/* Row 1 - Baixo */}
+              <div className="aspect-square rounded bg-status-red/10 border border-status-red p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Crítico</p>
+                <p className="text-sm font-bold">0</p>
+              </div>
+              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Precisa Apoio</p>
+                <p className="text-sm font-bold">0</p>
+              </div>
+              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
+                <p className="text-[9px] font-medium text-center leading-tight">Desempenho</p>
+                <p className="text-sm font-bold">0</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-[10px] text-muted-foreground max-w-md">
+              <span>← Baixo Potencial</span>
+              <span>Alto Potencial →</span>
             </div>
           </div>
         </main>
