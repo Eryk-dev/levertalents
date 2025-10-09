@@ -39,6 +39,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shouldFinalize, setShouldFinalize] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -97,9 +98,10 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(blob);
         stream.getTracks().forEach(track => track.stop());
+        console.log('Audio blob created:', blob.size, 'bytes');
       };
 
       mediaRecorder.start(1000);
@@ -120,13 +122,13 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      console.log('Stopping recording...');
       mediaRecorderRef.current.stop();
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
       setIsRecording(false);
-      toast.info("Gravação finalizada. Processando...");
     }
   };
 
@@ -135,14 +137,23 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
     toast.success("PDI salvo!");
   };
 
-  const handleFinalize = async () => {
+  useEffect(() => {
+    if (shouldFinalize && audioBlob) {
+      console.log('audioBlob ready, starting finalization...');
+      processFinalization();
+    }
+  }, [audioBlob, shouldFinalize]);
+
+  const processFinalization = async () => {
     if (!audioBlob) {
-      toast.error("Nenhuma gravação encontrada");
+      console.error('No audio blob available');
+      toast.error("Erro: áudio não encontrado");
       return;
     }
 
     try {
       setIsProcessing(true);
+      toast.info("Sua 1:1 foi registrada! Você terá a transcrição e resumo em instantes.");
       
       // Convert audio to base64
       const reader = new FileReader();
@@ -206,7 +217,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
       if (updateError) throw updateError;
 
-      toast.success("1:1 finalizado com sucesso!");
+      toast.success("1:1 finalizado com sucesso! Transcrição e resumo foram gerados.");
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
       onOpenChange(false);
     } catch (error: any) {
@@ -214,7 +225,20 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       toast.error("Erro ao finalizar reunião: " + error.message);
     } finally {
       setIsProcessing(false);
+      setShouldFinalize(false);
     }
+  };
+
+  const handleFinalizeClick = () => {
+    console.log('Finalize clicked, audioBlob:', audioBlob?.size);
+    if (!isRecording) {
+      toast.error("Nenhuma gravação ativa");
+      return;
+    }
+    
+    stopRecording();
+    setShouldFinalize(true);
+    toast.info("Parando gravação...");
   };
 
   const nextStep = () => {
@@ -432,10 +456,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
             
             {isRecording && currentStep === 3 && (
               <Button 
-                onClick={() => {
-                  stopRecording();
-                  handleFinalize();
-                }}
+                onClick={handleFinalizeClick}
                 disabled={isProcessing}
                 className="gap-2"
               >
