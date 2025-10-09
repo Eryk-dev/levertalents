@@ -6,7 +6,8 @@ import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Clock, Plus, User, FileText, AlertCircle, Download } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Calendar, Clock, Plus, User, FileText, AlertCircle, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,8 @@ export default function OneOnOnes() {
   const [selectedOneOnOne, setSelectedOneOnOne] = useState<OneOnOne | null>(null);
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingFormOneOnOne, setMeetingFormOneOnOne] = useState<OneOnOne | null>(null);
-  const { oneOnOnes, isLoading, createOneOnOne } = useOneOnOnes();
+  const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
+  const { oneOnOnes, isLoading, createOneOnOne, deleteOneOnOne } = useOneOnOnes();
   const { hasPDIForOneOnOne } = usePDIIntegrated();
 
   const handleLogout = async () => {
@@ -39,6 +41,24 @@ export default function OneOnOnes() {
     duration_minutes: 60,
     agenda: "",
   });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user-role"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      return { id: user.id, role: roleData?.role };
+    },
+  });
+
+  const canDelete = currentUser?.role === 'lider' || currentUser?.role === 'rh' || currentUser?.role === 'socio';
 
   const { data: teamMembers } = useQuery({
     queryKey: ["team-members-for-oneonone"],
@@ -106,6 +126,11 @@ export default function OneOnOnes() {
     setFormData({ collaborator_id: "", scheduled_date: "", duration_minutes: 60, agenda: "" });
   };
 
+  const handleDelete = (id: string) => {
+    deleteOneOnOne(id);
+    setDeleteDialog(null);
+  };
+
   const statusMap = {
     scheduled: { label: "Agendada", variant: "default" as const },
     processing: { label: "Processando", variant: "secondary" as const },
@@ -164,15 +189,30 @@ export default function OneOnOnes() {
                             {format(new Date(oneOnOne.scheduled_date), "dd 'de' MMMM, HH:mm", { locale: ptBR })}
                           </CardDescription>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <Badge variant={statusMap[oneOnOne.status].variant}>
-                            {statusMap[oneOnOne.status].label}
-                          </Badge>
-                          {needsCompletion && (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              Preencher
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-2">
+                            <Badge variant={statusMap[oneOnOne.status].variant}>
+                              {statusMap[oneOnOne.status].label}
                             </Badge>
+                            {needsCompletion && (
+                              <Badge variant="destructive" className="text-xs">
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Preencher
+                              </Badge>
+                            )}
+                          </div>
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteDialog(oneOnOne.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -328,6 +368,26 @@ export default function OneOnOnes() {
               )}
             </DialogContent>
           </Dialog>
+
+          <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir este 1:1? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteDialog && handleDelete(deleteDialog)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </main>
       </div>
     </div>
