@@ -65,7 +65,11 @@ export function useTeams() {
       .select("*")
       .order("name");
 
-    if (error) throw error;
+    if (error) {
+      console.error("Erro ao carregar empresas:", error);
+      toast.error("Erro ao carregar empresas");
+      throw error;
+    }
     setCompanies(data || []);
   };
 
