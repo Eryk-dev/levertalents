@@ -39,16 +39,36 @@ export default function OneOnOnes() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      // Get team members where current user is the leader
-      const { data } = await supabase
-        .from("team_members")
-        .select("user_id")
-        .eq("leader_id", user.id);
+      // Check user role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
 
-      if (!data || data.length === 0) return [];
+      let userIds: string[] = [];
+
+      // If RH or Socio, get all users except self
+      if (roleData?.role === 'rh' || roleData?.role === 'socio') {
+        const { data: allProfiles } = await supabase
+          .from("profiles")
+          .select("id")
+          .neq("id", user.id);
+        
+        userIds = allProfiles?.map(p => p.id) || [];
+      } else {
+        // If leader, get only team members
+        const { data } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .eq("leader_id", user.id);
+
+        userIds = data?.map(m => m.user_id) || [];
+      }
+
+      if (userIds.length === 0) return [];
 
       // Get profiles for those user IDs
-      const userIds = data.map(m => m.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name")
