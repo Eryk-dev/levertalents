@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MobileNav } from "@/components/MobileNav";
 
 interface HeaderProps {
   userName?: string;
@@ -20,6 +21,7 @@ export function Header({ userName = "Usuário", onLogout }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-4">
+          <MobileNav />
           <h1 className="text-lg font-semibold">Dashboard</h1>
         </div>
         
