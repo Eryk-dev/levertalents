@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface OneOnOne {
   id: string;
@@ -56,10 +56,11 @@ export const useOneOnOnes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      toast({ title: "1:1 agendada com sucesso!" });
+      toast.success("1:1 agendada com sucesso!");
     },
     onError: (error) => {
-      toast({ title: "Erro ao agendar 1:1", description: error.message, variant: "destructive" });
+      console.error("Erro ao criar 1:1:", error);
+      toast.error("Erro ao agendar 1:1: " + error.message);
     },
   });
 
@@ -77,7 +78,11 @@ export const useOneOnOnes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      toast({ title: "1:1 atualizada com sucesso!" });
+      toast.success("1:1 atualizada com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Erro ao atualizar 1:1:", error);
+      toast.error("Erro ao atualizar 1:1: " + error.message);
     },
   });
 

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { OneOnOneMeetingForm } from "@/components/OneOnOneMeetingForm";
@@ -33,17 +34,47 @@ export default function OneOnOnes() {
   });
 
   const { data: teamMembers } = useQuery({
-    queryKey: ["team-members"],
+    queryKey: ["team-members-for-oneonone"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      // Get team members where current user is the leader
       const { data } = await supabase
         .from("team_members")
-        .select("user_id, profiles:user_id(id, full_name)");
-      return data;
+        .select("user_id")
+        .eq("leader_id", user.id);
+
+      if (!data || data.length === 0) return [];
+
+      // Get profiles for those user IDs
+      const userIds = data.map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+
+      return profiles?.map(p => ({
+        user_id: p.id,
+        profiles: p
+      })) || [];
     },
   });
 
   const handleSubmit = () => {
-    createOneOnOne(formData);
+    if (!formData.collaborator_id || !formData.scheduled_date) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    // Convert to ISO format
+    const scheduledDate = new Date(formData.scheduled_date).toISOString();
+    
+    createOneOnOne({
+      ...formData,
+      scheduled_date: scheduledDate,
+    });
+    
     setShowForm(false);
     setFormData({ collaborator_id: "", scheduled_date: "", duration_minutes: 60, agenda: "" });
   };
