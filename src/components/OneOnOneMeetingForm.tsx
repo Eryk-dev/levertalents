@@ -171,7 +171,10 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         body: { audio: audioBase64 }
       });
 
-      if (transcriptionError) throw transcriptionError;
+      if (transcriptionError) {
+        console.error('Transcription error:', transcriptionError);
+        throw new Error(transcriptionError.message || 'Erro ao transcrever áudio');
+      }
 
       const transcription = transcriptionData?.text || "";
 
