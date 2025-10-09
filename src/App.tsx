@@ -12,6 +12,7 @@ import GestorDashboard from "./pages/GestorDashboard";
 import RHDashboard from "./pages/RHDashboard";
 import SocioDashboard from "./pages/SocioDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import Evaluations from "./pages/Evaluations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => {
             <Route path="/rh" element={isAuthenticated ? <RHDashboard /> : <Navigate to="/auth" />} />
             <Route path="/socio" element={isAuthenticated ? <SocioDashboard /> : <Navigate to="/auth" />} />
             <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/auth" />} />
+            <Route path="/avaliacoes" element={isAuthenticated ? <Evaluations /> : <Navigate to="/auth" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
