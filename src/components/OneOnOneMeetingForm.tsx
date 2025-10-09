@@ -308,21 +308,68 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
             {currentStep === 1 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Roteiro da Reunião</h3>
-                <p className="text-sm text-muted-foreground">
-                  Anote aqui os principais tópicos discutidos durante a reunião 1:1
-                </p>
-                <Textarea
-                  value={meetingData.roteiro}
-                  onChange={(e) => setMeetingData({ ...meetingData, roteiro: e.target.value })}
-                  placeholder="• Como está se sentindo?
-• Satisfações e insatisfações
-• Principais conquistas
-• Desafios enfrentados
-• Metas para o próximo mês
-• Aprendizados desejados"
-                  className="min-h-[300px]"
-                />
+                <h3 className="text-lg font-semibold">Roteiro de 1:1 Mensal</h3>
+                
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4 text-sm">
+                  <div>
+                    <h4 className="font-semibold text-base mb-2">Estrutura sugerida (30 a 45 min)</h4>
+                    <ul className="space-y-1 ml-4">
+                      <li>• 5 min – Aquecimento / como está o colaborador</li>
+                      <li>• 20 min – Desenvolvimento / conquistas, desafios, feedbacks</li>
+                      <li>• 15 min – Projeção / alinhamento de objetivos e próximos passos</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-base mb-2">1. Aquecimento (quebrar o gelo e abrir espaço)</h4>
+                    <ul className="space-y-1 ml-4">
+                      <li>• Como você está se sentindo neste mês, tanto no trabalho quanto pessoalmente?</li>
+                      <li>• Teve algo que te deixou especialmente satisfeito ou insatisfeito nos últimos dias?</li>
+                      <li>• Há algum fator externo (carga, ambiente, processos) que está impactando sua motivação?</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-base mb-2">2. Desenvolvimento (olhar para o mês que passou)</h4>
+                    <ul className="space-y-1 ml-4">
+                      <li>• Quais foram suas principais conquistas neste mês?</li>
+                      <li>• O que você gostaria de destacar que funcionou bem no time/projetos?</li>
+                      <li>• Quais desafios você enfrentou e como posso te apoiar para superá-los?</li>
+                      <li>• Há alguma habilidade que você percebeu que precisa reforçar?</li>
+                      <li>• Como você percebe seu alinhamento com a cultura e valores da empresa?</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-base mb-2">3. Projeção (definir direção e propósito para o próximo mês)</h4>
+                    <ul className="space-y-1 ml-4">
+                      <li>• O que você gostaria de alcançar no próximo mês?</li>
+                      <li>• Qual aprendizado ou habilidade nova você quer desenvolver?</li>
+                      <li>• Onde você acredita que pode gerar mais impacto no time/projetos?</li>
+                      <li>• Há algo que você gostaria que mudasse na sua rotina ou nos processos?</li>
+                      <li>• Qual é o objetivo/propósito que definimos juntos para o próximo mês? (ex: melhorar a organização do fluxo de tarefas no projeto X ou se aprofundar na ferramenta Y para entregar com mais autonomia)</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-base mb-2">Encerramento</h4>
+                    <ul className="space-y-1 ml-4">
+                      <li>• Confirme o objetivo definido em conjunto</li>
+                      <li>• Pergunte: "Como posso te apoiar melhor neste próximo mês?"</li>
+                      <li>• Registre os pontos combinados (ações, prazos, responsáveis)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Anotações da Reunião</Label>
+                  <Textarea
+                    value={meetingData.roteiro}
+                    onChange={(e) => setMeetingData({ ...meetingData, roteiro: e.target.value })}
+                    placeholder="Anote aqui os principais pontos discutidos durante a reunião..."
+                    className="min-h-[150px]"
+                  />
+                </div>
               </div>
             )}
 
