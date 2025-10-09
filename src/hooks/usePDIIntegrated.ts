@@ -15,7 +15,26 @@ export interface PDIFormData {
 export const usePDIIntegrated = () => {
   const queryClient = useQueryClient();
 
-  // Get PDI from specific 1:1
+  // Get all PDIs for current 1:1s (for checking existence in loops)
+  const { data: allPDIs } = useQuery({
+    queryKey: ["all_pdis_for_one_on_ones"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("development_plans")
+        .select("id, one_on_one_id")
+        .not("one_on_one_id", "is", null);
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Check if a PDI exists for a specific 1:1 (non-hook function for use in loops)
+  const hasPDIForOneOnOne = (oneOnOneId: string): boolean => {
+    return allPDIs?.some(pdi => pdi.one_on_one_id === oneOnOneId) || false;
+  };
+
+  // Get PDI from specific 1:1 (hook - only use at component top level)
   const getPDIFromOneOnOne = (oneOnOneId: string) => {
     return useQuery({
       queryKey: ["pdi_from_one_on_one", oneOnOneId],
@@ -95,6 +114,7 @@ export const usePDIIntegrated = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["development_plans"] });
       queryClient.invalidateQueries({ queryKey: ["pdi_from_one_on_one"] });
+      queryClient.invalidateQueries({ queryKey: ["all_pdis_for_one_on_ones"] });
       queryClient.invalidateQueries({ queryKey: ["latest_pdi"] });
       toast({ title: "PDI criado com sucesso!" });
     },
@@ -144,6 +164,7 @@ export const usePDIIntegrated = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["development_plans"] });
       queryClient.invalidateQueries({ queryKey: ["pdi_from_one_on_one"] });
+      queryClient.invalidateQueries({ queryKey: ["all_pdis_for_one_on_ones"] });
       queryClient.invalidateQueries({ queryKey: ["latest_pdi"] });
       toast({ title: "Progresso atualizado com sucesso!" });
     },
@@ -157,6 +178,7 @@ export const usePDIIntegrated = () => {
   });
 
   return {
+    hasPDIForOneOnOne,
     getPDIFromOneOnOne,
     getLatestPDIForCollaborator,
     createPDIFromOneOnOne: createPDIFromOneOnOne.mutate,

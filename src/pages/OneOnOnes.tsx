@@ -25,7 +25,7 @@ export default function OneOnOnes() {
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingFormOneOnOne, setMeetingFormOneOnOne] = useState<OneOnOne | null>(null);
   const { oneOnOnes, isLoading, createOneOnOne } = useOneOnOnes();
-  const { getPDIFromOneOnOne } = usePDIIntegrated();
+  const { hasPDIForOneOnOne } = usePDIIntegrated();
   const [formData, setFormData] = useState({
     collaborator_id: "",
     scheduled_date: "",
@@ -126,7 +126,7 @@ export default function OneOnOnes() {
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {oneOnOnes.map((oneOnOne) => {
-                const hasPDI = getPDIFromOneOnOne(oneOnOne.id);
+                const hasPDI = hasPDIForOneOnOne(oneOnOne.id);
                 const needsCompletion = oneOnOne.status === 'scheduled' && 
                   new Date(oneOnOne.scheduled_date) < new Date() && 
                   !oneOnOne.meeting_structure;
