@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import logo from "@/assets/lever-logo.png";
-import { Home, FileText, Calendar, TrendingUp, Target, Settings } from "lucide-react";
+import { Home, FileText, Calendar, TrendingUp, Target, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { icon: Calendar, label: "1:1s", path: "/11s" },
   { icon: TrendingUp, label: "Meu Clima", path: "/clima" },
   { icon: Target, label: "Meu PDI", path: "/pdi" },
+  { icon: Users, label: "Times", path: "/times" },
   { icon: Settings, label: "Perfil", path: "/perfil" },
 ];
 

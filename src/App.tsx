@@ -18,6 +18,7 @@ import OneOnOnes from "./pages/OneOnOnes";
 import Climate from "./pages/Climate";
 import DevelopmentPlans from "./pages/DevelopmentPlans";
 import Profile from "./pages/Profile";
+import TeamManagement from "./pages/TeamManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ const App = () => {
             <Route path="/clima" element={isAuthenticated ? <Climate /> : <Navigate to="/auth" />} />
             <Route path="/pdi" element={isAuthenticated ? <DevelopmentPlans /> : <Navigate to="/auth" />} />
             <Route path="/perfil" element={isAuthenticated ? <Profile /> : <Navigate to="/auth" />} />
+            <Route path="/times" element={isAuthenticated ? <TeamManagement /> : <Navigate to="/auth" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
