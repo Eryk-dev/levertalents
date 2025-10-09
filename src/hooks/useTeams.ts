@@ -240,20 +240,36 @@ export function useTeams() {
     position?: string,
     cost?: number
   ) => {
-    const { error } = await supabase.from("team_members").insert({
-      user_id: userId,
-      team_id: teamId,
-      position: position || null,
-      cost: cost || null,
-    });
+    try {
+      // Check if the team already has a leader
+      const { data: existingMembers } = await supabase
+        .from("team_members")
+        .select("leader_id")
+        .eq("team_id", teamId)
+        .limit(1);
 
-    if (error) {
-      toast.error("Erro ao adicionar colaborador ao time");
+      const leaderId = existingMembers?.[0]?.leader_id || null;
+
+      // Insert new member with the team's leader if one exists
+      const { error } = await supabase.from("team_members").insert({
+        user_id: userId,
+        team_id: teamId,
+        leader_id: leaderId,
+        position: position || null,
+        cost: cost || null,
+      });
+
+      if (error) {
+        toast.error("Erro ao adicionar colaborador ao time");
+        throw error;
+      }
+
+      toast.success("Colaborador adicionado ao time com sucesso!");
+      await loadTeamMembers();
+    } catch (error) {
+      console.error("Erro ao adicionar membro:", error);
       throw error;
     }
-
-    toast.success("Colaborador adicionado ao time com sucesso!");
-    await loadTeamMembers();
   };
 
   const removeMemberFromTeam = async (memberId: string) => {
