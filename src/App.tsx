@@ -19,6 +19,7 @@ import Climate from "./pages/Climate";
 import DevelopmentPlans from "./pages/DevelopmentPlans";
 import Profile from "./pages/Profile";
 import TeamManagement from "./pages/TeamManagement";
+import CompanyManagement from "./pages/CompanyManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,8 @@ const App = () => {
             <Route path="/pdi" element={isAuthenticated ? <DevelopmentPlans /> : <Navigate to="/auth" />} />
             <Route path="/perfil" element={isAuthenticated ? <Profile /> : <Navigate to="/auth" />} />
             <Route path="/times" element={isAuthenticated ? <TeamManagement /> : <Navigate to="/auth" />} />
+            <Route path="/empresas" element={isAuthenticated ? <CompanyManagement /> : <Navigate to="/auth" />} />
+            <Route path="/criar-usuario" element={isAuthenticated ? <CreateUser /> : <Navigate to="/auth" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

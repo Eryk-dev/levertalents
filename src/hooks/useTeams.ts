@@ -5,6 +5,7 @@ import { toast } from "sonner";
 export type Company = {
   id: string;
   name: string;
+  created_at?: string;
 };
 
 export type Team = {
