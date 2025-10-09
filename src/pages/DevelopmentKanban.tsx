@@ -4,14 +4,19 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { KanbanSquare, Target, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { KanbanSquare, Target, CheckCircle2, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
 
 export default function DevelopmentKanban() {
   const navigate = useNavigate();
+  const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
+  const { deletePlan } = useDevelopmentPlans();
 
   const { data: teamPlans, isLoading } = useQuery({
     queryKey: ["team-development-plans"],
@@ -39,6 +44,11 @@ export default function DevelopmentKanban() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
+  };
+
+  const handleDelete = (id: string) => {
+    deletePlan(id);
+    setDeleteDialog(null);
   };
 
   const getPlansByStatus = (status: string) => {
@@ -116,27 +126,38 @@ export default function DevelopmentKanban() {
                       <div className="space-y-3">
                         {config.plans.length > 0 ? (
                           config.plans.map((plan: any) => (
-                            <Card
-                              key={plan.id}
-                              className="cursor-pointer hover:shadow-lg transition-shadow"
-                              onClick={() => navigate(`/pdi`)}
-                            >
+                            <Card key={plan.id} className="hover:shadow-lg transition-shadow">
                               <CardHeader className="pb-3">
                                 <div className="flex items-start gap-3">
-                                  <Avatar className="h-10 w-10">
-                                    <AvatarImage src={plan.user?.avatar_url} />
-                                    <AvatarFallback>
-                                      {plan.user?.full_name?.charAt(0)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm truncate">
-                                      {plan.user?.full_name}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {plan.title}
-                                    </p>
+                                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/pdi`)}>
+                                    <div className="flex items-start gap-3">
+                                      <Avatar className="h-10 w-10">
+                                        <AvatarImage src={plan.user?.avatar_url} />
+                                        <AvatarFallback>
+                                          {plan.user?.full_name?.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm truncate">
+                                          {plan.user?.full_name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {plan.title}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteDialog(plan.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </CardHeader>
                               <CardContent className="space-y-2">
@@ -206,6 +227,26 @@ export default function DevelopmentKanban() {
                 </div>
               </CardContent>
             </Card>
+
+            <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja excluir este PDI? Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteDialog && handleDelete(deleteDialog)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </main>
       </div>

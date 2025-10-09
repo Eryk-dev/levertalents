@@ -9,18 +9,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, TrendingUp } from "lucide-react";
+import { Plus, Target, TrendingUp, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function DevelopmentPlans() {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const { plans, isLoading, createPlan } = useDevelopmentPlans();
+  const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
+  const { plans, isLoading, createPlan, deletePlan } = useDevelopmentPlans();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -39,6 +41,12 @@ export default function DevelopmentPlans() {
     createPlan(formData);
     setShowForm(false);
     setFormData({ title: "", description: "", development_area: "", goals: "", action_items: "", timeline: "" });
+  };
+
+  const handleDelete = (id: string) => {
+    deletePlan(id);
+    setDeleteDialog(null);
+    setSelectedPlan(null);
   };
 
   const statusMap = {
@@ -105,13 +113,28 @@ export default function DevelopmentPlans() {
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {plans.map((plan) => (
-                <Card key={plan.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedPlan(plan)}>
+                <Card key={plan.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg">{plan.title}</CardTitle>
-                      <Badge variant={statusMap[plan.status].variant}>
-                        {statusMap[plan.status].label}
-                      </Badge>
+                      <div className="flex-1 cursor-pointer" onClick={() => setSelectedPlan(plan)}>
+                        <CardTitle className="text-lg">{plan.title}</CardTitle>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant={statusMap[plan.status].variant}>
+                          {statusMap[plan.status].label}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteDialog(plan.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <CardDescription>{plan.development_area}</CardDescription>
                   </CardHeader>
@@ -172,7 +195,19 @@ export default function DevelopmentPlans() {
           <Dialog open={!!selectedPlan} onOpenChange={() => setSelectedPlan(null)}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Detalhes do PDI</DialogTitle>
+                <div className="flex items-center justify-between">
+                  <DialogTitle>Detalhes do PDI</DialogTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setDeleteDialog(selectedPlan?.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </DialogHeader>
               {selectedPlan && (
                 <div className="space-y-6">
@@ -270,6 +305,26 @@ export default function DevelopmentPlans() {
               )}
             </DialogContent>
           </Dialog>
+
+          <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir este PDI? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteDialog && handleDelete(deleteDialog)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </main>
       </div>
     </div>
