@@ -154,18 +154,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
     setIsProcessing(true);
     
     try {
-      // 1. Atualizar status para "processing" e fechar modal IMEDIATAMENTE
-      const { error: statusUpdateError } = await supabase
-        .from('one_on_ones')
-        .update({
-          status: 'processing',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', oneOnOne.id);
-
-      if (statusUpdateError) throw statusUpdateError;
-
-      // Invalidar queries e fechar modal
+      // Fechar modal e iniciar processamento
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
       toast.info("Processando transcrição e resumo...");
       onOpenChange(false);
