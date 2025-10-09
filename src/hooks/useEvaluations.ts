@@ -123,10 +123,36 @@ export const useEvaluations = () => {
     },
   });
 
+  const deleteEvaluation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("evaluations")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluations"] });
+      toast({
+        title: "Avaliação excluída",
+        description: "A avaliação foi excluída com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao excluir avaliação",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     evaluations: evaluations || [],
     isLoading,
     createEvaluation: createEvaluation.mutate,
     updateEvaluation: updateEvaluation.mutate,
+    deleteEvaluation: deleteEvaluation.mutate,
   };
 };

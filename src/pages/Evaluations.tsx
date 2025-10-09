@@ -8,10 +8,12 @@ import { EvaluationCard } from "@/components/EvaluationCard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, FileText, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OneOnOnesTab } from "@/components/OneOnOnesTab";
 
 export default function Evaluations() {
   const navigate = useNavigate();
@@ -69,11 +71,11 @@ export default function Evaluations() {
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Avaliações de Desempenho</h1>
+                <h1 className="text-3xl font-bold">Avaliações</h1>
                 <p className="text-muted-foreground mt-1">
-                  {isCollaborator && "Acompanhe suas avaliações e seu desenvolvimento"}
-                  {isLeader && "Gerencie as avaliações da sua equipe"}
-                  {isRHorSocio && "Visão geral de todas as avaliações"}
+                  {isCollaborator && "Acompanhe suas avaliações, 1:1s e seu desenvolvimento"}
+                  {isLeader && "Gerencie as avaliações e 1:1s da sua equipe"}
+                  {isRHorSocio && "Visão geral de todas as avaliações e 1:1s"}
                 </p>
               </div>
               {isLeader && (
@@ -84,71 +86,89 @@ export default function Evaluations() {
               )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Avaliações</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{filteredEvaluations.length}</div>
-                </CardContent>
-              </Card>
+            <Tabs defaultValue="evaluations" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="evaluations">Avaliações de Desempenho</TabsTrigger>
+                <TabsTrigger value="11s">1:1s</TabsTrigger>
+              </TabsList>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Média Geral</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{averageScore}</div>
-                  <p className="text-xs text-muted-foreground">De 5.0</p>
-                </CardContent>
-              </Card>
+              <TabsContent value="evaluations" className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total de Avaliações</CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{filteredEvaluations.length}</div>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {filteredEvaluations.filter(e => e.status === 'completed').length}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Média Geral</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{averageScore}</div>
+                      <p className="text-xs text-muted-foreground">De 5.0</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {filteredEvaluations.filter(e => e.status === 'completed').length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {isLoading ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-[300px]" />
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                ) : filteredEvaluations.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground text-center">
+                        {isLeader && "Nenhuma avaliação criada ainda. Comece criando uma nova avaliação."}
+                        {isCollaborator && "Você ainda não possui avaliações registradas."}
+                        {isRHorSocio && "Nenhuma avaliação encontrada no sistema."}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredEvaluations.map((evaluation) => (
+                      <EvaluationCard
+                        key={evaluation.id}
+                        evaluation={evaluation}
+                        onViewDetails={setSelectedEvaluation}
+                        showEvaluatedUser={!isCollaborator}
+                        showEvaluator={isCollaborator}
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
 
-            {isLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-[300px]" />
-                ))}
-              </div>
-            ) : filteredEvaluations.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
-                    {isLeader && "Nenhuma avaliação criada ainda. Comece criando uma nova avaliação."}
-                    {isCollaborator && "Você ainda não possui avaliações registradas."}
-                    {isRHorSocio && "Nenhuma avaliação encontrada no sistema."}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredEvaluations.map((evaluation) => (
-                  <EvaluationCard
-                    key={evaluation.id}
-                    evaluation={evaluation}
-                    onViewDetails={setSelectedEvaluation}
-                    showEvaluatedUser={!isCollaborator}
-                    showEvaluator={isCollaborator}
-                  />
-                ))}
-              </div>
-            )}
+              <TabsContent value="11s" className="space-y-4">
+                <OneOnOnesTab 
+                  isLeader={isLeader} 
+                  isRHorSocio={isRHorSocio} 
+                  isCollaborator={isCollaborator}
+                  currentUserId={currentUser?.id}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
           <Dialog open={showForm} onOpenChange={setShowForm}>

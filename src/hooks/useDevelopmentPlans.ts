@@ -87,5 +87,26 @@ export const useDevelopmentPlans = () => {
     },
   });
 
-  return { plans: plans || [], isLoading, createPlan: createPlan.mutate, updatePlan: updatePlan.mutate };
+  const deletePlan = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("development_plans")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["development_plans"] });
+      toast({ title: "PDI excluído com sucesso!" });
+    },
+  });
+
+  return { 
+    plans: plans || [], 
+    isLoading, 
+    createPlan: createPlan.mutate, 
+    updatePlan: updatePlan.mutate,
+    deletePlan: deletePlan.mutate
+  };
 };

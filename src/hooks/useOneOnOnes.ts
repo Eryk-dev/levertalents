@@ -86,5 +86,30 @@ export const useOneOnOnes = () => {
     },
   });
 
-  return { oneOnOnes: oneOnOnes || [], isLoading, createOneOnOne: createOneOnOne.mutate, updateOneOnOne: updateOneOnOne.mutate };
+  const deleteOneOnOne = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("one_on_ones")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
+      toast.success("1:1 excluída com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Erro ao excluir 1:1:", error);
+      toast.error("Erro ao excluir 1:1: " + error.message);
+    },
+  });
+
+  return { 
+    oneOnOnes: oneOnOnes || [], 
+    isLoading, 
+    createOneOnOne: createOneOnOne.mutate, 
+    updateOneOnOne: updateOneOnOne.mutate,
+    deleteOneOnOne: deleteOneOnOne.mutate
+  };
 };

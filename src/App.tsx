@@ -20,6 +20,9 @@ import DevelopmentPlans from "./pages/DevelopmentPlans";
 import Profile from "./pages/Profile";
 import TeamManagement from "./pages/TeamManagement";
 import CompanyManagement from "./pages/CompanyManagement";
+import MyTeam from "./pages/MyTeam";
+import CollaboratorProfile from "./pages/CollaboratorProfile";
+import DevelopmentKanban from "./pages/DevelopmentKanban";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +71,9 @@ const App = () => {
             <Route path="/times" element={isAuthenticated ? <TeamManagement /> : <Navigate to="/auth" />} />
             <Route path="/empresas" element={isAuthenticated ? <CompanyManagement /> : <Navigate to="/auth" />} />
             <Route path="/criar-usuario" element={isAuthenticated ? <CreateUser /> : <Navigate to="/auth" />} />
+            <Route path="/meu-time" element={isAuthenticated ? <MyTeam /> : <Navigate to="/auth" />} />
+            <Route path="/colaborador/:userId" element={isAuthenticated ? <CollaboratorProfile /> : <Navigate to="/auth" />} />
+            <Route path="/kanban" element={isAuthenticated ? <DevelopmentKanban /> : <Navigate to="/auth" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

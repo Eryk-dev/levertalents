@@ -47,7 +47,11 @@ export function Sidebar() {
         <NavLink to="/colaborador" icon={Home} label="Início" />
         <NavLink to="/avaliacoes" icon={FileText} label="Avaliações" />
         {(userRole === "lider" || userRole === "gestor" || canManage) && (
-          <NavLink to="/11s" icon={Calendar} label="1:1s" />
+          <>
+            <NavLink to="/11s" icon={Calendar} label="1:1s" />
+            <NavLink to="/meu-time" icon={Users} label="Meu Time" />
+            <NavLink to="/kanban" icon={TrendingUp} label="Kanban" />
+          </>
         )}
         <NavLink to="/pdi" icon={BarChart3} label="PDI" />
         <NavLink to="/clima" icon={CloudSun} label="Clima" />
