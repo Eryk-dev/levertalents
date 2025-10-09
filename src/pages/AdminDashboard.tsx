@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UserPlus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -221,9 +222,15 @@ export default function AdminDashboard() {
         
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Gerenciamento de Usuários</h1>
-              <p className="text-muted-foreground">Atribua roles aos usuários do sistema</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Gerenciamento de Usuários</h1>
+                <p className="text-muted-foreground">Atribua roles aos usuários do sistema</p>
+              </div>
+              <Button onClick={() => navigate("/admin/criar-usuario")}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Criar Novo Usuário
+              </Button>
             </div>
 
             <div className="card-elevated p-6">

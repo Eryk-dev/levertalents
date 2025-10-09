@@ -12,6 +12,7 @@ import GestorDashboard from "./pages/GestorDashboard";
 import RHDashboard from "./pages/RHDashboard";
 import SocioDashboard from "./pages/SocioDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import CreateUser from "./pages/CreateUser";
 import Evaluations from "./pages/Evaluations";
 import OneOnOnes from "./pages/OneOnOnes";
 import Climate from "./pages/Climate";
@@ -56,6 +57,7 @@ const App = () => {
             <Route path="/rh" element={isAuthenticated ? <RHDashboard /> : <Navigate to="/auth" />} />
             <Route path="/socio" element={isAuthenticated ? <SocioDashboard /> : <Navigate to="/auth" />} />
             <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/auth" />} />
+            <Route path="/admin/criar-usuario" element={isAuthenticated ? <CreateUser /> : <Navigate to="/auth" />} />
             <Route path="/avaliacoes" element={isAuthenticated ? <Evaluations /> : <Navigate to="/auth" />} />
             <Route path="/11s" element={isAuthenticated ? <OneOnOnes /> : <Navigate to="/auth" />} />
             <Route path="/clima" element={isAuthenticated ? <Climate /> : <Navigate to="/auth" />} />
