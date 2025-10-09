@@ -21,7 +21,7 @@ export default function MyTeam() {
         .from("team_members")
         .select(`
           *,
-          user:profiles!team_members_user_id_fkey(id, full_name, avatar_url, phone, department, hire_date),
+          user:profiles(id, full_name, avatar_url, phone, department, hire_date),
           team:teams(name)
         `)
         .eq("leader_id", user.id);
