@@ -132,11 +132,11 @@ export default function GestorDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {teamMembers.map((member) => {
-                  const profile = member.profiles;
-                  const initials = profile?.full_name
+                {teamMembers.map((member: any) => {
+                  const memberProfile = member.profiles;
+                  const initials = memberProfile?.full_name
                     ?.split(' ')
-                    .map(n => n[0])
+                    .map((n: string) => n[0])
                     .join('')
                     .toUpperCase()
                     .slice(0, 2) || '??';
@@ -153,7 +153,7 @@ export default function GestorDashboard() {
                         <div className="flex-1 space-y-2">
                           <div className="flex items-start justify-between">
                             <div>
-                              <h3 className="font-semibold">{profile?.full_name || 'Nome não disponível'}</h3>
+                              <h3 className="font-semibold">{memberProfile?.full_name || 'Nome não disponível'}</h3>
                               <p className="text-sm text-muted-foreground">{member.position || 'Cargo não definido'}</p>
                             </div>
                           </div>
