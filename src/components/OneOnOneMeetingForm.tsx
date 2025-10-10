@@ -156,7 +156,19 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
     setIsProcessing(true);
     
     try {
-      // 1. Converter áudio para base64
+      // 1. Atualizar status para "processing" e fechar janela imediatamente
+      await supabase
+        .from('one_on_ones')
+        .update({ status: 'processing' })
+        .eq('id', oneOnOne.id);
+      
+      queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
+      
+      // Fechar todas as janelas
+      onOpenChange(false);
+      
+      // 2. Converter áudio para base64
+      toast.info("Processando 1:1...");
       const reader = new FileReader();
       const audioBase64 = await new Promise<string>((resolve, reject) => {
         reader.onloadend = () => {
@@ -169,19 +181,17 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
       const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
-      // 2. SEMPRE salvar o áudio primeiro (garantir que não perdemos dados)
-      toast.info("Salvando áudio...");
+      // 3. SEMPRE salvar o áudio primeiro (garantir que não perdemos dados)
       const audioUrl = await saveAudioToStorage(audioBase64, oneOnOne.id, duration);
       
       if (!audioUrl) {
         throw new Error("Erro ao salvar áudio");
       }
 
-      // 3. Tentar transcrever (se falhar, o áudio já está salvo)
-      toast.info("Transcrevendo áudio...");
+      // 4. Tentar transcrever (se falhar, o áudio já está salvo)
       const transcription = await transcribeAudio(audioBase64);
       
-      // 4. Gerar resumo com dados disponíveis
+      // 5. Gerar resumo com dados disponíveis
       const meetingDataForSummary = {
         transcricao: transcription || "",
         leader: {
@@ -199,7 +209,6 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
       let summary = "";
       try {
-        toast.info("Gerando resumo...");
         const { data: summaryData, error: summaryError } = await supabase.functions.invoke('summarize-meeting', {
           body: { meetingData: meetingDataForSummary }
         });
@@ -209,10 +218,9 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         }
       } catch (summaryError) {
         console.error('Summary generation error:', summaryError);
-        toast.warning("Resumo não pôde ser gerado, mas áudio e transcrição foram salvos.");
       }
 
-      // 5. Salvar dados finais
+      // 6. Salvar dados finais
       const finalData = {
         pdi_review: meetingData.pdi_review,
         roteiro: meetingData.roteiro,
@@ -231,7 +239,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         });
       }
 
-      // 6. Atualizar status para completo
+      // 7. Atualizar status para completo
       const { error: finalUpdateError } = await supabase
         .from("one_on_ones")
         .update({
@@ -244,7 +252,6 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       if (finalUpdateError) throw finalUpdateError;
 
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      onOpenChange(false);
       
       if (transcription) {
         toast.success("1:1 finalizada com sucesso!");

@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OneOnOneMeetingForm } from "@/components/OneOnOneMeetingForm";
 import { usePDIIntegrated } from "@/hooks/usePDIIntegrated";
 import { LinkedPDIsSection } from "@/components/LinkedPDIsSection";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 export default function OneOnOnes() {
   const navigate = useNavigate();
@@ -349,22 +350,10 @@ export default function OneOnOnes() {
                   )}
                   {selectedOneOnOne.meeting_structure && (
                     <>
-                      {selectedOneOnOne.meeting_structure.audio_url && (
+                      {selectedOneOnOne.audio_url && (
                         <div>
                           <h3 className="font-semibold mb-2">Gravação</h3>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              const { data } = supabase.storage
-                                .from('meeting-recordings')
-                                .getPublicUrl(selectedOneOnOne.meeting_structure.audio_url);
-                              window.open(data.publicUrl, '_blank');
-                            }}
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            Baixar Áudio
-                          </Button>
+                          <AudioPlayer audioUrl={selectedOneOnOne.audio_url} />
                         </div>
                       )}
                       {selectedOneOnOne.meeting_structure.transcricao && (

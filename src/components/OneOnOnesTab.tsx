@@ -27,7 +27,8 @@ export function OneOnOnesTab({ isLeader, isRHorSocio, isCollaborator, currentUse
 
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     scheduled: { label: "Agendada", variant: "secondary" },
-    completed: { label: "Concluída", variant: "default" },
+    processing: { label: "Processando", variant: "default" },
+    completed: { label: "Concluída", variant: "outline" },
     cancelled: { label: "Cancelada", variant: "destructive" },
     rescheduled: { label: "Reagendada", variant: "outline" },
   };
