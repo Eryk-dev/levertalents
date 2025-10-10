@@ -30,20 +30,32 @@ const evaluationSchema = z.object({
 export function EvaluationForm({ onSuccess }: { onSuccess?: () => void }) {
   const { createEvaluation } = useEvaluations();
   
-  const { data: teamMembers } = useQuery({
+  const { data: teamMembers, error: teamMembersError } = useQuery({
     queryKey: ["team-members-for-evaluation"],
     queryFn: async () => {
+      // Primeiro, pega o ID do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Busca apenas os membros da equipe deste líder
       const { data, error } = await supabase
         .from("team_members")
         .select(`
           user_id,
+          leader_id,
           profiles:user_id (
             id,
             full_name
           )
-        `);
+        `)
+        .eq("leader_id", user.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao buscar membros da equipe:", error);
+        throw error;
+      }
+      
+      console.log("Membros da equipe encontrados:", data);
       return data;
     },
   });

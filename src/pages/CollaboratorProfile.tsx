@@ -43,10 +43,10 @@ export default function CollaboratorProfile() {
     },
   });
 
-  const { data: evaluations } = useQuery({
+  const { data: evaluations, error: evaluationsError } = useQuery({
     queryKey: ["collaborator-evaluations", userId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("evaluations")
         .select(`
           *,
@@ -55,6 +55,10 @@ export default function CollaboratorProfile() {
         .eq("evaluated_user_id", userId)
         .order("created_at", { ascending: false });
 
+      if (error) {
+        console.error("Erro ao buscar avaliações:", error);
+      }
+      console.log("Avaliações encontradas:", data);
       return data || [];
     },
   });
@@ -75,10 +79,10 @@ export default function CollaboratorProfile() {
     },
   });
 
-  const { data: oneOnOnes } = useQuery({
+  const { data: oneOnOnes, error: oneOnOnesError } = useQuery({
     queryKey: ["collaborator-11s", userId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("one_on_ones")
         .select(`
           *,
@@ -87,6 +91,10 @@ export default function CollaboratorProfile() {
         .eq("collaborator_id", userId)
         .order("scheduled_date", { ascending: false });
 
+      if (error) {
+        console.error("Erro ao buscar 1:1s:", error);
+      }
+      console.log("1:1s encontrados:", data);
       return data || [];
     },
   });
