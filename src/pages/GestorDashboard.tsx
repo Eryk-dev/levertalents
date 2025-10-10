@@ -20,27 +20,22 @@ export default function GestorDashboard() {
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
 
-  // Busca os membros da equipe do líder logado
+  // Busca os membros da equipe do líder logado usando query manual com JOIN
   const { data: teamMembers = [], isLoading } = useQuery({
     queryKey: ['team-members', profile?.id],
     queryFn: async () => {
       if (!profile?.id) return [];
       
-      const { data, error } = await supabase
-        .from('team_members')
-        .select(`
-          id,
-          position,
-          user_id,
-          profiles(
-            id,
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('leader_id', profile.id);
+      // Usando rpc ou query SQL direta para fazer o join manualmente
+      const { data, error } = await supabase.rpc('get_team_members_with_profiles', {
+        p_leader_id: profile.id
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching team members:', error);
+        return [];
+      }
+      
       return data || [];
     },
     enabled: !!profile?.id,
