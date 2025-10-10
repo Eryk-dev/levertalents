@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { useClimateSurveys } from "@/hooks/useClimateSurveys";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { TrendingUp, Users, Calendar } from "lucide-react";
 export default function Climate() {
   const navigate = useNavigate();
   const { surveys, isLoading } = useClimateSurveys();
+  const { data: profile } = useUserProfile();
 
   const activeSurveys = surveys.filter(s => s.status === 'active');
   const averageScore = 4.2; // Mock data
@@ -26,7 +28,7 @@ export default function Climate() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div>

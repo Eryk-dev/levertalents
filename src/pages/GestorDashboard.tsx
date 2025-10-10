@@ -6,6 +6,7 @@ import { Users, AlertTriangle, Calendar, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 const teamMembers = [
   { id: 1, name: "Ana Santos", role: "Desenvolvedora", quadrant: "Estrela", score: 4.7, avatar: "AS", next11: "2 dias", risk: false },
@@ -21,15 +22,19 @@ const alerts = [
 ];
 
 export default function GestorDashboard() {
+  const { data: profile } = useUserProfile();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/auth';
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
       
       <div className="flex-1 flex flex-col">
-        <Header userName="Gestor" onLogout={async () => {
-          await supabase.auth.signOut();
-          window.location.href = '/auth';
-        }} />
+        <Header userName={profile?.full_name || 'Gestor'} onLogout={handleLogout} />
         
         <main className="flex-1 p-6 space-y-6 overflow-auto">
           {/* Welcome Section */}

@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { useEvaluations, Evaluation } from "@/hooks/useEvaluations";
 import { useNavigate } from "react-router-dom";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { EvaluationForm } from "@/components/EvaluationForm";
 import { EvaluationCard } from "@/components/EvaluationCard";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default function Evaluations() {
   const [showForm, setShowForm] = useState(false);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
   const { evaluations, isLoading } = useEvaluations();
+  const { data: profile } = useUserProfile();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -66,7 +68,7 @@ export default function Evaluations() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">

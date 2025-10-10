@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { ArrowLeft, UserPlus } from "lucide-react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 const createUserSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -30,6 +31,7 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 export default function CreateUser() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { data: profile } = useUserProfile();
 
   const {
     register,
@@ -110,7 +112,7 @@ export default function CreateUser() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <Header userName={profile?.full_name} />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
             <Button

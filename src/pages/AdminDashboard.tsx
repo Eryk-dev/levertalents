@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ export default function AdminDashboard() {
   const [selectedRole, setSelectedRole] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: profile } = useUserProfile();
 
   useEffect(() => {
     checkAuth();
@@ -218,7 +220,7 @@ export default function AdminDashboard() {
       <Sidebar />
       
       <div className="flex-1 flex flex-col">
-        <Header userName="Admin" onLogout={handleLogout} />
+        <Header userName={profile?.full_name || 'Admin'} onLogout={handleLogout} />
         
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-6">

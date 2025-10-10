@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +15,7 @@ import { PDIReviewCard } from "@/components/PDIReviewCard";
 export default function CollaboratorProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { data: profile } = useUserProfile();
 
   const { data: collaborator, isLoading } = useQuery({
     queryKey: ["collaborator-profile", userId],
@@ -106,7 +108,7 @@ export default function CollaboratorProfile() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Header do Perfil */}

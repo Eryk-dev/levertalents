@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { Users, Mail, Phone, Briefcase } from "lucide-react";
 
 export default function MyTeam() {
   const navigate = useNavigate();
+  const { data: profile } = useUserProfile();
 
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ["my-team"],
@@ -40,7 +42,7 @@ export default function MyTeam() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">

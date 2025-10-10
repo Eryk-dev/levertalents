@@ -5,6 +5,9 @@ import { TrendingUp, Users, Calendar, AlertTriangle, BarChart3 } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 const pilaresData = [
   { name: 'Liderança', score: 4.2, status: 'green' },
@@ -31,12 +34,20 @@ const alertasCriticos = [
 ];
 
 export default function RHDashboard() {
+  const { data: profile } = useUserProfile();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
       
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header userName={profile?.full_name || 'RH'} onLogout={handleLogout} />
         
         <main className="flex-1 p-6 space-y-6">
           {/* Welcome Section */}

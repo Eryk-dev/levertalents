@@ -7,6 +7,7 @@ import { Users, DollarSign, Building2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function SocioDashboard() {
   const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ export default function SocioDashboard() {
   const [totalEmployees, setTotalEmployees] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: profile } = useUserProfile();
 
   useEffect(() => {
     checkAuth();
@@ -77,7 +79,7 @@ export default function SocioDashboard() {
       <Sidebar />
       
       <div className="flex-1 flex flex-col">
-        <Header userName="Sócio" onLogout={handleLogout} />
+        <Header userName={profile?.full_name || 'Sócio'} onLogout={handleLogout} />
         
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-6">

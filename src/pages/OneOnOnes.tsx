@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +33,7 @@ export default function OneOnOnes() {
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const { oneOnOnes, isLoading, createOneOnOne, deleteOneOnOne } = useOneOnOnes();
   const { hasPDIForOneOnOne } = usePDIIntegrated();
+  const { data: profile } = useUserProfile();
 
   // Auto-open 1:1 if navigated from PDI
   useEffect(() => {
@@ -158,7 +160,7 @@ export default function OneOnOnes() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">

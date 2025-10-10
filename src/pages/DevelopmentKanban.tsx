@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,7 @@ export default function DevelopmentKanban() {
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const { deletePlan } = useDevelopmentPlans();
+  const { data: profile } = useUserProfile();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -136,7 +138,7 @@ export default function DevelopmentKanban() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">

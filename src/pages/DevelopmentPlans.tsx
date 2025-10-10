@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -30,6 +31,7 @@ export default function DevelopmentPlans() {
   const { plans, isLoading, createPlan, deletePlan } = useDevelopmentPlans();
   const { userRole } = useAuth();
   const isLeaderOrRHSocio = userRole === "lider" || userRole === "rh" || userRole === "socio";
+  const { data: profile } = useUserProfile();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -68,7 +70,7 @@ export default function DevelopmentPlans() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
+        <Header userName={profile?.full_name} onLogout={handleLogout} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">

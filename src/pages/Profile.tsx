@@ -74,7 +74,7 @@ export default function Profile() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header />
+        <Header userName={profile?.full_name} />
         <main className="flex-1 p-8 bg-background">
           <div className="max-w-4xl mx-auto space-y-6">
             <div>
