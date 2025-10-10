@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface ActionItem {
   id: string;
@@ -61,14 +61,10 @@ export const useActionItems = (oneOnOneId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["action_items"] });
-      toast({ title: "Action item criado com sucesso!" });
+      toast.success("Action item criado com sucesso!");
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erro ao criar action item", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast.error(`Erro ao criar action item: ${error.message}`);
     },
   });
 
@@ -99,14 +95,10 @@ export const useActionItems = (oneOnOneId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["action_items"] });
-      toast({ title: "Action item atualizado com sucesso!" });
+      toast.success("Action item atualizado com sucesso!");
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erro ao atualizar action item", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast.error(`Erro ao atualizar action item: ${error.message}`);
     },
   });
 

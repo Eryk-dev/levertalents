@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { User, Mail, Phone, Calendar, Briefcase } from "lucide-react";
 
 export default function Profile() {
@@ -54,11 +54,11 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast({ title: "Perfil atualizado com sucesso!" });
+      toast.success("Perfil atualizado com sucesso!");
       setIsEditing(false);
     },
     onError: (error) => {
-      toast({ title: "Erro ao atualizar perfil", description: error.message, variant: "destructive" });
+      toast.error(`Erro ao atualizar perfil: ${error.message}`);
     },
   });
 

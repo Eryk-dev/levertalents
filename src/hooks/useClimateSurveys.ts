@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface ClimateSurvey {
   id: string;
@@ -63,7 +63,10 @@ export const useClimateSurveys = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["climate_surveys"] });
-      toast({ title: "Pesquisa criada com sucesso!" });
+      toast.success("Pesquisa criada com sucesso!");
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao criar pesquisa: ${error.message}`);
     },
   });
 
@@ -86,7 +89,10 @@ export const useClimateSurveys = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["climate_responses"] });
-      toast({ title: "Respostas enviadas com sucesso!" });
+      toast.success("Respostas enviadas com sucesso!");
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao enviar respostas: ${error.message}`);
     },
   });
 

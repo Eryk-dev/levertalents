@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Trash2, Edit } from "lucide-react";
 
 type UserWithRole = {
@@ -40,7 +40,6 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { data: profile } = useUserProfile();
 
   useEffect(() => {
@@ -62,11 +61,7 @@ export default function AdminDashboard() {
       .single();
 
     if (roleData?.role !== 'socio') {
-      toast({
-        title: "Acesso negado",
-        description: "Apenas sócios podem acessar esta página.",
-        variant: "destructive",
-      });
+      toast.error("Acesso negado: Apenas sócios podem acessar esta página.");
       navigate('/');
     }
   };
@@ -101,11 +96,7 @@ export default function AdminDashboard() {
       setUsers(usersWithRoles);
     } catch (error) {
       console.error('Error loading users:', error);
-      toast({
-        title: "Erro ao carregar usuários",
-        description: "Não foi possível carregar a lista de usuários.",
-        variant: "destructive",
-      });
+      toast.error("Não foi possível carregar a lista de usuários.");
     } finally {
       setLoading(false);
     }
@@ -113,11 +104,7 @@ export default function AdminDashboard() {
 
   const handleAssignRole = async () => {
     if (!selectedUser || !selectedRole) {
-      toast({
-        title: "Erro",
-        description: "Selecione um usuário e uma role.",
-        variant: "destructive",
-      });
+      toast.error("Selecione um usuário e uma role.");
       return;
     }
 
@@ -138,20 +125,13 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      toast({
-        title: "Role atribuída com sucesso!",
-        description: "O usuário agora tem acesso à sua nova role.",
-      });
+      toast.success("Role atribuída com sucesso! O usuário agora tem acesso à sua nova role.");
 
       loadUsers();
       setSelectedUser("");
       setSelectedRole("");
     } catch (error: any) {
-      toast({
-        title: "Erro ao atribuir role",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Erro ao atribuir role: ${error.message}`);
     }
   };
 
@@ -164,17 +144,11 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      toast({
-        title: "Role removida com sucesso!",
-      });
+      toast.success("Role removida com sucesso!");
 
       loadUsers();
     } catch (error: any) {
-      toast({
-        title: "Erro ao remover role",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Erro ao remover role: ${error.message}`);
     }
   };
 

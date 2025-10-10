@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { DevelopmentPlan } from "./useDevelopmentPlans";
 
 export interface PDIFormData {
@@ -116,14 +116,10 @@ export const usePDIIntegrated = () => {
       queryClient.invalidateQueries({ queryKey: ["pdi_from_one_on_one"] });
       queryClient.invalidateQueries({ queryKey: ["all_pdis_for_one_on_ones"] });
       queryClient.invalidateQueries({ queryKey: ["latest_pdi"] });
-      toast({ title: "PDI criado com sucesso!" });
+      toast.success("PDI criado com sucesso!");
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erro ao criar PDI", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast.error(`Erro ao criar PDI: ${error.message}`);
     },
   });
 
@@ -166,14 +162,10 @@ export const usePDIIntegrated = () => {
       queryClient.invalidateQueries({ queryKey: ["pdi_from_one_on_one"] });
       queryClient.invalidateQueries({ queryKey: ["all_pdis_for_one_on_ones"] });
       queryClient.invalidateQueries({ queryKey: ["latest_pdi"] });
-      toast({ title: "Progresso atualizado com sucesso!" });
+      toast.success("Progresso atualizado com sucesso!");
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erro ao atualizar progresso", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast.error(`Erro ao atualizar progresso: ${error.message}`);
     },
   });
 

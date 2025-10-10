@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export const useAudioTranscription = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -15,21 +15,14 @@ export const useAudioTranscription = () => {
       if (error) throw error;
 
       if (data?.text) {
-        toast({
-          title: "Transcrição concluída!",
-          description: "O texto foi preenchido automaticamente.",
-        });
+        toast.success("Transcrição concluída! O texto foi preenchido automaticamente.");
         return data.text;
       }
 
       throw new Error("Nenhum texto foi retornado");
     } catch (error: any) {
       console.error('Transcription error:', error);
-      toast({
-        title: "Erro na transcrição",
-        description: error.message || "Não foi possível transcrever o áudio. Tente novamente.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Não foi possível transcrever o áudio. Tente novamente.");
       return null;
     } finally {
       setIsTranscribing(false);

@@ -6,7 +6,7 @@ import { StatCard } from "@/components/StatCard";
 import { Users, DollarSign, Building2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function SocioDashboard() {
@@ -14,7 +14,6 @@ export default function SocioDashboard() {
   const [totalCost, setTotalCost] = useState(0);
   const [totalEmployees, setTotalEmployees] = useState(0);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { data: profile } = useUserProfile();
 
   useEffect(() => {
@@ -36,11 +35,7 @@ export default function SocioDashboard() {
       .single();
 
     if (roleData?.role !== 'socio') {
-      toast({
-        title: "Acesso negado",
-        description: "Você não tem permissão para acessar esta página.",
-        variant: "destructive",
-      });
+      toast.error("Acesso negado: Você não tem permissão para acessar esta página.");
       navigate('/');
     }
   };

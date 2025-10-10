@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface DevelopmentPlan {
   id: string;
@@ -65,7 +65,10 @@ export const useDevelopmentPlans = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["development_plans"] });
-      toast({ title: "PDI criado com sucesso!" });
+      toast.success("PDI criado com sucesso!");
+    },
+    onError: (error) => {
+      toast.error(`Erro ao criar PDI: ${error.message}`);
     },
   });
 
@@ -83,7 +86,10 @@ export const useDevelopmentPlans = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["development_plans"] });
-      toast({ title: "PDI atualizado com sucesso!" });
+      toast.success("PDI atualizado com sucesso!");
+    },
+    onError: (error) => {
+      toast.error(`Erro ao atualizar PDI: ${error.message}`);
     },
   });
 
@@ -98,7 +104,10 @@ export const useDevelopmentPlans = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["development_plans"] });
-      toast({ title: "PDI excluído com sucesso!" });
+      toast.success("PDI excluído com sucesso!");
+    },
+    onError: (error) => {
+      toast.error(`Erro ao excluir PDI: ${error.message}`);
     },
   });
 

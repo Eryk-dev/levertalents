@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface Evaluation {
   id: string;
@@ -81,17 +81,10 @@ export const useEvaluations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["evaluations"] });
-      toast({
-        title: "Avaliação criada",
-        description: "A avaliação foi criada com sucesso.",
-      });
+      toast.success("Avaliação criada com sucesso");
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar avaliação",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Erro ao criar avaliação: ${error.message}`);
     },
   });
 
@@ -109,17 +102,10 @@ export const useEvaluations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["evaluations"] });
-      toast({
-        title: "Avaliação atualizada",
-        description: "A avaliação foi atualizada com sucesso.",
-      });
+      toast.success("Avaliação atualizada com sucesso");
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar avaliação",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Erro ao atualizar avaliação: ${error.message}`);
     },
   });
 
@@ -134,17 +120,10 @@ export const useEvaluations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["evaluations"] });
-      toast({
-        title: "Avaliação excluída",
-        description: "A avaliação foi excluída com sucesso.",
-      });
+      toast.success("Avaliação excluída com sucesso");
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao excluir avaliação",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Erro ao excluir avaliação: ${error.message}`);
     },
   });
 

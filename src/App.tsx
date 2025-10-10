@@ -3,8 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import Auth from "./pages/Auth";
 import RoleSelection from "./pages/RoleSelection";
 import Index from "./pages/Index";
@@ -24,25 +22,14 @@ import MyTeam from "./pages/MyTeam";
 import CollaboratorProfile from "./pages/CollaboratorProfile";
 import DevelopmentKanban from "./pages/DevelopmentKanban";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useAuth } from "@/hooks/useAuth";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const { user, loading } = useAuth();
+  const isAuthenticated = !!user;
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
@@ -58,11 +45,56 @@ const App = () => {
             <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to="/" />} />
             <Route path="/" element={isAuthenticated ? <RoleSelection /> : <Navigate to="/auth" />} />
             <Route path="/colaborador" element={isAuthenticated ? <Index /> : <Navigate to="/auth" />} />
-            <Route path="/gestor" element={isAuthenticated ? <GestorDashboard /> : <Navigate to="/auth" />} />
-            <Route path="/rh" element={isAuthenticated ? <RHDashboard /> : <Navigate to="/auth" />} />
-            <Route path="/socio" element={isAuthenticated ? <SocioDashboard /> : <Navigate to="/auth" />} />
-            <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/auth" />} />
-            <Route path="/admin/criar-usuario" element={isAuthenticated ? <CreateUser /> : <Navigate to="/auth" />} />
+            <Route 
+              path="/gestor" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["lider", "socio", "admin"]}>
+                    <GestorDashboard />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
+            <Route 
+              path="/rh" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                    <RHDashboard />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
+            <Route 
+              path="/socio" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["socio", "admin"]}>
+                    <SocioDashboard />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
+            <Route 
+              path="/admin/criar-usuario" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <CreateUser />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
             <Route path="/avaliacoes" element={isAuthenticated ? <Evaluations /> : <Navigate to="/auth" />} />
             <Route path="/11s" element={isAuthenticated ? <OneOnOnes /> : <Navigate to="/auth" />} />
             <Route path="/clima" element={isAuthenticated ? <Climate /> : <Navigate to="/auth" />} />

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import logo from "@/assets/lever-logo.png";
 import { z } from "zod";
 
@@ -21,7 +21,6 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -48,7 +47,7 @@ export default function Auth() {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     return data?.role || 'colaborador';
   };
 
@@ -87,10 +86,7 @@ export default function Auth() {
 
         if (error) throw error;
 
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo de volta.",
-        });
+        toast.success("Login realizado com sucesso! Bem-vindo de volta.");
       } else {
         const { error } = await supabase.auth.signUp({
           email: validated.email,
@@ -105,24 +101,13 @@ export default function Auth() {
 
         if (error) throw error;
 
-        toast({
-          title: "Conta criada com sucesso!",
-          description: "Você será redirecionado em instantes.",
-        });
+        toast.success("Conta criada com sucesso! Você será redirecionado em instantes.");
       }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        toast({
-          title: "Erro de validação",
-          description: error.errors[0].message,
-          variant: "destructive",
-        });
+        toast.error(error.errors[0].message);
       } else {
-        toast({
-          title: "Erro",
-          description: error.message || "Ocorreu um erro. Tente novamente.",
-          variant: "destructive",
-        });
+        toast.error(error.message || "Ocorreu um erro. Tente novamente.");
       }
     } finally {
       setLoading(false);

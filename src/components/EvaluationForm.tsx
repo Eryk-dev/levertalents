@@ -92,11 +92,15 @@ export function EvaluationForm({ onSuccess }: { onSuccess?: () => void }) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {teamMembers?.map((member: any) => (
-                        <SelectItem key={member.user_id} value={member.user_id}>
-                          {member.profiles.full_name}
-                        </SelectItem>
-                      ))}
+                      {teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0 ? (
+                        teamMembers.map((member: any) => (
+                          <SelectItem key={member.user_id} value={member.user_id}>
+                            {member.profiles?.full_name || 'Nome não disponível'}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>Nenhum colaborador disponível</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

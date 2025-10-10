@@ -1,9 +1,32 @@
 import { Button } from "@/components/ui/button";
 import { Users, Briefcase, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export function RoleSelector() {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
+  
+  const handleRoleClick = (targetRole: string, path: string) => {
+    // Map de roles permitidas
+    const rolePermissions: Record<string, string[]> = {
+      'colaborador': ['colaborador'],
+      'lider': ['colaborador', 'gestor'],
+      'rh': ['colaborador', 'rh'],
+      'socio': ['colaborador', 'gestor', 'rh', 'socio'],
+      'admin': ['colaborador', 'gestor', 'rh', 'socio', 'admin']
+    };
+
+    const allowedRoles = rolePermissions[userRole || 'colaborador'] || ['colaborador'];
+    
+    if (!allowedRoles.includes(targetRole)) {
+      toast.error("Você não tem permissão para acessar esta área");
+      return;
+    }
+    
+    navigate(path);
+  };
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -17,7 +40,7 @@ export function RoleSelector() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button
-            onClick={() => navigate("/colaborador")}
+            onClick={() => handleRoleClick('colaborador', '/colaborador')}
             className="group relative overflow-hidden rounded-2xl border-2 border-border bg-card p-8 text-left transition-all hover:border-accent hover:shadow-lg"
           >
             <div className="space-y-4">
@@ -34,7 +57,7 @@ export function RoleSelector() {
           </button>
           
           <button
-            onClick={() => navigate("/gestor")}
+            onClick={() => handleRoleClick('gestor', '/gestor')}
             className="group relative overflow-hidden rounded-2xl border-2 border-border bg-card p-8 text-left transition-all hover:border-accent hover:shadow-lg"
           >
             <div className="space-y-4">
@@ -51,7 +74,7 @@ export function RoleSelector() {
           </button>
           
           <button
-            onClick={() => navigate("/rh")}
+            onClick={() => handleRoleClick('rh', '/rh')}
             className="group relative overflow-hidden rounded-2xl border-2 border-border bg-card p-8 text-left transition-all hover:border-accent hover:shadow-lg"
           >
             <div className="space-y-4">
