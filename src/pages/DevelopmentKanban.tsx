@@ -2,21 +2,31 @@ import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { KanbanSquare, Target, CheckCircle2, Clock, AlertCircle, Trash2 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { KanbanSquare, Target, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { KanbanColumn } from "@/components/KanbanColumn";
+import { KanbanCard } from "@/components/KanbanCard";
+import { toast } from "sonner";
 
 export default function DevelopmentKanban() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const { deletePlan } = useDevelopmentPlans();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const { data: teamPlans, isLoading } = useQuery({
     queryKey: ["team-development-plans"],
@@ -46,9 +56,49 @@ export default function DevelopmentKanban() {
     navigate("/auth");
   };
 
+  const updatePlanStatus = useMutation({
+    mutationFn: async ({ planId, newStatus }: { planId: string; newStatus: string }) => {
+      const { error } = await supabase
+        .from("development_plans")
+        .update({ status: newStatus })
+        .eq("id", planId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-development-plans"] });
+      toast.success("Status atualizado com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Erro ao atualizar status:", error);
+      toast.error("Erro ao atualizar o status do PDI");
+    },
+  });
+
   const handleDelete = (id: string) => {
     deletePlan(id);
     setDeleteDialog(null);
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const planId = active.id as string;
+    const newStatus = over.id as string;
+
+    // Get the plan to check current status
+    const plan = teamPlans?.find((p: any) => p.id === planId);
+    if (!plan || plan.status === newStatus) return;
+
+    // Update the status
+    updatePlanStatus.mutate({ planId, newStatus });
   };
 
   const getPlansByStatus = (status: string) => {
@@ -110,97 +160,33 @@ export default function DevelopmentKanban() {
                 ))}
               </div>
             ) : (
-              <div className="grid gap-6 md:grid-cols-4">
-                {Object.entries(statusConfig).map(([key, config]) => {
-                  const Icon = config.icon;
-                  return (
-                    <div key={key} className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-3 w-3 rounded-full ${config.color}`} />
-                        <h3 className="font-semibold">{config.title}</h3>
-                        <Badge variant="secondary" className="ml-auto">
-                          {config.plans.length}
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-3">
-                        {config.plans.length > 0 ? (
-                          config.plans.map((plan: any) => (
-                            <Card key={plan.id} className="hover:shadow-lg transition-shadow">
-                              <CardHeader className="pb-3">
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/pdi`)}>
-                                    <div className="flex items-start gap-3">
-                                      <Avatar className="h-10 w-10">
-                                        <AvatarImage src={plan.user?.avatar_url} />
-                                        <AvatarFallback>
-                                          {plan.user?.full_name?.charAt(0)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">
-                                          {plan.user?.full_name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {plan.title}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteDialog(plan.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="space-y-2">
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Progresso</span>
-                                    <span className="font-medium">{plan.progress_percentage}%</span>
-                                  </div>
-                                  <Progress value={plan.progress_percentage} className="h-1" />
-                                </div>
-
-                                {plan.deadline && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Clock className="h-3 w-3" />
-                                    <span>
-                                      Prazo: {new Date(plan.deadline).toLocaleDateString('pt-BR')}
-                                    </span>
-                                  </div>
-                                )}
-
-                                <div className="pt-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {plan.development_area}
-                                  </Badge>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))
-                        ) : (
-                          <Card className="bg-muted/50">
-                            <CardContent className="flex flex-col items-center justify-center py-8">
-                              <Icon className="h-8 w-8 text-muted-foreground mb-2" />
-                              <p className="text-xs text-muted-foreground text-center">
-                                Nenhum PDI neste status
-                              </p>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="grid gap-6 md:grid-cols-4">
+                  {Object.entries(statusConfig).map(([key, config]) => (
+                    <KanbanColumn
+                      key={key}
+                      id={key}
+                      title={config.title}
+                      icon={config.icon}
+                      color={config.color}
+                      plans={config.plans}
+                      onDelete={(id) => setDeleteDialog(id)}
+                    />
+                  ))}
+                </div>
+                <DragOverlay>
+                  {activeId ? (
+                    <KanbanCard
+                      plan={teamPlans?.find((p: any) => p.id === activeId)}
+                      onDelete={() => {}}
+                    />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
 
             {/* Legenda */}
