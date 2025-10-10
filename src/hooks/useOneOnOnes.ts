@@ -14,6 +14,8 @@ export interface OneOnOne {
   leader_feedback: string;
   collaborator_feedback: string;
   meeting_structure?: any;
+  audio_url?: string;
+  audio_duration?: number;
   created_at: string;
   updated_at: string;
   leader?: { id: string; full_name: string; avatar_url: string | null };

@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Mic, Square, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, Mic, Square, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { OneOnOne } from "@/hooks/useOneOnOnes";
 import { PDIFormIntegrated } from "./PDIFormIntegrated";
 import { PDIReviewCard } from "./PDIReviewCard";
 import { usePDIIntegrated, PDIFormData } from "@/hooks/usePDIIntegrated";
+import { useAudioTranscription } from "@/hooks/useAudioTranscription";
 
 interface OneOnOneMeetingFormProps {
   oneOnOne: OneOnOne;
@@ -31,6 +32,7 @@ interface MeetingData {
 export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMeetingFormProps) => {
   const queryClient = useQueryClient();
   const { getPDIFromOneOnOne, getLatestPDIForCollaborator, createPDIFromOneOnOne, isCreating } = usePDIIntegrated();
+  const { saveAudioToStorage, transcribeAudio, isTranscribing } = useAudioTranscription();
   
   const { data: existingPDI } = getPDIFromOneOnOne(oneOnOne.id);
   const { data: latestPDI } = getLatestPDIForCollaborator(oneOnOne.collaborator_id);
@@ -154,30 +156,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
     setIsProcessing(true);
     
     try {
-      // Fechar modal e iniciar processamento
-      queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      toast.info("Processando transcrição e resumo...");
-      onOpenChange(false);
-
-      // 2. Processar em background (upload, transcrição, resumo)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-      
-      // Upload audio
-      const audioFileName = `${user.id}/${oneOnOne.id}_${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage
-        .from('meeting-recordings')
-        .upload(audioFileName, audioBlob, {
-          contentType: 'audio/webm',
-          upsert: false
-        });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error('Erro ao fazer upload do áudio: ' + uploadError.message);
-      }
-
-      // Convert audio to base64 for transcription
+      // 1. Converter áudio para base64
       const reader = new FileReader();
       const audioBase64 = await new Promise<string>((resolve, reject) => {
         reader.onloadend = () => {
@@ -188,21 +167,23 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         reader.readAsDataURL(audioBlob);
       });
 
-      // Transcribe audio
-      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: audioBase64 }
-      });
+      const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
-      if (transcriptionError) {
-        console.error('Transcription error:', transcriptionError);
-        throw new Error(transcriptionError.message || 'Erro ao transcrever áudio');
+      // 2. SEMPRE salvar o áudio primeiro (garantir que não perdemos dados)
+      toast.info("Salvando áudio...");
+      const audioUrl = await saveAudioToStorage(audioBase64, oneOnOne.id, duration);
+      
+      if (!audioUrl) {
+        throw new Error("Erro ao salvar áudio");
       }
 
-      const transcription = transcriptionData?.text || "";
-
-      // Generate summary with complete data
+      // 3. Tentar transcrever (se falhar, o áudio já está salvo)
+      toast.info("Transcrevendo áudio...");
+      const transcription = await transcribeAudio(audioBase64);
+      
+      // 4. Gerar resumo com dados disponíveis
       const meetingDataForSummary = {
-        transcricao: transcription,
+        transcricao: transcription || "",
         leader: {
           id: oneOnOne.leader_id,
           name: oneOnOne.leader?.full_name || 'Líder'
@@ -216,23 +197,32 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         pdi_mensal: meetingData.pdi_mensal,
       };
 
-      const { data: summaryData, error: summaryError } = await supabase.functions.invoke('summarize-meeting', {
-        body: { meetingData: meetingDataForSummary }
-      });
+      let summary = "";
+      try {
+        toast.info("Gerando resumo...");
+        const { data: summaryData, error: summaryError } = await supabase.functions.invoke('summarize-meeting', {
+          body: { meetingData: meetingDataForSummary }
+        });
 
-      if (summaryError) throw summaryError;
+        if (!summaryError && summaryData?.summary) {
+          summary = summaryData.summary;
+        }
+      } catch (summaryError) {
+        console.error('Summary generation error:', summaryError);
+        toast.warning("Resumo não pôde ser gerado, mas áudio e transcrição foram salvos.");
+      }
 
+      // 5. Salvar dados finais
       const finalData = {
         pdi_review: meetingData.pdi_review,
         roteiro: meetingData.roteiro,
         pdi_mensal: meetingData.pdi_mensal,
-        transcricao: transcription,
-        resumo: summaryData?.summary || "",
-        audio_duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
-        audio_url: audioFileName
+        transcricao: transcription || "",
+        resumo: summary,
+        audio_duration: duration,
       };
 
-      // Save PDI if exists
+      // Salvar PDI se existir
       if (meetingData.pdi_mensal) {
         await createPDIFromOneOnOne({
           oneOnOneId: oneOnOne.id,
@@ -241,7 +231,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         });
       }
 
-      // 3. Update final data and status to "completed"
+      // 6. Atualizar status para completo
       const { error: finalUpdateError } = await supabase
         .from("one_on_ones")
         .update({
@@ -254,7 +244,13 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       if (finalUpdateError) throw finalUpdateError;
 
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      toast.success("1:1 finalizada! Transcrição e resumo disponíveis.");
+      onOpenChange(false);
+      
+      if (transcription) {
+        toast.success("1:1 finalizada com sucesso!");
+      } else {
+        toast.warning("1:1 finalizada! Áudio salvo, mas transcrição falhou. Você pode tentar transcrever depois.");
+      }
     } catch (error: any) {
       console.error('Error finalizing meeting:', error);
       toast.error("Erro ao finalizar: " + error.message);

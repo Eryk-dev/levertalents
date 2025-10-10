@@ -425,6 +425,8 @@ export type Database = {
       one_on_ones: {
         Row: {
           agenda: string | null
+          audio_duration: number | null
+          audio_url: string | null
           collaborator_feedback: string | null
           collaborator_id: string
           created_at: string | null
@@ -440,6 +442,8 @@ export type Database = {
         }
         Insert: {
           agenda?: string | null
+          audio_duration?: number | null
+          audio_url?: string | null
           collaborator_feedback?: string | null
           collaborator_id: string
           created_at?: string | null
@@ -455,6 +459,8 @@ export type Database = {
         }
         Update: {
           agenda?: string | null
+          audio_duration?: number | null
+          audio_url?: string | null
           collaborator_feedback?: string | null
           collaborator_id?: string
           created_at?: string | null

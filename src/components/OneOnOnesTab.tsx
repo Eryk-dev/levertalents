@@ -7,6 +7,7 @@ import { Calendar, FileText, Users, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ManualOneOnOneForm } from "@/components/ManualOneOnOneForm";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { RetryTranscriptionButton } from "@/components/RetryTranscriptionButton";
 
 interface OneOnOnesTabProps {
   isLeader: boolean;
@@ -129,6 +130,17 @@ export function OneOnOnesTab({ isLeader, isRHorSocio, isCollaborator, currentUse
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {meeting.agenda}
                     </p>
+                  </div>
+                )}
+                
+                {/* Botão para re-transcrever se houver áudio mas sem transcrição */}
+                {meeting.audio_url && !meeting.meeting_structure?.transcricao && (
+                  <div className="pt-2 border-t">
+                    <RetryTranscriptionButton
+                      meetingId={meeting.id}
+                      audioUrl={meeting.audio_url}
+                      hasTranscription={!!meeting.meeting_structure?.transcricao}
+                    />
                   </div>
                 )}
               </CardContent>
