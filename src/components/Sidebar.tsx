@@ -37,6 +37,14 @@ export function Sidebar() {
   const isSocio = userRole === "socio";
   const canManage = isAdmin || isRH || isSocio;
 
+  const getHomeRoute = () => {
+    if (userRole === "admin") return "/admin";
+    if (userRole === "socio") return "/socio";
+    if (userRole === "lider" || userRole === "gestor") return "/gestor";
+    if (userRole === "rh") return "/rh";
+    return "/colaborador";
+  };
+
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-primary min-h-screen">
       <div className="p-6">
@@ -44,7 +52,7 @@ export function Sidebar() {
       </div>
       
       <nav className="flex-1 px-4 space-y-1">
-        <NavLink to="/colaborador" icon={Home} label="Início" />
+        <NavLink to={getHomeRoute()} icon={Home} label="Início" />
         <NavLink to="/avaliacoes" icon={FileText} label="Avaliações" />
         {(userRole === "lider" || userRole === "gestor" || canManage) && (
           <>
