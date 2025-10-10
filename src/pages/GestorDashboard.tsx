@@ -20,26 +20,57 @@ export default function GestorDashboard() {
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
 
-  // Busca os membros da equipe do líder logado usando query manual com JOIN
-  const { data: teamMembers = [], isLoading } = useQuery({
-    queryKey: ['team-members', profile?.id],
+  // Busca os membros da equipe do líder logado
+  const { data: rawTeamMembers = [], isLoading: isLoadingTeam } = useQuery({
+    queryKey: ['team-members-raw', profile?.id],
     queryFn: async () => {
       if (!profile?.id) return [];
       
-      // Usando rpc ou query SQL direta para fazer o join manualmente
-      const { data, error } = await supabase.rpc('get_team_members_with_profiles', {
-        p_leader_id: profile.id
-      });
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id, user_id, position')
+        .eq('leader_id', profile.id);
 
       if (error) {
         console.error('Error fetching team members:', error);
         return [];
       }
-      
       return data || [];
     },
     enabled: !!profile?.id,
   });
+
+  // Busca os perfis dos membros da equipe
+  const userIds = rawTeamMembers.map((m: any) => m.user_id);
+  const { data: memberProfiles = [] } = useQuery({
+    queryKey: ['member-profiles', userIds],
+    queryFn: async () => {
+      if (userIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: userIds.length > 0,
+  });
+
+  // Combina os dados
+  const teamMembers = rawTeamMembers.map((tm: any) => {
+    const memberProfile = memberProfiles.find((p: any) => p.id === tm.user_id);
+    return {
+      ...tm,
+      profiles: memberProfile
+    };
+  });
+
+  const isLoading = isLoadingTeam;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

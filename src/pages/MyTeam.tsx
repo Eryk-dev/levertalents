@@ -13,25 +13,70 @@ export default function MyTeam() {
   const navigate = useNavigate();
   const { data: profile } = useUserProfile();
 
-  const { data: teamMembers, isLoading } = useQuery({
-    queryKey: ["my-team"],
+  // Busca os membros da equipe
+  const { data: rawTeamMembers = [], isLoading: isLoadingTeam } = useQuery({
+    queryKey: ["my-team-members", profile?.id],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
       const { data } = await supabase
         .from("team_members")
-        .select(`
-          *,
-          user:profiles(id, full_name, avatar_url, phone, department, hire_date),
-          team:teams(name)
-        `)
+        .select('id, user_id, position, team_id')
         .eq("leader_id", user.id);
 
       return data || [];
     },
     refetchOnMount: true,
+    enabled: !!profile?.id,
   });
+
+  // Busca os perfis dos membros
+  const userIds = rawTeamMembers.map((m: any) => m.user_id);
+  const { data: memberProfiles = [] } = useQuery({
+    queryKey: ['team-member-profiles', userIds],
+    queryFn: async () => {
+      if (userIds.length === 0) return [];
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, phone, department, hire_date')
+        .in('id', userIds);
+
+      return data || [];
+    },
+    enabled: userIds.length > 0,
+  });
+
+  // Busca os times
+  const teamIds = [...new Set(rawTeamMembers.map((m: any) => m.team_id))];
+  const { data: teams = [] } = useQuery({
+    queryKey: ['teams-info', teamIds],
+    queryFn: async () => {
+      if (teamIds.length === 0) return [];
+      
+      const { data } = await supabase
+        .from('teams')
+        .select('id, name')
+        .in('id', teamIds);
+
+      return data || [];
+    },
+    enabled: teamIds.length > 0,
+  });
+
+  // Combina os dados
+  const teamMembers = rawTeamMembers.map((tm: any) => {
+    const userProfile = memberProfiles.find((p: any) => p.id === tm.user_id);
+    const team = teams.find((t: any) => t.id === tm.team_id);
+    return {
+      ...tm,
+      user: userProfile,
+      team: team
+    };
+  });
+
+  const isLoading = isLoadingTeam;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
