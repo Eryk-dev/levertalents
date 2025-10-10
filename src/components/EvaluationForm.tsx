@@ -99,7 +99,7 @@ export function EvaluationForm({ onSuccess }: { onSuccess?: () => void }) {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>Nenhum colaborador disponível</SelectItem>
+                        <SelectItem value="no-members" disabled>Nenhum colaborador disponível</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
