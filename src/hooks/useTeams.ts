@@ -196,34 +196,13 @@ export function useTeams() {
 
   const assignLeaderToTeam = async (leaderId: string, teamId: string) => {
     try {
-      // First check if there are members in the team
-      const { data: existingMembers, error: checkError } = await supabase
+      // Update all members of this team to have this leader
+      const { error: updateError } = await supabase
         .from("team_members")
-        .select("id")
+        .update({ leader_id: leaderId })
         .eq("team_id", teamId);
 
-      if (checkError) throw checkError;
-
-      // If there are no members yet, add the leader as a member
-      if (!existingMembers || existingMembers.length === 0) {
-        const { error: insertError } = await supabase
-          .from("team_members")
-          .insert({
-            user_id: leaderId,
-            team_id: teamId,
-            leader_id: leaderId,
-          });
-
-        if (insertError) throw insertError;
-      } else {
-        // Update all members of this team to have this leader
-        const { error: updateError } = await supabase
-          .from("team_members")
-          .update({ leader_id: leaderId })
-          .eq("team_id", teamId);
-
-        if (updateError) throw updateError;
-      }
+      if (updateError) throw updateError;
 
       toast.success("Líder atribuído ao time com sucesso!");
       await loadData(); // Reload all data to refresh the view

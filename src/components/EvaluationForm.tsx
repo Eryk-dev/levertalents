@@ -37,7 +37,7 @@ export function EvaluationForm({ onSuccess }: { onSuccess?: () => void }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Busca apenas os membros da equipe deste líder
+      // Busca apenas os membros da equipe deste líder, excluindo o próprio líder
       const { data, error } = await supabase
         .from("team_members")
         .select(`
@@ -48,7 +48,8 @@ export function EvaluationForm({ onSuccess }: { onSuccess?: () => void }) {
             full_name
           )
         `)
-        .eq("leader_id", user.id);
+        .eq("leader_id", user.id)
+        .neq("user_id", user.id); // Exclui o próprio líder da lista
       
       if (error) {
         console.error("Erro ao buscar membros da equipe:", error);
