@@ -30,15 +30,35 @@ const queryClient = new QueryClient();
 const App = () => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const getUserRole = async (userId: string) => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return data?.role || 'colaborador';
+    };
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setIsAuthenticated(!!session);
+      if (session) {
+        const role = await getUserRole(session.user.id);
+        setUserRole(role);
+      }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsAuthenticated(!!session);
+      if (session) {
+        const role = await getUserRole(session.user.id);
+        setUserRole(role);
+      } else {
+        setUserRole(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -48,6 +68,23 @@ const App = () => {
     return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }
 
+  const getRoleBasedRedirect = () => {
+    if (!isAuthenticated) return <Navigate to="/auth" />;
+    
+    switch (userRole) {
+      case 'socio':
+        return <Navigate to="/socio" />;
+      case 'lider':
+        return <Navigate to="/gestor" />;
+      case 'rh':
+        return <Navigate to="/rh" />;
+      case 'admin':
+        return <Navigate to="/admin" />;
+      default:
+        return <Navigate to="/colaborador" />;
+    }
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -55,8 +92,8 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to="/" />} />
-            <Route path="/" element={isAuthenticated ? <RoleSelection /> : <Navigate to="/auth" />} />
+            <Route path="/auth" element={!isAuthenticated ? <Auth /> : getRoleBasedRedirect()} />
+            <Route path="/" element={getRoleBasedRedirect()} />
             <Route path="/colaborador" element={isAuthenticated ? <Index /> : <Navigate to="/auth" />} />
             <Route path="/gestor" element={isAuthenticated ? <GestorDashboard /> : <Navigate to="/auth" />} />
             <Route path="/rh" element={isAuthenticated ? <RHDashboard /> : <Navigate to="/auth" />} />

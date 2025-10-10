@@ -246,7 +246,7 @@ export default function DevelopmentPlans() {
                         <Badge 
                           variant="outline" 
                           className="cursor-pointer hover:bg-accent"
-                          onClick={() => navigate(`/11s`)}
+                          onClick={() => navigate(`/11s`, { state: { openOneOnOneId: selectedPlan.one_on_one_id } })}
                         >
                           <ExternalLink className="h-3 w-3 mr-1" />
                           Ver 1:1

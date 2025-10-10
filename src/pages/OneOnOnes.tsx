@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import { LinkedPDIsSection } from "@/components/LinkedPDIsSection";
 
 export default function OneOnOnes() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showForm, setShowForm] = useState(false);
   const [selectedOneOnOne, setSelectedOneOnOne] = useState<OneOnOne | null>(null);
   const [showMeetingForm, setShowMeetingForm] = useState(false);
@@ -31,6 +32,19 @@ export default function OneOnOnes() {
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const { oneOnOnes, isLoading, createOneOnOne, deleteOneOnOne } = useOneOnOnes();
   const { hasPDIForOneOnOne } = usePDIIntegrated();
+
+  // Auto-open 1:1 if navigated from PDI
+  useEffect(() => {
+    const state = location.state as { openOneOnOneId?: string };
+    if (state?.openOneOnOneId && oneOnOnes) {
+      const oneOnOne = oneOnOnes.find(o => o.id === state.openOneOnOneId);
+      if (oneOnOne) {
+        setSelectedOneOnOne(oneOnOne);
+        // Clear the state to prevent reopening on refresh
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location, oneOnOnes, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
