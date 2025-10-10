@@ -9,16 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-
-const alerts = [
-  { type: "gap", message: "Gap crítico: Ana Santos (2 níveis de diferença)", action: "Calibrar" },
-  { type: "score", message: "Score baixo: Maria Costa (3.5)", action: "Agendar 1:1" },
-  { type: "pending", message: "2 formulários mensais pendentes", action: "Enviar lembretes" },
-];
+import { useLeaderAlerts } from "@/hooks/useLeaderAlerts";
 
 export default function GestorDashboard() {
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
+  const { data: alerts = [], isLoading: isLoadingAlerts } = useLeaderAlerts(profile?.id);
 
   // Busca os membros da equipe do líder logado
   const { data: rawTeamMembers = [], isLoading: isLoadingTeam } = useQuery({
@@ -102,16 +98,26 @@ export default function GestorDashboard() {
               </h2>
               <Badge variant="destructive">{alerts.length}</Badge>
             </div>
-            <div className="space-y-3">
-              {alerts.map((alert, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <p className="text-sm font-medium">{alert.message}</p>
-                  <Button size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-white">
-                    {alert.action}
-                  </Button>
-                </div>
-              ))}
-            </div>
+            {isLoadingAlerts ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+              </div>
+            ) : alerts.length === 0 ? (
+              <div className="text-center p-8 text-muted-foreground">
+                <p>Nenhum alerta crítico no momento.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {alerts.map((alert, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm font-medium">{alert.message}</p>
+                    <Button size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-white">
+                      {alert.action}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Indicadores do Time */}
