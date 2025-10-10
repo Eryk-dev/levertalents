@@ -7,13 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useUserProfile } from "@/hooks/useUserProfile";
-
-const teamMembers = [
-  { id: 1, name: "Ana Santos", role: "Desenvolvedora", quadrant: "Estrela", score: 4.7, avatar: "AS", next11: "2 dias", risk: false },
-  { id: 2, name: "Carlos Lima", role: "Designer", quadrant: "Promissor", score: 4.2, avatar: "CL", next11: "5 dias", risk: false },
-  { id: 3, name: "Maria Costa", role: "QA", quadrant: "Regular", score: 3.5, avatar: "MC", next11: "Pendente", risk: true },
-  { id: 4, name: "Pedro Silva", role: "DevOps", quadrant: "Confiável", score: 4.5, avatar: "PS", next11: "1 dia", risk: false },
-];
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 const alerts = [
   { type: "gap", message: "Gap crítico: Ana Santos (2 níveis de diferença)", action: "Calibrar" },
@@ -23,6 +18,33 @@ const alerts = [
 
 export default function GestorDashboard() {
   const { data: profile } = useUserProfile();
+  const navigate = useNavigate();
+
+  // Busca os membros da equipe do líder logado
+  const { data: teamMembers = [], isLoading } = useQuery({
+    queryKey: ['team-members', profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('team_members')
+        .select(`
+          id,
+          position,
+          user_id,
+          profiles(
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('leader_id', profile.id);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.id,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -100,53 +122,58 @@ export default function GestorDashboard() {
               <Badge>{teamMembers.length} membros</Badge>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teamMembers.map((member) => (
-                <div key={member.id} className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
-                        {member.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold">{member.name}</h3>
-                          <p className="text-sm text-muted-foreground">{member.role}</p>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+              </div>
+            ) : teamMembers.length === 0 ? (
+              <div className="text-center p-8 text-muted-foreground">
+                <p>Você ainda não possui membros na sua equipe.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {teamMembers.map((member) => {
+                  const profile = member.profiles;
+                  const initials = profile?.full_name
+                    ?.split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2) || '??';
+                  
+                  return (
+                    <div key={member.id} className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold">{profile?.full_name || 'Nome não disponível'}</h3>
+                              <p className="text-sm text-muted-foreground">{member.position || 'Cargo não definido'}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => navigate(`/colaborador/${member.user_id}`)}
+                            >
+                              Ver Perfil
+                            </Button>
+                          </div>
                         </div>
-                        {member.risk && (
-                          <Badge variant="destructive" className="text-xs">
-                            Risco
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">9BOX: </span>
-                          <span className="font-medium">{member.quadrant}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Score: </span>
-                          <span className="font-medium">{member.score}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xs text-muted-foreground">
-                          Próxima 1:1: {member.next11}
-                        </span>
-                        <Button size="sm" variant="outline">
-                          Ver Perfil
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           
           {/* Mini Matriz 9BOX - Compacta */}
