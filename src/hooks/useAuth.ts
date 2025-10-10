@@ -8,43 +8,59 @@ export function useAuth() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // Use setTimeout to defer Supabase calls and prevent deadlock
-        setTimeout(() => {
-          loadUserRole(session.user.id);
-        }, 0);
-      } else {
-        setUserRole(null);
+    let mounted = true;
+
+    const loadUserRole = async (userId: string) => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (mounted) {
+        setUserRole(data?.role || null);
+        setLoading(false);
       }
-    });
+    };
+
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!mounted) return;
+        
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          loadUserRole(session.user.id);
+        } else {
+          setUserRole(null);
+          setLoading(false);
+        }
+      }
+    );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!mounted) return;
+      
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        // Use setTimeout to defer Supabase calls and prevent deadlock
-        setTimeout(() => {
-          loadUserRole(session.user.id);
-        }, 0);
+        await loadUserRole(session.user.id);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const loadUserRole = async (userId: string) => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    setUserRole(data?.role || null);
-  };
 
   return { user, loading, userRole };
 }

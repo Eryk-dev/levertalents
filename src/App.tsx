@@ -31,7 +31,12 @@ const App = () => {
   const isAuthenticated = !!user;
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mb-4"></div>
+        <p className="text-muted-foreground">Verificando autenticação...</p>
+      </div>
+    );
   }
 
   // Redireciona para o dashboard correto baseado no role
@@ -113,16 +118,43 @@ const App = () => {
               } 
             />
             <Route path="/avaliacoes" element={isAuthenticated ? <Evaluations /> : <Navigate to="/auth" />} />
-            <Route path="/11s" element={isAuthenticated ? <OneOnOnes /> : <Navigate to="/auth" />} />
+            <Route 
+              path="/11s" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["lider", "gestor", "socio", "admin", "rh"]}>
+                    <OneOnOnes />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
             <Route path="/clima" element={isAuthenticated ? <Climate /> : <Navigate to="/auth" />} />
             <Route path="/pdi" element={isAuthenticated ? <DevelopmentPlans /> : <Navigate to="/auth" />} />
             <Route path="/perfil" element={isAuthenticated ? <Profile /> : <Navigate to="/auth" />} />
             <Route path="/times" element={isAuthenticated ? <TeamManagement /> : <Navigate to="/auth" />} />
             <Route path="/empresas" element={isAuthenticated ? <CompanyManagement /> : <Navigate to="/auth" />} />
             <Route path="/criar-usuario" element={isAuthenticated ? <CreateUser /> : <Navigate to="/auth" />} />
-            <Route path="/meu-time" element={isAuthenticated ? <MyTeam /> : <Navigate to="/auth" />} />
+            <Route 
+              path="/meu-time" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["lider", "gestor", "socio", "admin", "rh"]}>
+                    <MyTeam />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
             <Route path="/colaborador/:userId" element={isAuthenticated ? <CollaboratorProfile /> : <Navigate to="/auth" />} />
-            <Route path="/kanban" element={isAuthenticated ? <DevelopmentKanban /> : <Navigate to="/auth" />} />
+            <Route 
+              path="/kanban" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute allowedRoles={["lider", "gestor", "socio", "admin", "rh"]}>
+                    <DevelopmentKanban />
+                  </ProtectedRoute>
+                ) : <Navigate to="/auth" />
+              } 
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

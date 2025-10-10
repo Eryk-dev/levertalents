@@ -14,7 +14,15 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (!userRole || !allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
+    // Redireciona para a rota correta do usuário baseado no seu role
+    const redirectPath = 
+      userRole === 'admin' ? '/admin' :
+      userRole === 'socio' ? '/socio' :
+      userRole === 'lider' ? '/gestor' :
+      userRole === 'rh' ? '/rh' :
+      '/colaborador';
+    
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

@@ -64,7 +64,11 @@ export function MobileNav() {
             <NavLink to="/colaborador" icon={Home} label="Início" onClick={closeSheet} />
             <NavLink to="/avaliacoes" icon={FileText} label="Avaliações" onClick={closeSheet} />
             {(userRole === "lider" || userRole === "gestor" || canManage) && (
-              <NavLink to="/11s" icon={Calendar} label="1:1s" onClick={closeSheet} />
+              <>
+                <NavLink to="/11s" icon={Calendar} label="1:1s" onClick={closeSheet} />
+                <NavLink to="/meu-time" icon={Users} label="Meu Time" onClick={closeSheet} />
+                <NavLink to="/kanban" icon={TrendingUp} label="Kanban" onClick={closeSheet} />
+              </>
             )}
             <NavLink to="/pdi" icon={BarChart3} label="PDI" onClick={closeSheet} />
             <NavLink to="/clima" icon={CloudSun} label="Clima" onClick={closeSheet} />
