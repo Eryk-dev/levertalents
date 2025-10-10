@@ -65,7 +65,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
-            <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+            <Route path="/" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
             <Route path="/colaborador" element={isAuthenticated ? <Index /> : <Navigate to="/auth" />} />
             <Route 
               path="/gestor" 
