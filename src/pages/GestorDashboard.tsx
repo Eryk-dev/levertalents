@@ -62,7 +62,7 @@ export default function GestorDashboard() {
   });
 
   // Combina os dados
-  const teamMembers = rawTeamMembers.map((tm: any) => {
+  const teamMembers: any[] = rawTeamMembers.map((tm: any) => {
     const memberProfile = memberProfiles.find((p: any) => p.id === tm.user_id);
     return {
       ...tm,
