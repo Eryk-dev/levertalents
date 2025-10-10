@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Auth from "./pages/Auth";
-import RoleSelection from "./pages/RoleSelection";
 import Index from "./pages/Index";
 import GestorDashboard from "./pages/GestorDashboard";
 import RHDashboard from "./pages/RHDashboard";
@@ -28,12 +27,30 @@ import { useAuth } from "@/hooks/useAuth";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, userRole } = useAuth();
   const isAuthenticated = !!user;
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }
+
+  // Redireciona para o dashboard correto baseado no role
+  const getDefaultRoute = () => {
+    if (!isAuthenticated) return "/auth";
+    
+    switch (userRole) {
+      case 'admin':
+        return '/admin';
+      case 'socio':
+        return '/socio';
+      case 'lider':
+        return '/gestor';
+      case 'rh':
+        return '/rh';
+      default:
+        return '/colaborador';
+    }
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -42,8 +59,8 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to="/" />} />
-            <Route path="/" element={isAuthenticated ? <RoleSelection /> : <Navigate to="/auth" />} />
+            <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
+            <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
             <Route path="/colaborador" element={isAuthenticated ? <Index /> : <Navigate to="/auth" />} />
             <Route 
               path="/gestor" 
