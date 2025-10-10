@@ -8,21 +8,29 @@ export function useAuth() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        await loadUserRole(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadUserRole(session.user.id);
+        // Use setTimeout to defer Supabase calls and prevent deadlock
+        setTimeout(() => {
+          loadUserRole(session.user.id);
+        }, 0);
       } else {
         setUserRole(null);
       }
+    });
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // Use setTimeout to defer Supabase calls and prevent deadlock
+        setTimeout(() => {
+          loadUserRole(session.user.id);
+        }, 0);
+      }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
