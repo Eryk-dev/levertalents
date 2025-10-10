@@ -43,7 +43,7 @@ export function EvaluationForm({ onSuccess }: { onSuccess?: () => void }) {
         .select(`
           user_id,
           leader_id,
-          profiles:user_id (
+          profiles!team_members_user_id_fkey (
             id,
             full_name
           )
