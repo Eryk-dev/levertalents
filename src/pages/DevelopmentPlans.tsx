@@ -141,22 +141,9 @@ export default function DevelopmentPlans() {
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <Badge variant={statusMap[plan.status].variant}>
-                          {statusMap[plan.status].label}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteDialog(plan.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Badge variant={statusMap[plan.status].variant}>
+                        {statusMap[plan.status].label}
+                      </Badge>
                     </div>
                     <CardDescription>{plan.development_area}</CardDescription>
                   </CardHeader>
@@ -217,19 +204,7 @@ export default function DevelopmentPlans() {
           <Dialog open={!!selectedPlan} onOpenChange={() => setSelectedPlan(null)}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <DialogTitle>Detalhes do PDI</DialogTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => {
-                      setDeleteDialog(selectedPlan?.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                <DialogTitle>Detalhes do PDI</DialogTitle>
               </DialogHeader>
               {selectedPlan && (
                 <div className="space-y-6">
