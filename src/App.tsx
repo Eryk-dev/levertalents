@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
 import Index from "./pages/Index";
 import GestorDashboard from "./pages/GestorDashboard";
 import RHDashboard from "./pages/RHDashboard";
@@ -66,7 +65,6 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
             <Route path="/colaborador" element={isAuthenticated ? <Index /> : <Navigate to="/auth" />} />
             <Route 
