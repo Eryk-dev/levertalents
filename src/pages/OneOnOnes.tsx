@@ -363,7 +363,10 @@ export default function OneOnOnes() {
                       {selectedOneOnOne.audio_url && (
                         <div>
                           <h3 className="font-semibold mb-2">Gravação</h3>
-                          <AudioPlayer audioUrl={selectedOneOnOne.audio_url} />
+                           <AudioPlayer 
+                            audioUrl={selectedOneOnOne.audio_url} 
+                            audioDuration={selectedOneOnOne.audio_duration || undefined}
+                          />
                         </div>
                       )}
                       {selectedOneOnOne.meeting_structure.transcricao && (

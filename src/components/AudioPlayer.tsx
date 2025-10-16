@@ -10,13 +10,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface AudioPlayerProps {
   audioUrl: string;
   fileName?: string;
+  audioDuration?: number; // Duração em segundos do banco de dados
 }
 
-export function AudioPlayer({ audioUrl, fileName = "audio.webm" }: AudioPlayerProps) {
+export function AudioPlayer({ audioUrl, fileName = "audio.webm", audioDuration }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(audioDuration || 0);
   const [playbackRate, setPlaybackRate] = useState("1");
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -30,9 +31,12 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm" }: AudioPlayerPr
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => {
-      setDuration(audio.duration);
+      // Só atualiza se a duração do áudio for diferente da que já temos
+      if (audio.duration && audio.duration !== duration) {
+        setDuration(audio.duration);
+      }
       setIsLoading(false);
-      console.log("✅ Áudio carregado. Duração:", audio.duration, "segundos");
+      console.log("✅ Áudio carregado. Duração:", audio.duration || audioDuration, "segundos");
     };
     const handleEnded = () => setIsPlaying(false);
     const handleError = (e: Event) => {
