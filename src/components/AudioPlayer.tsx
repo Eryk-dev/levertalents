@@ -146,6 +146,9 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm" }: AudioPlayerPr
   };
 
   const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds) || !isFinite(seconds)) {
+      return "0:00";
+    }
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -154,7 +157,7 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm" }: AudioPlayerPr
   return (
     <Card>
       <CardContent className="pt-6">
-        <audio ref={audioRef} src={audioUrl} preload="auto" crossOrigin="anonymous" />
+        <audio ref={audioRef} src={audioUrl} preload="auto" />
         
         {hasError && (
           <Alert variant="destructive" className="mb-4">
