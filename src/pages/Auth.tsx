@@ -16,6 +16,7 @@ const authSchema = z.object({
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -26,6 +27,13 @@ export default function Auth() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // Verifica se é uma sessão de recuperação de senha
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('type') === 'recovery') {
+          navigate('/reset-password');
+          return;
+        }
+        
         const role = await getUserRole(session.user.id);
         redirectByRole(role);
       }
@@ -36,6 +44,8 @@ export default function Auth() {
       if (event === 'SIGNED_IN' && session) {
         const role = await getUserRole(session.user.id);
         redirectByRole(role);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password');
       }
     });
 
@@ -64,6 +74,34 @@ export default function Auth() {
         break;
       default:
         navigate('/colaborador');
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const emailSchema = z.string().trim().email({ message: "Email inválido" });
+      const validatedEmail = emailSchema.parse(email);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(validatedEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Email de recuperação enviado! Verifique sua caixa de entrada.");
+      setIsForgotPassword(false);
+      setEmail("");
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error(error.message || "Erro ao enviar email de recuperação.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,16 +158,54 @@ export default function Auth() {
         <div className="mb-8 text-center">
           <img src={logo} alt="Lever Talents" className="w-48 mx-auto mb-4" />
           <h1 className="text-2xl font-bold">
-            {isLogin ? "Bem-vindo de volta" : "Criar conta"}
+            {isForgotPassword 
+              ? "Recuperar senha" 
+              : isLogin 
+                ? "Bem-vindo de volta" 
+                : "Criar conta"}
           </h1>
           <p className="text-muted-foreground mt-2">
-            {isLogin
-              ? "Entre com suas credenciais"
-              : "Preencha os dados para começar"}
+            {isForgotPassword
+              ? "Digite seu email para receber o link de recuperação"
+              : isLogin
+                ? "Entre com suas credenciais"
+                : "Preencha os dados para começar"}
           </p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        {isForgotPassword ? (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="seu@email.com"
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Enviando..." : "Enviar link de recuperação"}
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setEmail("");
+                }}
+                className="text-sm text-accent hover:underline"
+              >
+                Voltar para o login
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
             <div>
               <Label htmlFor="fullName">Nome completo</Label>
@@ -168,22 +244,40 @@ export default function Auth() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Carregando..." : isLogin ? "Entrar" : "Criar conta"}
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Carregando..." : isLogin ? "Entrar" : "Criar conta"}
+            </Button>
 
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-accent hover:underline"
-          >
-            {isLogin
-              ? "Não tem uma conta? Criar conta"
-              : "Já tem uma conta? Entrar"}
-          </button>
-        </div>
+            {isLogin && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(true);
+                    setPassword("");
+                  }}
+                  className="text-sm text-muted-foreground hover:text-accent hover:underline"
+                >
+                  Esqueceu sua senha?
+                </button>
+              </div>
+            )}
+          </form>
+        )}
+
+        {!isForgotPassword && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-accent hover:underline"
+            >
+              {isLogin
+                ? "Não tem uma conta? Criar conta"
+                : "Já tem uma conta? Entrar"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
