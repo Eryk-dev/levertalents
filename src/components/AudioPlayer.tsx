@@ -26,22 +26,52 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm" }: AudioPlayerPr
     const audio = audioRef.current;
     if (!audio) return;
 
+    console.log("🎵 Inicializando AudioPlayer com URL:", audioUrl);
+
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => {
       setDuration(audio.duration);
       setIsLoading(false);
-      console.log("Áudio carregado. Duração:", audio.duration);
+      console.log("✅ Áudio carregado. Duração:", audio.duration, "segundos");
     };
     const handleEnded = () => setIsPlaying(false);
     const handleError = (e: Event) => {
-      console.error("Erro ao carregar áudio:", e);
+      const audioElement = e.target as HTMLAudioElement;
+      console.error("❌ Erro ao carregar áudio:", {
+        url: audioUrl,
+        error: audioElement.error,
+        errorCode: audioElement.error?.code,
+        errorMessage: audioElement.error?.message,
+        networkState: audioElement.networkState,
+        readyState: audioElement.readyState
+      });
+      
+      let errorMsg = "Não foi possível carregar o áudio.";
+      
+      if (audioElement.error) {
+        switch (audioElement.error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMsg = "Carregamento do áudio foi interrompido.";
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMsg = "Erro de rede ao carregar o áudio.";
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMsg = "Erro ao decodificar o áudio.";
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMsg = "Formato de áudio não suportado ou arquivo não encontrado.";
+            break;
+        }
+      }
+      
       setHasError(true);
       setIsLoading(false);
-      setErrorMessage("Não foi possível carregar o áudio. Verifique se o arquivo existe.");
-      toast.error("Erro ao carregar áudio");
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     };
     const handleCanPlay = () => {
-      console.log("Áudio pronto para reprodução");
+      console.log("✅ Áudio pronto para reprodução");
       setIsLoading(false);
       setHasError(false);
     };
