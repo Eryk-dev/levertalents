@@ -27,16 +27,26 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm", audioDuration }
     const audio = audioRef.current;
     if (!audio) return;
 
-    console.log("🎵 Inicializando AudioPlayer com URL:", audioUrl);
+    console.log("🎵 Inicializando AudioPlayer com URL:", audioUrl, "- Duração do banco:", audioDuration);
+    
+    // Se temos duração do banco, usa ela imediatamente
+    if (audioDuration) {
+      setDuration(audioDuration);
+      setIsLoading(false);
+    }
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => {
-      // Só atualiza se a duração do áudio for diferente da que já temos
-      if (audio.duration && audio.duration !== duration) {
+      // Só atualiza se conseguir carregar a duração do arquivo E ela for válida
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
         setDuration(audio.duration);
+        console.log("✅ Áudio carregado do arquivo. Duração:", audio.duration, "segundos");
+      } else if (audioDuration) {
+        // Fallback para a duração do banco se o arquivo não carregar
+        setDuration(audioDuration);
+        console.log("✅ Usando duração do banco:", audioDuration, "segundos");
       }
       setIsLoading(false);
-      console.log("✅ Áudio carregado. Duração:", audio.duration || audioDuration, "segundos");
     };
     const handleEnded = () => setIsPlaying(false);
     const handleError = (e: Event) => {
@@ -69,6 +79,11 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm", audioDuration }
         }
       }
       
+      // Mesmo com erro, mantém a duração do banco se disponível
+      if (audioDuration) {
+        setDuration(audioDuration);
+      }
+      
       setHasError(true);
       setIsLoading(false);
       setErrorMessage(errorMsg);
@@ -96,7 +111,7 @@ export function AudioPlayer({ audioUrl, fileName = "audio.webm", audioDuration }
       audio.removeEventListener("error", handleError);
       audio.removeEventListener("canplay", handleCanPlay);
     };
-  }, [audioUrl]);
+  }, [audioUrl, audioDuration]);
 
   const togglePlay = async () => {
     const audio = audioRef.current;
