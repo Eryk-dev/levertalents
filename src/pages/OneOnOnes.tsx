@@ -23,6 +23,7 @@ import { OneOnOneMeetingForm } from "@/components/OneOnOneMeetingForm";
 import { usePDIIntegrated } from "@/hooks/usePDIIntegrated";
 import { LinkedPDIsSection } from "@/components/LinkedPDIsSection";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { RetryTranscriptionButton } from "@/components/RetryTranscriptionButton";
 
 export default function OneOnOnes() {
   const navigate = useNavigate();
@@ -248,6 +249,15 @@ export default function OneOnOnes() {
                           <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 pt-2">
                             <FileText className="h-3 w-3" />
                             Sem PDI vinculado
+                          </div>
+                        )}
+                        {oneOnOne.audio_url && !oneOnOne.meeting_structure?.transcricao && (
+                          <div className="pt-2 border-t mt-2">
+                            <RetryTranscriptionButton
+                              meetingId={oneOnOne.id}
+                              audioUrl={oneOnOne.audio_url}
+                              hasTranscription={!!oneOnOne.meeting_structure?.transcricao}
+                            />
                           </div>
                         )}
                       </div>
