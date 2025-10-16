@@ -10,13 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, TrendingUp, Trash2, History } from "lucide-react";
+import { Plus, Target, TrendingUp, Trash2, History, MoreVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ManualPDIForm } from "@/components/ManualPDIForm";
 import { useAuth } from "@/hooks/useAuth";
 import { LinkPDIToOneOnOne } from "@/components/LinkPDIToOneOnOne";
@@ -141,9 +142,22 @@ export default function DevelopmentPlans() {
                           </p>
                         )}
                       </div>
-                      <Badge variant={statusMap[plan.status].variant}>
-                        {statusMap[plan.status].label}
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Badge variant={statusMap[plan.status].variant}>
+                          {statusMap[plan.status].label}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteDialog(plan.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <CardDescription>{plan.development_area}</CardDescription>
                   </CardHeader>
@@ -204,7 +218,27 @@ export default function DevelopmentPlans() {
           <Dialog open={!!selectedPlan} onOpenChange={() => setSelectedPlan(null)}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Detalhes do PDI</DialogTitle>
+                <div className="flex items-center justify-between">
+                  <DialogTitle>Detalhes do PDI</DialogTitle>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => {
+                          setDeleteDialog(selectedPlan?.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir PDI
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </DialogHeader>
               {selectedPlan && (
                 <div className="space-y-6">
