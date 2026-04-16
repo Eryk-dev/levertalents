@@ -122,7 +122,7 @@ const App = () => {
               path="/11s" 
               element={
                 isAuthenticated ? (
-                  <ProtectedRoute allowedRoles={["lider", "gestor", "socio", "admin", "rh"]}>
+                  <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <OneOnOnes />
                   </ProtectedRoute>
                 ) : <Navigate to="/auth" />
@@ -138,7 +138,7 @@ const App = () => {
               path="/meu-time" 
               element={
                 isAuthenticated ? (
-                  <ProtectedRoute allowedRoles={["lider", "gestor", "socio", "admin", "rh"]}>
+                  <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <MyTeam />
                   </ProtectedRoute>
                 ) : <Navigate to="/auth" />
@@ -149,7 +149,7 @@ const App = () => {
               path="/kanban" 
               element={
                 isAuthenticated ? (
-                  <ProtectedRoute allowedRoles={["lider", "gestor", "socio", "admin", "rh"]}>
+                  <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <DevelopmentKanban />
                   </ProtectedRoute>
                 ) : <Navigate to="/auth" />

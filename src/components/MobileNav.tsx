@@ -47,7 +47,7 @@ export function MobileNav() {
   const getHomeRoute = () => {
     if (userRole === "admin") return "/admin";
     if (userRole === "socio") return "/socio";
-    if (userRole === "lider" || userRole === "gestor") return "/gestor";
+    if (userRole === "lider") return "/gestor";
     if (userRole === "rh") return "/rh";
     return "/colaborador";
   };
@@ -71,7 +71,7 @@ export function MobileNav() {
           <nav className="flex-1 px-4 space-y-1">
             <NavLink to={getHomeRoute()} icon={Home} label="Início" onClick={closeSheet} />
             <NavLink to="/avaliacoes" icon={FileText} label="Avaliações" onClick={closeSheet} />
-            {(userRole === "lider" || userRole === "gestor" || canManage) && (
+            {(userRole === "lider" || canManage) && (
               <>
                 <NavLink to="/11s" icon={Calendar} label="1:1s" onClick={closeSheet} />
                 <NavLink to="/meu-time" icon={Users} label="Meu Time" onClick={closeSheet} />
