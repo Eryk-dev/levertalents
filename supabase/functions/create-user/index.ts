@@ -27,13 +27,16 @@ serve(async (req) => {
 
     console.log('Creating user:', { email, fullName, role })
 
-    // Create user using Admin API
+    // Create user using Admin API. Role é passado via user_metadata para que
+    // o trigger handle_new_user insira direto em user_roles com o role
+    // correto — evita a duplicidade (default 'colaborador' + role desejado).
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
       email_confirm: true,
       user_metadata: {
-        full_name: fullName
+        full_name: fullName,
+        role: role
       }
     })
 
@@ -46,7 +49,7 @@ serve(async (req) => {
     const userId = userData.user.id
     console.log('User created with ID:', userId)
 
-    // Update profile
+    // Update profile (department/hireDate não cabem em user_metadata)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
@@ -61,22 +64,7 @@ serve(async (req) => {
       throw profileError
     }
 
-    console.log('Profile updated successfully')
-
-    // Assign role
-    const { error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: role
-      })
-
-    if (roleError) {
-      console.error('Error assigning role:', roleError)
-      throw roleError
-    }
-
-    console.log('Role assigned successfully:', role)
+    console.log('Profile updated successfully, role assigned via trigger:', role)
 
     return new Response(
       JSON.stringify({ success: true, userId }),
