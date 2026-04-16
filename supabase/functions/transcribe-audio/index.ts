@@ -1,24 +1,28 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requireRole } from "../_shared/role-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Whisper aceita até 25MB. base64 expande ~33%; decodificado = bytes reais.
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
   const chunks: Uint8Array[] = [];
   let position = 0;
-  
+
   while (position < base64String.length) {
     const chunk = base64String.slice(position, position + chunkSize);
     const binaryChunk = atob(chunk);
     const bytes = new Uint8Array(binaryChunk.length);
-    
+
     for (let i = 0; i < binaryChunk.length; i++) {
       bytes[i] = binaryChunk.charCodeAt(i);
     }
-    
+
     chunks.push(bytes);
     position += chunkSize;
   }
@@ -40,26 +44,38 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const guard = await requireRole(req, ['lider', 'rh', 'socio', 'admin']);
+  if (!guard.ok) return guard.response;
+
   try {
     const { audio } = await req.json();
-    
+
     if (!audio) {
       throw new Error('No audio data provided');
     }
 
-    console.log('Processing audio transcription request...');
+    // Checa tamanho antes de bater no OpenAI — evita gastar quota em arquivo
+    // que vai ser rejeitado de qualquer jeito.
+    const approxBytes = Math.floor((audio.length * 3) / 4);
+    if (approxBytes > MAX_AUDIO_BYTES) {
+      return new Response(
+        JSON.stringify({
+          error: `Áudio excede o limite de 25MB (tamanho aproximado: ${(approxBytes / 1024 / 1024).toFixed(1)}MB).`,
+        }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Process audio in chunks
+    console.log(`Processing audio transcription: ~${(approxBytes / 1024 / 1024).toFixed(1)}MB, user=${guard.userId}`);
+
     const binaryAudio = processBase64Chunks(audio);
-    
-    // Prepare form data
+
     const formData = new FormData();
     const blob = new Blob([binaryAudio], { type: 'audio/webm' });
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
-    // Send to OpenAI
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
@@ -71,17 +87,16 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', errorText);
-      
-      // Parse error for better user feedback
+
       try {
         const errorJson = JSON.parse(errorText);
         if (errorJson.error?.code === 'insufficient_quota') {
           throw new Error('Créditos do OpenAI esgotados. Por favor, adicione créditos à sua conta OpenAI e atualize a chave API.');
         }
-      } catch (e) {
-        // If parsing fails, continue with generic error
+      } catch (_e) {
+        // fall through to generic error below
       }
-      
+
       throw new Error(`Erro na API OpenAI: ${errorText}`);
     }
 

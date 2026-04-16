@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requireRole } from "../_shared/role-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,16 +11,19 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const guard = await requireRole(req, ['lider', 'rh', 'socio', 'admin']);
+  if (!guard.ok) return guard.response;
+
   try {
     const { meetingData } = await req.json();
-    
+
     if (!meetingData) {
       throw new Error('No meeting data provided');
     }
 
-    console.log('Generating meeting summary...');
+    console.log(`Generating meeting summary for user=${guard.userId}`);
 
-    const prompt = `Você é um assistente especializado em resumir reuniões 1:1 entre líderes e colaboradores. 
+    const prompt = `Você é um assistente especializado em resumir reuniões 1:1 entre líderes e colaboradores.
 
 Analise a TRANSCRIÇÃO da reunião abaixo e crie um resumo estruturado em português do Brasil focando nos **itens mais relevantes** discutidos.
 
@@ -98,14 +102,14 @@ ${meetingData.pdi_mensal?.main_objective ? `- Novo PDI criado: ${meetingData.pdi
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      
+
       if (response.status === 429) {
         throw new Error('Limite de requisições atingido. Por favor, aguarde um momento e tente novamente.');
       }
       if (response.status === 402) {
         throw new Error('Créditos insuficientes. Adicione créditos em Settings -> Workspace -> Usage.');
       }
-      
+
       throw new Error(`AI Gateway error: ${errorText}`);
     }
 
