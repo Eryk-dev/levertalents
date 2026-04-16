@@ -11,7 +11,12 @@ import { Progress } from "@/components/ui/progress";
 import { OneOnOne } from "@/hooks/useOneOnOnes";
 import { PDIFormIntegrated } from "./PDIFormIntegrated";
 import { PDIReviewCard } from "./PDIReviewCard";
-import { usePDIIntegrated, PDIFormData } from "@/hooks/usePDIIntegrated";
+import {
+  usePDIIntegrated,
+  usePDIForOneOnOne,
+  useLatestPDIForCollaborator,
+  PDIFormData,
+} from "@/hooks/usePDIIntegrated";
 import { useAudioTranscription } from "@/hooks/useAudioTranscription";
 
 interface OneOnOneMeetingFormProps {
@@ -31,11 +36,11 @@ interface MeetingData {
 
 export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMeetingFormProps) => {
   const queryClient = useQueryClient();
-  const { getPDIFromOneOnOne, getLatestPDIForCollaborator, createPDIFromOneOnOne, isCreating } = usePDIIntegrated();
+  const { createPDIFromOneOnOne, isCreating } = usePDIIntegrated();
   const { saveAudioToStorage, transcribeAudio, isTranscribing } = useAudioTranscription();
-  
-  const { data: existingPDI } = getPDIFromOneOnOne(oneOnOne.id);
-  const { data: latestPDI } = getLatestPDIForCollaborator(oneOnOne.collaborator_id);
+
+  const { data: existingPDI } = usePDIForOneOnOne(oneOnOne.id);
+  const { data: latestPDI } = useLatestPDIForCollaborator(oneOnOne.collaborator_id);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [isRecording, setIsRecording] = useState(false);

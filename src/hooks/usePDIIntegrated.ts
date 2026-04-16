@@ -12,10 +12,53 @@ export interface PDIFormData {
   deadline: string;
 }
 
+// Hook standalone: busca PDI vinculado a um 1:1 específico.
+// Tem que ser chamado no top-level do componente — não dentro de loops/condicionais.
+export const usePDIForOneOnOne = (oneOnOneId: string | undefined) => {
+  return useQuery({
+    queryKey: ["pdi_from_one_on_one", oneOnOneId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("development_plans")
+        .select("*")
+        .eq("one_on_one_id", oneOnOneId!)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as DevelopmentPlan | null;
+    },
+    enabled: !!oneOnOneId,
+  });
+};
+
+// Hook standalone: busca o PDI mais recente de um colaborador.
+export const useLatestPDIForCollaborator = (collaboratorId: string | undefined) => {
+  return useQuery({
+    queryKey: ["latest_pdi", collaboratorId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("development_plans")
+        .select(`
+          *,
+          user:profiles!development_plans_user_id_fkey(id, full_name, avatar_url)
+        `)
+        .eq("user_id", collaboratorId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as DevelopmentPlan | null;
+    },
+    enabled: !!collaboratorId,
+  });
+};
+
 export const usePDIIntegrated = () => {
   const queryClient = useQueryClient();
 
-  // Get all PDIs for current 1:1s (for checking existence in loops)
+  // Lista flat de PDIs ligados a 1:1s — serve para check de existência em loops
+  // (hasPDIForOneOnOne) sem precisar invocar um hook por item.
   const { data: allPDIs } = useQuery({
     queryKey: ["all_pdis_for_one_on_ones"],
     queryFn: async () => {
@@ -29,62 +72,19 @@ export const usePDIIntegrated = () => {
     },
   });
 
-  // Check if a PDI exists for a specific 1:1 (non-hook function for use in loops)
   const hasPDIForOneOnOne = (oneOnOneId: string): boolean => {
     return allPDIs?.some(pdi => pdi.one_on_one_id === oneOnOneId) || false;
   };
 
-  // Get PDI from specific 1:1 (hook - only use at component top level)
-  const getPDIFromOneOnOne = (oneOnOneId: string) => {
-    return useQuery({
-      queryKey: ["pdi_from_one_on_one", oneOnOneId],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("development_plans")
-          .select("*")
-          .eq("one_on_one_id", oneOnOneId)
-          .maybeSingle();
-
-        if (error) throw error;
-        return data as DevelopmentPlan | null;
-      },
-      enabled: !!oneOnOneId,
-    });
-  };
-
-  // Get latest PDI for collaborator
-  const getLatestPDIForCollaborator = (collaboratorId: string) => {
-    return useQuery({
-      queryKey: ["latest_pdi", collaboratorId],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("development_plans")
-          .select(`
-            *,
-            user:profiles!development_plans_user_id_fkey(id, full_name, avatar_url)
-          `)
-          .eq("user_id", collaboratorId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) throw error;
-        return data as DevelopmentPlan | null;
-      },
-      enabled: !!collaboratorId,
-    });
-  };
-
-  // Create PDI from 1:1
   const createPDIFromOneOnOne = useMutation({
-    mutationFn: async ({ 
-      oneOnOneId, 
-      collaboratorId, 
-      data 
-    }: { 
-      oneOnOneId: string; 
-      collaboratorId: string; 
-      data: PDIFormData 
+    mutationFn: async ({
+      oneOnOneId,
+      collaboratorId,
+      data
+    }: {
+      oneOnOneId: string;
+      collaboratorId: string;
+      data: PDIFormData
     }) => {
       const { data: pdi, error } = await supabase
         .from("development_plans")
@@ -123,18 +123,16 @@ export const usePDIIntegrated = () => {
     },
   });
 
-  // Update PDI progress
   const updatePDIProgress = useMutation({
-    mutationFn: async ({ 
-      pdiId, 
-      progressPercentage, 
-      updateText 
-    }: { 
-      pdiId: string; 
+    mutationFn: async ({
+      pdiId,
+      progressPercentage,
+      updateText
+    }: {
+      pdiId: string;
       progressPercentage: number;
       updateText: string;
     }) => {
-      // Update progress
       const { error: updateError } = await supabase
         .from("development_plans")
         .update({ progress_percentage: progressPercentage })
@@ -142,7 +140,6 @@ export const usePDIIntegrated = () => {
 
       if (updateError) throw updateError;
 
-      // Add progress update
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
@@ -171,8 +168,6 @@ export const usePDIIntegrated = () => {
 
   return {
     hasPDIForOneOnOne,
-    getPDIFromOneOnOne,
-    getLatestPDIForCollaborator,
     createPDIFromOneOnOne: createPDIFromOneOnOne.mutate,
     updatePDIProgress: updatePDIProgress.mutate,
     isCreating: createPDIFromOneOnOne.isPending,
