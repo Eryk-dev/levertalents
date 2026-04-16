@@ -21,7 +21,7 @@ const createUserSchema = z.object({
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   department: z.string().optional(),
   hireDate: z.string().optional(),
-  role: z.enum(["socio", "lider", "rh", "colaborador"], {
+  role: z.enum(["admin", "socio", "lider", "rh", "colaborador"], {
     required_error: "Selecione um papel",
   }),
 });
@@ -154,6 +154,7 @@ export default function CreateUser() {
                         <SelectItem value="lider">Líder</SelectItem>
                         <SelectItem value="rh">RH</SelectItem>
                         <SelectItem value="socio">Sócio</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.role && (
