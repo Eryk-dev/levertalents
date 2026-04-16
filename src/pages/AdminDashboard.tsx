@@ -60,8 +60,8 @@ export default function AdminDashboard() {
       .eq('user_id', session.user.id)
       .single();
 
-    if (roleData?.role !== 'socio') {
-      toast.error("Acesso negado: Apenas sócios podem acessar esta página.");
+    if (!roleData?.role || !['admin', 'socio'].includes(roleData.role)) {
+      toast.error("Acesso negado: apenas admin e sócio podem acessar esta página.");
       navigate('/');
     }
   };

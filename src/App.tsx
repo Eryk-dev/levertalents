@@ -98,10 +98,10 @@ const App = () => {
               } 
             />
             <Route 
-              path="/admin" 
+              path="/admin"
               element={
                 isAuthenticated ? (
-                  <ProtectedRoute allowedRoles={["admin"]}>
+                  <ProtectedRoute allowedRoles={["admin", "socio"]}>
                     <AdminDashboard />
                   </ProtectedRoute>
                 ) : <Navigate to="/auth" />
