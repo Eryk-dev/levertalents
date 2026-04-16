@@ -119,37 +119,14 @@ export function useTeams() {
   };
 
   const loadUsers = async () => {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name");
-
-    if (!profiles) {
+    const { data, error } = await supabase.functions.invoke<{ users: UserProfile[] }>("list-users");
+    if (error) {
+      console.error("Erro ao carregar usuários:", error);
+      toast.error("Erro ao carregar usuários");
       setUsers([]);
       return;
     }
-
-    const { data: authData } = await supabase.auth.admin.listUsers();
-    const authUsers = authData?.users || [];
-
-    const usersWithRoles = await Promise.all(
-      profiles.map(async (profile) => {
-        const authUser = authUsers.find((u) => u.id === profile.id);
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", profile.id)
-          .maybeSingle();
-
-        return {
-          id: profile.id,
-          full_name: profile.full_name,
-          email: authUser?.email,
-          role: roleData?.role,
-        };
-      })
-    );
-
-    setUsers(usersWithRoles);
+    setUsers(data?.users ?? []);
   };
 
   const createTeam = async (name: string, companyId: string) => {

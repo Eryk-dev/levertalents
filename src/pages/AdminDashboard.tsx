@@ -68,32 +68,9 @@ export default function AdminDashboard() {
 
   const loadUsers = async () => {
     try {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .order('full_name');
-
-      const { data: { users: authUsers } } = await supabase.auth.admin.listUsers();
-
-      const usersWithRoles = await Promise.all(
-        (authUsers || []).map(async (user) => {
-          const profile = profiles?.find(p => p.id === user.id);
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id)
-            .single();
-
-          return {
-            id: user.id,
-            email: user.email || '',
-            full_name: profile?.full_name || user.email || '',
-            role: roleData?.role || null,
-          };
-        })
-      );
-
-      setUsers(usersWithRoles);
+      const { data, error } = await supabase.functions.invoke<{ users: UserWithRole[] }>('list-users');
+      if (error) throw error;
+      setUsers(data?.users ?? []);
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error("Não foi possível carregar a lista de usuários.");
