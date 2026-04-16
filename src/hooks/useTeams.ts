@@ -12,6 +12,7 @@ export type Team = {
   id: string;
   name: string;
   company_id: string;
+  leader_id: string | null;
   company?: Company;
 };
 
@@ -173,16 +174,25 @@ export function useTeams() {
 
   const assignLeaderToTeam = async (leaderId: string, teamId: string) => {
     try {
-      // Update all members of this team to have this leader
-      const { error: updateError } = await supabase
+      // Persiste no time (fonte de verdade, funciona mesmo em time vazio).
+      const { error: teamError } = await supabase
+        .from("teams")
+        .update({ leader_id: leaderId })
+        .eq("id", teamId);
+
+      if (teamError) throw teamError;
+
+      // Espelha em team_members para manter a RLS de team_members funcionando
+      // (líder vê membros onde leader_id = auth.uid()).
+      const { error: membersError } = await supabase
         .from("team_members")
         .update({ leader_id: leaderId })
         .eq("team_id", teamId);
 
-      if (updateError) throw updateError;
+      if (membersError) throw membersError;
 
       toast.success("Líder atribuído ao time com sucesso!");
-      await loadData(); // Reload all data to refresh the view
+      await loadData();
     } catch (error) {
       console.error("Erro ao atribuir líder:", error);
       toast.error("Erro ao atribuir líder");
@@ -197,16 +207,15 @@ export function useTeams() {
     cost?: number
   ) => {
     try {
-      // Check if the team already has a leader
-      const { data: existingMembers } = await supabase
-        .from("team_members")
+      // Pega o leader do time da fonte de verdade (teams.leader_id).
+      const { data: team } = await supabase
+        .from("teams")
         .select("leader_id")
-        .eq("team_id", teamId)
-        .limit(1);
+        .eq("id", teamId)
+        .maybeSingle();
 
-      const leaderId = existingMembers?.[0]?.leader_id || null;
+      const leaderId = team?.leader_id ?? null;
 
-      // Insert new member with the team's leader if one exists
       const { error } = await supabase.from("team_members").insert({
         user_id: userId,
         team_id: teamId,

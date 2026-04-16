@@ -122,9 +122,9 @@ export default function TeamManagement() {
   };
 
   const getTeamLeader = (teamId: string) => {
-    const member = teamMembers.find((m) => m.team_id === teamId && m.leader_id);
-    if (!member) return null;
-    return users.find((u) => u.id === member.leader_id);
+    const team = teams.find((t) => t.id === teamId);
+    if (!team?.leader_id) return null;
+    return users.find((u) => u.id === team.leader_id);
   };
 
   const getTeamMembers = (teamId: string) => {
