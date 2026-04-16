@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
-import { StatCard } from "@/components/StatCard";
-import { Users, AlertTriangle, Calendar, TrendingUp } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { AlertTriangle, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -120,30 +120,12 @@ export default function GestorDashboard() {
             )}
           </div>
           
-          {/* Indicadores do Time */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              title="Reuniões 1:1 Realizadas"
-              value="6/8"
-              icon={Calendar}
-              trend="neutral"
-              trendValue="75% de conclusão"
-            />
-            
-            <StatCard
-              title="Score Médio do Time"
-              value="4.1"
-              icon={TrendingUp}
-              trend="up"
-              trendValue="+0.3 vs trimestre anterior"
-            />
-            
-            <StatCard
-              title="Taxa de Engajamento"
-              value="87%"
-              icon={Users}
-              trend="up"
-              trendValue="+5% este mês"
+          {/* Indicadores do Time — empty state até ter cálculo real */}
+          <div className="card-elevated space-y-4">
+            <h2 className="text-xl font-semibold">Indicadores do time</h2>
+            <EmptyState
+              title="Aguardando dados reais"
+              message="Reuniões 1:1 realizadas, score médio do time e taxa de engajamento serão calculados a partir das avaliações e 1:1s registradas."
             />
           </div>
 
@@ -208,61 +190,16 @@ export default function GestorDashboard() {
             )}
           </div>
           
-          {/* Mini Matriz 9BOX - Compacta */}
+          {/* Matriz 9BOX — empty state até o ciclo de avaliação gerar dados */}
           <div className="card-elevated space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Matriz 9BOX</h2>
-              <Button variant="outline" size="sm">Ver Detalhes</Button>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-1 max-w-md">
-              {/* Row 3 - Alto */}
-              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Incógnita</p>
-                <p className="text-sm font-bold">0</p>
-              </div>
-              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Promissor</p>
-                <p className="text-sm font-bold">2</p>
-              </div>
-              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Estrela</p>
-                <p className="text-sm font-bold">1</p>
-              </div>
-              
-              {/* Row 2 - Médio */}
-              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Zona Risco</p>
-                <p className="text-sm font-bold">0</p>
-              </div>
-              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Regular</p>
-                <p className="text-sm font-bold">3</p>
-              </div>
-              <div className="aspect-square rounded bg-status-green/10 border border-status-green p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Confiável</p>
-                <p className="text-sm font-bold">2</p>
-              </div>
-              
-              {/* Row 1 - Baixo */}
-              <div className="aspect-square rounded bg-status-red/10 border border-status-red p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Crítico</p>
-                <p className="text-sm font-bold">0</p>
-              </div>
-              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Precisa Apoio</p>
-                <p className="text-sm font-bold">0</p>
-              </div>
-              <div className="aspect-square rounded bg-status-yellow/10 border border-status-yellow p-1 flex flex-col items-center justify-center">
-                <p className="text-[9px] font-medium text-center leading-tight">Desempenho</p>
-                <p className="text-sm font-bold">0</p>
-              </div>
-            </div>
-            
-            <div className="flex justify-between text-[10px] text-muted-foreground max-w-md">
-              <span>← Baixo Potencial</span>
-              <span>Alto Potencial →</span>
-            </div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-accent" />
+              Matriz 9BOX
+            </h2>
+            <EmptyState
+              title="Matriz indisponível"
+              message="A distribuição do time pelos 9 quadrantes será gerada quando o ciclo de avaliação atual for fechado."
+            />
           </div>
         </main>
       </div>

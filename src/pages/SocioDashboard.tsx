@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { StatCard } from "@/components/StatCard";
-import { Users, DollarSign, Building2, TrendingUp } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { Users, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ export default function SocioDashboard() {
   const [loading, setLoading] = useState(true);
   const [totalCost, setTotalCost] = useState(0);
   const [totalEmployees, setTotalEmployees] = useState(0);
+  const [totalCompanies, setTotalCompanies] = useState(0);
   const navigate = useNavigate();
   const { data: profile } = useUserProfile();
 
@@ -42,17 +44,19 @@ export default function SocioDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const { data: teamMembers } = await supabase
-        .from('team_members')
-        .select('cost');
+      const [{ data: teamMembers }, { count: companiesCount }] = await Promise.all([
+        supabase.from('team_members').select('cost'),
+        supabase.from('companies').select('id', { count: 'exact', head: true }),
+      ]);
 
       if (teamMembers) {
-        const total = teamMembers.reduce((sum, member) => 
+        const total = teamMembers.reduce((sum, member) =>
           sum + (Number(member.cost) || 0), 0
         );
         setTotalCost(total);
         setTotalEmployees(teamMembers.length);
       }
+      setTotalCompanies(companiesCount ?? 0);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -100,17 +104,17 @@ export default function SocioDashboard() {
               
               <StatCard
                 title="Empresas Ativas"
-                value="2"
+                value={totalCompanies}
                 icon={Building2}
-                trend="up"
+                trend="neutral"
               />
-              
-              <StatCard
-                title="Score Médio Geral"
-                value="4.2/5.0"
-                icon={TrendingUp}
-                trend="up"
-                trendValue="+0.3 vs mês anterior"
+            </div>
+
+            <div className="card-elevated p-6 space-y-4">
+              <h3 className="text-lg font-semibold">Score médio geral</h3>
+              <EmptyState
+                title="Aguardando avaliações"
+                message="A média consolidada entre empresas será exibida quando o ciclo atual de avaliações fechar."
               />
             </div>
 
@@ -145,20 +149,10 @@ export default function SocioDashboard() {
 
               <div className="card-elevated p-6">
                 <h3 className="text-lg font-semibold mb-4">Custo por Time</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-accent/10 rounded-lg">
-                    <span>Engenharia</span>
-                    <span className="font-bold">R$ 45.000,00</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-accent/10 rounded-lg">
-                    <span>Comercial</span>
-                    <span className="font-bold">R$ 32.000,00</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-accent/10 rounded-lg">
-                    <span>Marketing</span>
-                    <span className="font-bold">R$ 28.000,00</span>
-                  </div>
-                </div>
+                <EmptyState
+                  title="Breakdown por time em breve"
+                  message="A agregação de custo por time virá de team_members agrupado — assim que essa visão estiver implementada, aparece aqui."
+                />
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
+import { EmptyState } from "@/components/EmptyState";
 import { useClimateSurveys } from "@/hooks/useClimateSurveys";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,16 +8,14 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { TrendingUp, Users, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 export default function Climate() {
   const navigate = useNavigate();
-  const { surveys, isLoading } = useClimateSurveys();
+  const { surveys } = useClimateSurveys();
   const { data: profile } = useUserProfile();
 
   const activeSurveys = surveys.filter(s => s.status === 'active');
-  const averageScore = 4.2; // Mock data
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -36,7 +34,7 @@ export default function Climate() {
               <p className="text-muted-foreground mt-1">Acompanhe as pesquisas de clima e o engajamento</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pesquisas Ativas</CardTitle>
@@ -48,24 +46,11 @@ export default function Climate() {
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Score Médio</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{averageScore}</div>
-                  <p className="text-xs text-muted-foreground">De 5.0</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Participação</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">85%</div>
-                  <Progress value={85} className="mt-2" />
+                <CardContent className="pt-6">
+                  <EmptyState
+                    title="Score e participação em breve"
+                    message="Score médio e taxa de participação serão calculados a partir das respostas das pesquisas quando houver dados."
+                  />
                 </CardContent>
               </Card>
             </div>
