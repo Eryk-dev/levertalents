@@ -45,6 +45,7 @@ import { Btn, Chip, LinearAvatar } from "@/components/primitives/LinearKit";
 import { supabase } from "@/integrations/supabase/client";
 import { useVisibleCompanies } from "@/lib/hiring/rlsScope";
 import { useCreateJobOpening } from "@/hooks/hiring/useJobOpenings";
+import { useSaveDescriptionDraft } from "@/hooks/hiring/useJobDescription";
 import { cn } from "@/lib/utils";
 import type {
   ContractType,
@@ -107,9 +108,26 @@ const CONTRACTS: { v: ContractType; label: string }[] = [
   { v: "pj_equity", label: "PJ + equity" },
 ];
 
+function splitBenefits(raw: string | undefined | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[\n,;]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function composeSchedule(hours?: number | null, shift?: string | null): string | null {
+  const parts = [
+    hours ? `${hours}h/sem` : null,
+    shift ? shift : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
   const { companyIds, canSeeAll } = useVisibleCompanies();
   const createVaga = useCreateJobOpening();
+  const saveDraft = useSaveDescriptionDraft();
 
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
@@ -221,7 +239,30 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
       cultural_fit_survey_id: values.cultural_fit_survey_id || null,
     };
     createVaga.mutate(insert, {
-      onSuccess: (row) => onSuccess(row.id),
+      onSuccess: (row) => {
+        const requirements = skills;
+        const benefits_list = splitBenefits(values.benefits);
+        const work_schedule = composeSchedule(values.hours_per_week, values.shift);
+
+        const hasSeed =
+          requirements.length > 0 || benefits_list.length > 0 || !!work_schedule;
+
+        if (!hasSeed) {
+          onSuccess(row.id);
+          return;
+        }
+
+        saveDraft.mutate(
+          {
+            jobOpeningId: row.id,
+            existingVersions: [],
+            fields: { requirements, benefits_list, work_schedule },
+          },
+          {
+            onSettled: () => onSuccess(row.id),
+          },
+        );
+      },
     });
   };
 
