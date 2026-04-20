@@ -100,10 +100,9 @@ Deno.serve(async (req) => {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // Valida vaga: precisa estar pública e não-confidencial.
   const { data: job, error: jobErr } = await admin
     .from("job_openings")
-    .select("id, status, confidential, closed_at, company_id")
+    .select("id, status, confidential, closed_at, company_id, cultural_fit_survey_id")
     .eq("id", jobOpeningId)
     .maybeSingle();
   if (jobErr) return jsonResponse(500, { error: jobErr.message });
@@ -115,6 +114,39 @@ Deno.serve(async (req) => {
     ["publicada", "em_triagem", "pronta_para_publicar"].includes(job.status);
   if (!isPublic) {
     return jsonResponse(410, { error: "Esta vaga não está mais recebendo candidaturas." });
+  }
+
+  let parsedFit: Record<string, unknown> | null = null;
+  if (job.cultural_fit_survey_id) {
+    const raw = form.get("fit_responses");
+    if (typeof raw !== "string" || !raw.trim()) {
+      return jsonResponse(400, { error: "Respostas de fit cultural são obrigatórias." });
+    }
+    try {
+      parsedFit = JSON.parse(raw);
+    } catch {
+      return jsonResponse(400, { error: "Respostas de fit em formato inválido." });
+    }
+    if (!parsedFit || typeof parsedFit !== "object") {
+      return jsonResponse(400, { error: "Respostas de fit em formato inválido." });
+    }
+
+    const { data: questions, error: qErr } = await admin
+      .from("cultural_fit_questions")
+      .select("id, kind, scale_min, scale_max")
+      .eq("survey_id", job.cultural_fit_survey_id);
+    if (qErr) return jsonResponse(500, { error: qErr.message });
+
+    for (const q of questions ?? []) {
+      const ans = (parsedFit as Record<string, unknown>)[q.id];
+      if (ans === undefined || ans === null || ans === "") {
+        return jsonResponse(400, { error: `Responda todas as perguntas do fit (${q.id}).` });
+      }
+      if (q.kind === "scale" && typeof ans === "number") {
+        if (q.scale_min !== null && ans < q.scale_min) return jsonResponse(400, { error: "Escala fora dos limites." });
+        if (q.scale_max !== null && ans > q.scale_max) return jsonResponse(400, { error: "Escala fora dos limites." });
+      }
+    }
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -184,21 +216,41 @@ Deno.serve(async (req) => {
     });
   }
 
+  const stage = parsedFit ? "fit_recebido" : "recebido";
+
   const { data: newApp, error: appErr } = await admin
     .from("applications")
     .insert({
       candidate_id: candidateId,
       job_opening_id: jobOpeningId,
-      stage: "recebido",
+      stage,
       notes: linkedin && typeof linkedin === "string" ? `LinkedIn: ${linkedin}` : null,
     })
     .select("id")
     .single();
   if (appErr) return jsonResponse(500, { error: appErr.message });
 
+  if (parsedFit && job.cultural_fit_survey_id) {
+    const { error: fitErr } = await admin.from("cultural_fit_responses").insert({
+      application_id: newApp.id,
+      survey_id: job.cultural_fit_survey_id,
+      payload: parsedFit,
+    });
+    if (fitErr) {
+      return jsonResponse(200, {
+        application_id: newApp.id,
+        candidate_id: candidateId,
+        duplicated: false,
+        fit_saved: false,
+        fit_error: fitErr.message,
+      });
+    }
+  }
+
   return jsonResponse(200, {
     application_id: newApp.id,
     candidate_id: candidateId,
     duplicated: false,
+    fit_saved: !!parsedFit,
   });
 });

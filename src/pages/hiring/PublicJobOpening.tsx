@@ -9,6 +9,7 @@ import type {
   ContractType,
   WorkMode,
 } from "@/integrations/supabase/hiring-types";
+import type { FitQuestion } from "@/components/hiring/PublicApplicationForm";
 import wordmarkDark from "@/assets/lever-wordmark-dark.svg";
 import { Button } from "@/components/ui/button";
 import PublicApplicationForm from "@/components/hiring/PublicApplicationForm";
@@ -86,8 +87,9 @@ async function fetchPublicJob(idOrSlug: string): Promise<{
   job: JobPublicRow;
   company: CompanyPublicRow | null;
   desc: JobDescriptionPublicRow | null;
+  fitSurvey: { id: string; name: string } | null;
+  fitQuestions: FitQuestion[];
 }> {
-  // Try by UUID first, otherwise by slug
   let job: JobPublicRow | null = null;
 
   if (isUUID(idOrSlug)) {
@@ -110,7 +112,7 @@ async function fetchPublicJob(idOrSlug: string): Promise<{
 
   if (!job) throw new Error("NOT_FOUND");
 
-  const [companyRes, descRes] = await Promise.all([
+  const baseRequests = [
     supabase
       .from("companies_public")
       .select("*")
@@ -121,12 +123,38 @@ async function fetchPublicJob(idOrSlug: string): Promise<{
       .select("*")
       .eq("job_opening_id", job.id)
       .maybeSingle(),
-  ]);
+  ] as const;
+
+  const [companyRes, descRes] = await Promise.all(baseRequests);
+
+  let fitSurvey: { id: string; name: string } | null = null;
+  let fitQuestions: FitQuestion[] = [];
+
+  if (job.cultural_fit_survey_id) {
+    const [surveyRes, questionsRes] = await Promise.all([
+      supabase
+        .from("cultural_fit_surveys_public")
+        .select("*")
+        .eq("id", job.cultural_fit_survey_id)
+        .maybeSingle(),
+      supabase
+        .from("cultural_fit_questions_public")
+        .select("*")
+        .eq("survey_id", job.cultural_fit_survey_id)
+        .order("order_index", { ascending: true }),
+    ]);
+    if (surveyRes.data) {
+      fitSurvey = { id: surveyRes.data.id, name: surveyRes.data.name };
+    }
+    fitQuestions = (questionsRes.data ?? []) as FitQuestion[];
+  }
 
   return {
     job,
     company: companyRes.data ?? null,
     desc: descRes.data ?? null,
+    fitSurvey,
+    fitQuestions,
   };
 }
 
@@ -212,6 +240,8 @@ export default function PublicJobOpening() {
   const job = data?.job;
   const company = data?.company;
   const desc = data?.desc;
+  const fitSurvey = data?.fitSurvey ?? null;
+  const fitQuestions = data?.fitQuestions ?? [];
 
   // SEO title
   useEffect(() => {
@@ -535,13 +565,23 @@ export default function PublicJobOpening() {
           <h2 className="mb-1 text-[24px] font-semibold tracking-tight text-text">
             Quer fazer parte?
           </h2>
-          <p className="mb-7 text-[14px] text-text-muted">
+          <p className="mb-2 text-[14px] text-text-muted">
             Preencha o formulário e envie sua candidatura. Simples assim.
           </p>
+
+          {fitSurvey && fitQuestions.length > 0 ? (
+            <p className="mb-6 text-[11px] uppercase tracking-wider font-semibold text-text-subtle">
+              Inclui avaliação de fit cultural — ~{fitQuestions.length} perguntas.
+            </p>
+          ) : (
+            <div className="mb-7" />
+          )}
 
           <PublicApplicationForm
             jobId={job.id}
             companyName={company?.name ?? "esta empresa"}
+            fitSurvey={fitSurvey}
+            fitQuestions={fitQuestions}
           />
         </section>
       </main>

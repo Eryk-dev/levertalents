@@ -13,55 +13,135 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Schema
+// Constants
 // ---------------------------------------------------------------------------
 
-const MAX_CV_BYTES = 8 * 1024 * 1024; // 8 MB
+const MAX_CV_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CV_TYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-const schema = z.object({
-  full_name: z.string().min(2, "Nome completo é obrigatório."),
-  email: z
-    .string()
-    .min(1, "E-mail é obrigatório.")
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "E-mail inválido."),
-  phone: z.string().optional(),
-  linkedin: z
-    .string()
-    .optional()
-    .refine(
-      (v) => !v || v.startsWith("http") || v.startsWith("linkedin"),
-      "URL do LinkedIn inválida.",
-    ),
-  cv: z
-    .custom<FileList>()
-    .refine((fl) => fl && fl.length > 0, "Currículo é obrigatório.")
-    .refine(
-      (fl) => !fl || fl.length === 0 || fl[0].size <= MAX_CV_BYTES,
-      "Arquivo maior que 8 MB.",
-    )
-    .refine(
-      (fl) =>
-        !fl || fl.length === 0 || ALLOWED_CV_TYPES.includes(fl[0].type),
-      "Formato inválido. Use PDF ou DOC/DOCX.",
-    ),
-  consent: z.literal(true, {
-    errorMap: () => ({ message: "Você precisa aceitar para continuar." }),
-  }),
-  // honeypot — never validated, just sent as empty string
-  hp: z.string().optional(),
-});
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-type FormValues = z.infer<typeof schema>;
+export interface FitQuestion {
+  id: string;
+  order_index: number;
+  kind: "scale" | "text" | "multi_choice";
+  prompt: string;
+  options: unknown | null;
+  scale_min: number | null;
+  scale_max: number | null;
+}
+
+interface PublicApplicationFormProps {
+  jobId: string;
+  companyName: string;
+  fitSurvey: { id: string; name: string } | null;
+  fitQuestions: FitQuestion[];
+}
+
+// ---------------------------------------------------------------------------
+// Schema factory
+// ---------------------------------------------------------------------------
+
+function buildSchema(fitSurvey: { id: string; name: string } | null, fitQuestions: FitQuestion[]) {
+  return z
+    .object({
+      full_name: z.string().min(2, "Nome completo é obrigatório."),
+      email: z
+        .string()
+        .min(1, "E-mail é obrigatório.")
+        .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "E-mail inválido."),
+      phone: z.string().optional(),
+      linkedin: z
+        .string()
+        .optional()
+        .refine(
+          (v) => !v || v.startsWith("http") || v.startsWith("linkedin"),
+          "URL do LinkedIn inválida.",
+        ),
+      cv: z
+        .custom<FileList>()
+        .refine((fl) => fl && fl.length > 0, "Currículo é obrigatório.")
+        .refine(
+          (fl) => !fl || fl.length === 0 || fl[0].size <= MAX_CV_BYTES,
+          "Arquivo maior que 8 MB.",
+        )
+        .refine(
+          (fl) =>
+            !fl || fl.length === 0 || ALLOWED_CV_TYPES.includes(fl[0].type),
+          "Formato inválido. Use PDF ou DOC/DOCX.",
+        ),
+      fit_responses: z.record(z.any()).optional(),
+      consent: z.literal(true, {
+        errorMap: () => ({ message: "Você precisa aceitar para continuar." }),
+      }),
+      hp: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (!fitSurvey || fitQuestions.length === 0) return;
+
+      const responses = data.fit_responses ?? {};
+
+      for (const q of fitQuestions) {
+        const val = responses[q.id];
+
+        if (q.kind === "scale") {
+          const min = q.scale_min ?? 1;
+          const max = q.scale_max ?? 5;
+          if (typeof val !== "number" || val < min || val > max) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Selecione uma opção de ${min} a ${max}.`,
+              path: ["fit_responses", q.id],
+            });
+          }
+        } else if (q.kind === "text") {
+          if (typeof val !== "string" || val.trim().length < 1) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Resposta obrigatória.",
+              path: ["fit_responses", q.id],
+            });
+          }
+        } else if (q.kind === "multi_choice") {
+          const isEmpty =
+            val === undefined ||
+            val === null ||
+            (typeof val === "string" && val.trim().length === 0) ||
+            (Array.isArray(val) && val.length === 0);
+          if (isEmpty) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Selecione uma opção.",
+              path: ["fit_responses", q.id],
+            });
+          }
+        }
+      }
+    });
+}
+
+type FormValues = {
+  full_name: string;
+  email: string;
+  phone?: string;
+  linkedin?: string;
+  cv: FileList;
+  fit_responses?: Record<string, unknown>;
+  consent: true;
+  hp?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Response types from edge function
@@ -71,6 +151,8 @@ interface ApplySuccess {
   application_id: string;
   candidate_id: string;
   duplicated: boolean;
+  fit_saved?: boolean;
+  fit_error?: string;
   message?: string;
 }
 
@@ -79,12 +161,98 @@ interface ApplyError {
 }
 
 // ---------------------------------------------------------------------------
-// Props
+// Sub-components
 // ---------------------------------------------------------------------------
 
-interface PublicApplicationFormProps {
-  jobId: string;
-  companyName: string;
+function FitKicker({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] uppercase tracking-wider text-text-subtle font-semibold">
+      {children}
+    </p>
+  );
+}
+
+interface ScaleQuestionProps {
+  min: number;
+  max: number;
+  value: number | undefined;
+  onChange: (v: number) => void;
+  error?: string;
+}
+
+function ScaleQuestion({ min, max, value, onChange, error }: ScaleQuestionProps) {
+  const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[11px] text-text-subtle mr-1">Discordo</span>
+        {steps.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={cn(
+              "h-8 w-8 rounded-md border text-[13px] font-medium transition-colors shrink-0",
+              value === n
+                ? "bg-accent text-white border-accent"
+                : "border-border bg-surface text-text hover:bg-bg-subtle",
+            )}
+            aria-pressed={value === n}
+          >
+            {n}
+          </button>
+        ))}
+        <span className="text-[11px] text-text-subtle ml-1">Concordo</span>
+      </div>
+      {error ? (
+        <p className="mt-1 text-[12px] text-status-red">{error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+interface MultiChoiceQuestionProps {
+  options: string[];
+  value: string | undefined;
+  onChange: (v: string) => void;
+  error?: string;
+}
+
+function MultiChoiceQuestion({ options, value, onChange, error }: MultiChoiceQuestionProps) {
+  return (
+    <div>
+      <div className="flex flex-col gap-2">
+        {options.map((opt) => (
+          <label
+            key={opt}
+            className="flex items-center gap-2.5 cursor-pointer"
+          >
+            <span
+              onClick={() => onChange(opt)}
+              className={cn(
+                "h-4 w-4 shrink-0 rounded-full border transition-colors flex items-center justify-center",
+                value === opt ? "border-accent bg-accent" : "border-border bg-surface",
+              )}
+              role="radio"
+              aria-checked={value === opt}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === " " || e.key === "Enter") onChange(opt);
+              }}
+            >
+              {value === opt ? (
+                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+              ) : null}
+            </span>
+            <span className="text-[13.5px] text-text leading-snug">{opt}</span>
+          </label>
+        ))}
+      </div>
+      {error ? (
+        <p className="mt-1 text-[12px] text-status-red">{error}</p>
+      ) : null}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -94,11 +262,15 @@ interface PublicApplicationFormProps {
 export default function PublicApplicationForm({
   jobId,
   companyName,
+  fitSurvey,
+  fitQuestions,
 }: PublicApplicationFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [duplicated, setDuplicated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const schema = buildSchema(fitSurvey, fitQuestions);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -108,13 +280,16 @@ export default function PublicApplicationForm({
       phone: "",
       linkedin: "",
       hp: "",
-      consent: undefined,
+      fit_responses: {},
+      consent: undefined as unknown as true,
     },
   });
 
   const cvFile = form.watch("cv");
   const selectedFileName =
     cvFile && cvFile.length > 0 ? cvFile[0].name : null;
+
+  const fitResponses = form.watch("fit_responses") ?? {};
 
   const onSubmit = async (data: FormValues) => {
     setSubmitting(true);
@@ -130,9 +305,12 @@ export default function PublicApplicationForm({
       if (data.phone?.trim()) formData.append("phone", data.phone.trim());
       if (data.linkedin?.trim()) formData.append("linkedin", data.linkedin.trim());
       formData.append("consent", "true");
-      // Honeypot — always empty for real humans
       formData.append("hp", data.hp ?? "");
       formData.append("cv", data.cv[0]);
+
+      if (fitSurvey && data.fit_responses) {
+        formData.append("fit_responses", JSON.stringify(data.fit_responses));
+      }
 
       const res = await fetch(url, {
         method: "POST",
@@ -154,6 +332,12 @@ export default function PublicApplicationForm({
       const success = json as ApplySuccess;
       setDuplicated(success.duplicated);
       setSubmitted(true);
+
+      if (success.fit_saved === true) {
+        toast.success("Fit cultural registrado.");
+      } else if (success.fit_saved === false && success.fit_error) {
+        toast.warning(`Candidatura enviada mas fit falhou: ${success.fit_error}`);
+      }
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -165,7 +349,7 @@ export default function PublicApplicationForm({
     }
   };
 
-  // ── Success state ────────────────────────────────────────────────────────
+  // ── Success state ─────────────────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="rounded-lg border border-status-green/30 bg-status-green-soft px-6 py-8 text-center animate-fade-in">
@@ -201,7 +385,9 @@ export default function PublicApplicationForm({
     );
   }
 
-  // ── Form ─────────────────────────────────────────────────────────────────
+  // ── Form ──────────────────────────────────────────────────────────────────
+  const hasFit = !!fitSurvey && fitQuestions.length > 0;
+
   return (
     <Form {...form}>
       <form
@@ -209,7 +395,7 @@ export default function PublicApplicationForm({
         className="space-y-5"
         noValidate
       >
-        {/* Honeypot — hidden from real users */}
+        {/* Honeypot */}
         <div aria-hidden className="absolute -left-[9999px]">
           <input
             {...form.register("hp")}
@@ -246,11 +432,7 @@ export default function PublicApplicationForm({
                   E-mail <span className="text-status-red">*</span>
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="ana@email.com"
-                    {...field}
-                  />
+                  <Input type="email" placeholder="ana@email.com" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -267,16 +449,10 @@ export default function PublicApplicationForm({
               <FormItem>
                 <FormLabel className="text-[13px] text-text">
                   Telefone{" "}
-                  <span className="text-text-subtle text-[11px]">
-                    (recomendado)
-                  </span>
+                  <span className="text-text-subtle text-[11px]">(recomendado)</span>
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    type="tel"
-                    placeholder="(11) 99999-9999"
-                    {...field}
-                  />
+                  <Input type="tel" placeholder="(11) 99999-9999" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -290,9 +466,7 @@ export default function PublicApplicationForm({
               <FormItem>
                 <FormLabel className="text-[13px] text-text">
                   LinkedIn{" "}
-                  <span className="text-text-subtle text-[11px]">
-                    (opcional)
-                  </span>
+                  <span className="text-text-subtle text-[11px]">(opcional)</span>
                 </FormLabel>
                 <FormControl>
                   <Input
@@ -353,6 +527,77 @@ export default function PublicApplicationForm({
             </FormItem>
           )}
         />
+
+        {/* Cultural fit section */}
+        {hasFit ? (
+          <div className="rounded-lg border border-border bg-bg-subtle px-4 py-5 space-y-5">
+            <div>
+              <FitKicker>Fit cultural</FitKicker>
+              <p className="mt-0.5 text-[14px] font-medium text-text">
+                {fitSurvey.name}
+              </p>
+              <p className="mt-1 text-[12.5px] text-text-muted">
+                Responda todas as perguntas abaixo para concluir sua candidatura.
+              </p>
+            </div>
+
+            {fitQuestions.map((q, idx) => {
+              const fieldPath = `fit_responses.${q.id}` as const;
+              const fieldError = (
+                form.formState.errors as Record<string, unknown>
+              )?.fit_responses as Record<string, { message?: string }> | undefined;
+              const qError = fieldError?.[q.id]?.message;
+
+              return (
+                <div key={q.id} className="space-y-2">
+                  <p className="text-[13.5px] text-text leading-snug">
+                    <span className="text-text-subtle mr-1.5">{idx + 1}.</span>
+                    {q.prompt}
+                    <span className="text-status-red ml-0.5">*</span>
+                  </p>
+
+                  {q.kind === "scale" ? (
+                    <ScaleQuestion
+                      min={q.scale_min ?? 1}
+                      max={q.scale_max ?? 5}
+                      value={fitResponses[q.id] as number | undefined}
+                      onChange={(v) => {
+                        form.setValue(fieldPath, v, { shouldValidate: true });
+                      }}
+                      error={qError}
+                    />
+                  ) : q.kind === "text" ? (
+                    <div>
+                      <Textarea
+                        rows={3}
+                        placeholder="Sua resposta"
+                        className="resize-none text-[13.5px]"
+                        value={(fitResponses[q.id] as string | undefined) ?? ""}
+                        onChange={(e) => {
+                          form.setValue(fieldPath, e.target.value, {
+                            shouldValidate: true,
+                          });
+                        }}
+                      />
+                      {qError ? (
+                        <p className="mt-1 text-[12px] text-status-red">{qError}</p>
+                      ) : null}
+                    </div>
+                  ) : q.kind === "multi_choice" ? (
+                    <MultiChoiceQuestion
+                      options={Array.isArray(q.options) ? (q.options as string[]) : []}
+                      value={fitResponses[q.id] as string | undefined}
+                      onChange={(v) => {
+                        form.setValue(fieldPath, v, { shouldValidate: true });
+                      }}
+                      error={qError}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* Consent */}
         <FormField
