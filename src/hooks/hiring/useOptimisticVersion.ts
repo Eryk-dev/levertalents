@@ -68,7 +68,14 @@ export function useOptimisticVersion<TTable extends HiringTableName>(
         .select()
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: "Erro ao atualizar",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
 
       if (!data) {
         toast({

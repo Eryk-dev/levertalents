@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Eye, EyeOff, Link as LinkIcon, Lock, RotateCcw, XCircle, Activity, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Eye, Link as LinkIcon, Lock, RotateCcw, XCircle, Activity, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -237,24 +237,7 @@ export default function JobOpeningDetail() {
             >
               Reabrir e publicar
             </Btn>
-          ) : job.status === "publicada" || job.status === "em_triagem" ? (
-            <Btn
-              variant="ghost"
-              size="sm"
-              icon={<EyeOff className="h-3.5 w-3.5" />}
-              disabled={setStatus.isPending}
-              onClick={() => {
-                setStatus.mutate({
-                  id: job.id,
-                  expectedUpdatedAt: job.updated_at,
-                  nextStatus: "pronta_para_publicar",
-                  successMessage: "Vaga despublicada",
-                });
-              }}
-            >
-              Despublicar
-            </Btn>
-          ) : (
+          ) : job.status === "publicada" || job.status === "em_triagem" ? null : (
             <Btn
               variant="ghost"
               size="sm"
