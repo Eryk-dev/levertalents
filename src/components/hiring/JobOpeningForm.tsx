@@ -69,7 +69,6 @@ const schema = z
     shift: z.enum(SHIFTS).optional(),
     salary_min_reais: z.coerce.number().nonnegative().optional(),
     salary_max_reais: z.coerce.number().nonnegative().optional(),
-    benefits: z.string().optional(),
     target_deadline: z.string().optional(),
     address_street: z.string().optional(),
     address_number: z.string().optional(),
@@ -108,14 +107,6 @@ const CONTRACTS: { v: ContractType; label: string }[] = [
   { v: "pj_equity", label: "PJ + equity" },
 ];
 
-function splitBenefits(raw: string | undefined | null): string[] {
-  if (!raw) return [];
-  return raw
-    .split(/[\n,;]+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
-
 function composeSchedule(hours?: number | null, shift?: string | null): string | null {
   const parts = [
     hours ? `${hours}h/sem` : null,
@@ -131,6 +122,8 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
 
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+  const [benefits, setBenefits] = useState<string[]>([]);
+  const [benefitInput, setBenefitInput] = useState("");
   const [confidential, setConfidential] = useState(false);
   const [overrideAddress, setOverrideAddress] = useState(false);
   const [participants, setParticipants] = useState<string[]>([]);
@@ -202,6 +195,23 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
     }
   };
 
+  const addBenefit = () => {
+    const raw = benefitInput.trim().replace(/,$/, "");
+    if (!raw) return;
+    const s = raw.toLocaleUpperCase("pt-BR");
+    if (!benefits.includes(s)) setBenefits([...benefits, s]);
+    setBenefitInput("");
+  };
+
+  const onBenefitKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addBenefit();
+    } else if (e.key === "Backspace" && !benefitInput && benefits.length) {
+      setBenefits(benefits.slice(0, -1));
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     const insert: Omit<JobOpeningInsert, "requested_by"> = {
       company_id: values.company_id,
@@ -222,7 +232,7 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
         values.salary_max_reais != null
           ? Math.round(values.salary_max_reais * 100)
           : null,
-      benefits: values.benefits || null,
+      benefits: benefits.length ? benefits.join(", ") : null,
       confidential,
       confidential_participant_ids: confidential ? participants : [],
       target_deadline: values.target_deadline || null,
@@ -241,7 +251,7 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
     createVaga.mutate(insert, {
       onSuccess: (row) => {
         const requirements = skills;
-        const benefits_list = splitBenefits(values.benefits);
+        const benefits_list = benefits;
         const work_schedule = composeSchedule(values.hours_per_week, values.shift);
 
         const hasSeed =
@@ -563,14 +573,36 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
           <Field
             label="Benefícios"
             span={2}
-            hint="VR, plano de saúde, PLR, equity, etc."
+            hint="Digite e tecle Enter ou vírgula para adicionar. Convertido para MAIÚSCULAS automaticamente."
           >
-            <Textarea
-              id="benefits"
-              rows={2}
-              placeholder="Liste o que compõe o pacote"
-              {...register("benefits")}
-            />
+            <div
+              className={cn(
+                "flex min-h-[38px] flex-wrap items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5",
+                "focus-within:ring-2 focus-within:ring-accent/30 focus-within:border-accent",
+              )}
+            >
+              {benefits.map((b) => (
+                <Chip key={b} color="neutral" size="sm" className="pl-2 pr-1">
+                  {b}
+                  <button
+                    type="button"
+                    onClick={() => setBenefits(benefits.filter((x) => x !== b))}
+                    className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-text-subtle hover:bg-bg-muted hover:text-text"
+                    aria-label={`Remover ${b}`}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </Chip>
+              ))}
+              <input
+                value={benefitInput}
+                onChange={(e) => setBenefitInput(e.target.value)}
+                onKeyDown={onBenefitKey}
+                onBlur={addBenefit}
+                placeholder={benefits.length ? "" : "VR, plano de saúde, PLR..."}
+                className="flex-1 min-w-[120px] bg-transparent text-[13px] text-text placeholder:text-text-subtle outline-none"
+              />
+            </div>
           </Field>
 
           <Field
