@@ -207,7 +207,7 @@ function JobNotFound() {
           Esta vaga não está mais disponível.
         </h1>
         <p className="max-w-sm text-[14px] leading-relaxed text-text-muted">
-          A vaga pode ter sido encerrada ou o link está incorreto. Confira o
+          A vaga pode ter sido fechada ou o link está incorreto. Confira o
           endereço ou procure outras oportunidades.
         </p>
         <Link

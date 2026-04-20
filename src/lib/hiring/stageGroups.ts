@@ -1,7 +1,6 @@
 import type { ApplicationStage } from "@/integrations/supabase/hiring-types";
 import {
   FileText,
-  Sparkles,
   ShieldCheck,
   Users,
   CalendarCheck2,
@@ -12,13 +11,13 @@ import {
 
 /**
  * Grupos consolidados para o Kanban de candidatos.
- * De 16 stages → 6 colunas ativas + 1 descartados (colapsada).
- * Cada grupo agrupa sub-stages; a primeira sub-stage é o "smart default"
- * ao receber um card via drag-and-drop.
+ * O Fit Cultural é tratado no formulário da vaga (não é uma etapa do pipeline),
+ * por isso não existe mais como coluna. Os sub-stages legados de fit (aguardando_fit_cultural,
+ * sem_retorno, fit_recebido) ficam agrupados em Triagem para manter compatibilidade
+ * com applications criadas antes desta mudança.
  */
 export type StageGroupKey =
   | "triagem"
-  | "fit"
   | "checagem"
   | "entrevista_rh"
   | "entrevista_final"
@@ -43,17 +42,15 @@ export const STAGE_GROUPS: StageGroup[] = [
     description: "Recebidos + pré-seleção",
     icon: FileText,
     tone: "neutral",
-    stages: ["recebido", "em_interesse"],
+    // Legacy fit stages caem em Triagem para manter candidatos antigos visíveis.
+    stages: [
+      "recebido",
+      "em_interesse",
+      "aguardando_fit_cultural",
+      "sem_retorno",
+      "fit_recebido",
+    ],
     defaultStage: "em_interesse",
-  },
-  {
-    key: "fit",
-    label: "Fit Cultural",
-    description: "Questionário enviado / respondido",
-    icon: Sparkles,
-    tone: "info",
-    stages: ["aguardando_fit_cultural", "sem_retorno", "fit_recebido"],
-    defaultStage: "aguardando_fit_cultural",
   },
   {
     key: "checagem",
@@ -130,7 +127,6 @@ export const STAGE_GROUP_TONE_CLASSES: Record<StageGroup["tone"], string> = {
 /** Cores (dot) para a coluna kanban — Linear-style: só a bolinha do header. */
 export const STAGE_GROUP_DOT_COLORS: Record<StageGroupKey, string> = {
   triagem: "hsl(var(--text-subtle))",
-  fit: "#8B5CF6",
   checagem: "hsl(var(--status-blue))",
   entrevista_rh: "hsl(var(--status-blue))",
   entrevista_final: "hsl(var(--status-amber))",
@@ -141,7 +137,6 @@ export const STAGE_GROUP_DOT_COLORS: Record<StageGroupKey, string> = {
 /** Cores para a mini-sparkbar do JobCard (distribuição por grupo). */
 export const STAGE_GROUP_BAR_COLORS: Record<StageGroupKey, string> = {
   triagem: "bg-text-subtle/40",
-  fit: "bg-[#8B5CF6]/70",
   checagem: "bg-status-blue/70",
   entrevista_rh: "bg-status-blue/80",
   entrevista_final: "bg-status-amber/80",

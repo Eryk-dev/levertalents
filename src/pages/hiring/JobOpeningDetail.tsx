@@ -200,9 +200,7 @@ export default function JobOpeningDetail() {
           </span>
         </nav>
         <Row gap={4}>
-          {job.status !== "encerrada" &&
-            job.confidential === false &&
-            (["publicada", "em_triagem", "pronta_para_publicar"] as typeof job.status[]).includes(job.status) ? (
+          {job.status === "publicada" && job.confidential === false ? (
             <Btn
               variant="ghost"
               size="sm"
@@ -216,7 +214,7 @@ export default function JobOpeningDetail() {
               Copiar link público
             </Btn>
           ) : null}
-          {job.status === "encerrada" ? (
+          {job.status === "fechada" ? (
             <Btn
               variant="ghost"
               size="sm"
@@ -237,7 +235,7 @@ export default function JobOpeningDetail() {
             >
               Reabrir e publicar
             </Btn>
-          ) : job.status === "publicada" || job.status === "em_triagem" ? null : (
+          ) : job.status === "publicada" ? null : (
             <Btn
               variant="ghost"
               size="sm"
@@ -259,7 +257,7 @@ export default function JobOpeningDetail() {
               Publicar
             </Btn>
           )}
-          {job.status !== "encerrada" ? (
+          {job.status !== "fechada" ? (
             <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
               <DialogTrigger asChild>
                 <Btn variant="ghost" size="sm" icon={<XCircle className="h-3.5 w-3.5" />}>
@@ -569,7 +567,7 @@ function StatusDot({ status }: { status: string }) {
       ? "bg-status-green"
       : status === "triagem"
       ? "bg-status-amber"
-      : status === "encerrada"
+      : status === "fechada"
       ? "bg-text-subtle"
       : "bg-status-blue";
   return <span className={cn("inline-block h-2 w-2 rounded-full", color)} aria-hidden />;

@@ -171,7 +171,7 @@ export function JobDescriptionEditor({ job, descriptions, autoFocus }: JobDescri
   const latest = descriptions[0];
 
   const isRH = userRole === "rh" || userRole === "socio" || userRole === "admin";
-  const canEdit = isRH && job.status !== "encerrada";
+  const canEdit = isRH && job.status !== "fechada";
 
   const [dailyRoutine, setDailyRoutine] = useState(latest?.daily_routine ?? "");
   const [requirements, setRequirements] = useState<string[]>(latest?.requirements ?? []);

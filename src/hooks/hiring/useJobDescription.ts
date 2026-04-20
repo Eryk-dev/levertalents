@@ -7,19 +7,6 @@ import { useOptimisticVersion } from "./useOptimisticVersion";
 import { jobOpeningsKeys } from "./useJobOpenings";
 import "@/integrations/supabase/hiring-types";
 
-// Helper — moves job_openings.status forward via guarded UPDATE.
-async function bumpJobStatus(id: string, nextStatus: JobDescriptionRow["approval_state"] extends string ? string : never, guard: { updatedAt: string }) {
-  const { data, error } = await supabase
-    .from("job_openings")
-    .update({ status: nextStatus as never })
-    .eq("id", id)
-    .eq("updated_at", guard.updatedAt)
-    .select("id, updated_at")
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
 function nextVersion(existing: JobDescriptionRow[]): number {
   if (!existing.length) return 1;
   return Math.max(...existing.map((d) => d.version)) + 1;
@@ -111,23 +98,14 @@ export function useSubmitDescriptionForApproval() {
   return {
     ...mutation,
     mutate: (args: { descriptionId: string; expectedUpdatedAt: string; jobOpeningId: string; jobUpdatedAt: string }) =>
-      mutation.mutate(
-        {
-          tableName: "job_descriptions",
-          id: args.descriptionId,
-          expectedUpdatedAt: args.expectedUpdatedAt,
-          patch: { approval_state: "enviado" },
-          successMessage: "Descritivo enviado para aprovação",
-          invalidateKeys: [[...jobOpeningsKeys.detail(args.jobOpeningId)]],
-        },
-        {
-          onSuccess: async (result) => {
-            if (result.ok) {
-              await bumpJobStatus(args.jobOpeningId, "aguardando_aprovacao_do_gestor", { updatedAt: args.jobUpdatedAt });
-            }
-          },
-        },
-      ),
+      mutation.mutate({
+        tableName: "job_descriptions",
+        id: args.descriptionId,
+        expectedUpdatedAt: args.expectedUpdatedAt,
+        patch: { approval_state: "enviado" },
+        successMessage: "Descritivo enviado para aprovação",
+        invalidateKeys: [[...jobOpeningsKeys.detail(args.jobOpeningId)]],
+      }),
   };
 }
 
@@ -143,23 +121,14 @@ export function useRequestDescriptionChanges() {
       jobOpeningId: string;
       jobUpdatedAt: string;
     }) =>
-      mutation.mutate(
-        {
-          tableName: "job_descriptions",
-          id: args.descriptionId,
-          expectedUpdatedAt: args.expectedUpdatedAt,
-          patch: { approval_state: "rejeitado", rejection_reason: args.reason },
-          successMessage: "Ajustes solicitados",
-          invalidateKeys: [[...jobOpeningsKeys.detail(args.jobOpeningId)]],
-        },
-        {
-          onSuccess: async (result) => {
-            if (result.ok) {
-              await bumpJobStatus(args.jobOpeningId, "em_ajuste_pelo_rh", { updatedAt: args.jobUpdatedAt });
-            }
-          },
-        },
-      ),
+      mutation.mutate({
+        tableName: "job_descriptions",
+        id: args.descriptionId,
+        expectedUpdatedAt: args.expectedUpdatedAt,
+        patch: { approval_state: "rejeitado", rejection_reason: args.reason },
+        successMessage: "Ajustes solicitados",
+        invalidateKeys: [[...jobOpeningsKeys.detail(args.jobOpeningId)]],
+      }),
   };
 }
 
@@ -171,23 +140,14 @@ export function useApproveDescription() {
     ...mutation,
     mutate: (args: { descriptionId: string; expectedUpdatedAt: string; jobOpeningId: string; jobUpdatedAt: string }) => {
       if (!user?.id) return;
-      mutation.mutate(
-        {
-          tableName: "job_descriptions",
-          id: args.descriptionId,
-          expectedUpdatedAt: args.expectedUpdatedAt,
-          patch: { approval_state: "aprovado", approver_id: user.id, approved_at: new Date().toISOString() },
-          successMessage: "Descritivo aprovado",
-          invalidateKeys: [[...jobOpeningsKeys.detail(args.jobOpeningId)]],
-        },
-        {
-          onSuccess: async (result) => {
-            if (result.ok) {
-              await bumpJobStatus(args.jobOpeningId, "pronta_para_publicar", { updatedAt: args.jobUpdatedAt });
-            }
-          },
-        },
-      );
+      mutation.mutate({
+        tableName: "job_descriptions",
+        id: args.descriptionId,
+        expectedUpdatedAt: args.expectedUpdatedAt,
+        patch: { approval_state: "aprovado", approver_id: user.id, approved_at: new Date().toISOString() },
+        successMessage: "Descritivo aprovado",
+        invalidateKeys: [[...jobOpeningsKeys.detail(args.jobOpeningId)]],
+      });
     },
   };
 }

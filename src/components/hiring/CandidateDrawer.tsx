@@ -50,7 +50,7 @@ import {
 import { CulturalFitResponseViewer } from "./CulturalFitResponseViewer";
 import { InterviewTimeline } from "./InterviewTimeline";
 import { InterviewScheduler } from "./InterviewScheduler";
-import { StandardMessagePicker } from "./StandardMessagePicker";
+import { DiscardReasonDialog } from "./DiscardReasonDialog";
 import { BackgroundCheckUploader } from "./BackgroundCheckUploader";
 import { AdmissionForm } from "./AdmissionForm";
 import { AdmissionStatusPanel } from "./AdmissionStatusPanel";
@@ -452,14 +452,20 @@ function CandidateDrawerBody({
         </Dialog>
       ) : null}
 
-      <StandardMessagePicker
+      <DiscardReasonDialog
         open={refusalOpen}
-        kind="recusa"
-        confirmLabel="Recusar candidato"
-        onPick={(messageId) => {
-          if (!active || !messageId) return;
+        candidateName={candidate.full_name}
+        loading={reject.isPending}
+        onCancel={() => setRefusalOpen(false)}
+        onConfirm={({ reason, addToTalentPool, notes }) => {
+          if (!active) return;
           reject.mutate(
-            { id: active.id, rejectionMessageId: messageId },
+            {
+              id: active.id,
+              discardReason: reason,
+              addToTalentPool,
+              discardNotes: notes,
+            },
             {
               onSuccess: () => {
                 setRefusalOpen(false);
@@ -468,7 +474,6 @@ function CandidateDrawerBody({
             },
           );
         }}
-        onCancel={() => setRefusalOpen(false)}
       />
 
       <Dialog open={issueLinkOpen} onOpenChange={setIssueLinkOpen}>

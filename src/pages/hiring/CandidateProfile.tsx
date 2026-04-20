@@ -60,7 +60,7 @@ import {
 import { useInterviewsByApplication } from "@/hooks/hiring/useInterviews";
 import { CulturalFitResponseViewer } from "@/components/hiring/CulturalFitResponseViewer";
 import { BackgroundCheckUploader } from "@/components/hiring/BackgroundCheckUploader";
-import { StandardMessagePicker } from "@/components/hiring/StandardMessagePicker";
+import { DiscardReasonDialog } from "@/components/hiring/DiscardReasonDialog";
 import { InterviewScheduler } from "@/components/hiring/InterviewScheduler";
 import { InterviewNotesEditor } from "@/components/hiring/InterviewNotesEditor";
 import { HiringDecisionPanel } from "@/components/hiring/HiringDecisionPanel";
@@ -121,10 +121,19 @@ export default function CandidateProfile() {
     );
   }
 
-  const handleRejection = async (messageId: string | null) => {
-    if (!active || !messageId) return;
+  const handleDiscardConfirm = (args: {
+    reason: import("@/integrations/supabase/hiring-types").DiscardReason;
+    addToTalentPool: boolean;
+    notes: string | null;
+  }) => {
+    if (!active) return;
     reject.mutate(
-      { id: active.id, rejectionMessageId: messageId },
+      {
+        id: active.id,
+        discardReason: args.reason,
+        addToTalentPool: args.addToTalentPool,
+        discardNotes: args.notes,
+      },
       { onSuccess: () => setRefusalPickerOpen(false) },
     );
   };
@@ -524,13 +533,13 @@ export default function CandidateProfile() {
         </Dialog>
       ) : null}
 
-      {/* Picker de mensagem de recusa */}
-      <StandardMessagePicker
+      {/* Dialog de descarte com motivo + banco de talentos */}
+      <DiscardReasonDialog
         open={refusalPickerOpen}
-        kind="recusa"
-        confirmLabel="Recusar candidato"
-        onPick={handleRejection}
+        candidateName={candidate.full_name}
+        loading={reject.isPending}
         onCancel={() => setRefusalPickerOpen(false)}
+        onConfirm={handleDiscardConfirm}
       />
 
       {/* Dialog: Fit cultural */}

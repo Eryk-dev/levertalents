@@ -4,16 +4,10 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -129,19 +123,16 @@ export default function CulturalFitTemplates() {
         </DialogContent>
       </Dialog>
 
-      <Sheet open={!!editingId} onOpenChange={(open) => (!open ? setEditingId(null) : undefined)}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-none lg:max-w-[720px] xl:max-w-[820px] p-0 overflow-hidden flex flex-col gap-0"
-        >
-          <SheetHeader className="border-b border-border bg-surface px-5 py-4 space-y-0.5">
-            <SheetTitle className="text-[16px] font-semibold tracking-[-0.01em] text-text">
+      <Dialog open={!!editingId} onOpenChange={(open) => (!open ? setEditingId(null) : undefined)}>
+        <DialogContent className="max-w-[720px] p-0 gap-0 overflow-hidden flex flex-col max-h-[min(92vh,820px)]">
+          <DialogHeader className="border-b border-border bg-surface px-5 py-4 space-y-0.5 text-left">
+            <DialogTitle className="text-[16px] font-semibold tracking-[-0.01em] text-text">
               Editor de perguntas
-            </SheetTitle>
-            <SheetDescription className="text-[12px] text-text-muted">
+            </DialogTitle>
+            <DialogDescription className="text-[12px] text-text-muted">
               {surveys.find((s) => s.id === editingId)?.name ?? "Questionário"}
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
           <div className="flex-1 overflow-y-auto scrollbar-linear px-5 py-4">
             {editingId ? <CulturalFitQuestionEditor surveyId={editingId} /> : null}
           </div>
@@ -150,8 +141,8 @@ export default function CulturalFitTemplates() {
               Fechar
             </Button>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

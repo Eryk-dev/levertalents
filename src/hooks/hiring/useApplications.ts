@@ -6,6 +6,7 @@ import type {
   ApplicationRow,
   ApplicationStage,
   CandidateRow,
+  DiscardReason,
 } from "@/integrations/supabase/hiring-types";
 import "@/integrations/supabase/hiring-types";
 
@@ -112,22 +113,43 @@ export function useMoveApplicationStage() {
   });
 }
 
+export interface RejectApplicationArgs {
+  id: string;
+  discardReason: DiscardReason;
+  addToTalentPool: boolean;
+  discardNotes?: string | null;
+  /** Opcional — só preenchido quando o RH também quer disparar a mensagem padrão. */
+  rejectionMessageId?: string | null;
+}
+
 export function useRejectApplication() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { id: string; rejectionMessageId: string }): Promise<void> => {
+    mutationFn: async (args: RejectApplicationArgs): Promise<void> => {
       const { error } = await supabase
         .from("applications")
         .update({
           stage: "recusado",
-          rejection_message_id: args.rejectionMessageId,
+          discard_reason: args.discardReason,
+          discard_notes: args.discardNotes ?? null,
+          added_to_talent_pool: args.addToTalentPool,
+          rejection_message_id: args.rejectionMessageId ?? null,
           closed_at: new Date().toISOString(),
         })
         .eq("id", args.id);
       if (error) throw error;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, args) => {
       await queryClient.invalidateQueries({ queryKey: applicationsKeys.all });
+      if (args.addToTalentPool) {
+        await queryClient.invalidateQueries({ queryKey: ["hiring", "talent-pool"] });
+      }
+      toast({
+        title: "Candidato recusado",
+        description: args.addToTalentPool
+          ? "Movido para o Banco de Talentos."
+          : "Descarte registrado.",
+      });
     },
     onError: (err: Error) =>
       toast({ title: "Erro ao recusar candidato", description: err.message, variant: "destructive" }),

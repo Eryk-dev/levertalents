@@ -16,7 +16,6 @@ const EMPTY_COUNTS: JobApplicationCounts = {
   total: 0,
   byGroup: {
     triagem: 0,
-    fit: 0,
     checagem: 0,
     entrevista_rh: 0,
     entrevista_final: 0,

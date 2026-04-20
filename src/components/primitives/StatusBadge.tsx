@@ -52,13 +52,9 @@ const ROLE_MAP: Record<string, StatusConfig> = {
 };
 
 const JOB_MAP: Record<string, StatusConfig> = {
-  aguardando_descritivo: { label: "Aguardando descritivo", tone: "warning" },
-  em_ajuste_pelo_rh: { label: "Em ajuste pelo RH", tone: "pending" },
-  aguardando_aprovacao_do_gestor: { label: "Aguardando aprovação", tone: "warning" },
-  pronta_para_publicar: { label: "Pronta para publicar", tone: "info" },
+  aguardando_publicacao: { label: "Aguardando publicação", tone: "warning" },
   publicada: { label: "Publicada", tone: "success" },
-  em_triagem: { label: "Em triagem", tone: "info" },
-  encerrada: { label: "Encerrada", tone: "neutral" },
+  fechada: { label: "Fechada", tone: "neutral" },
 };
 
 const APPLICATION_MAP: Record<string, StatusConfig> = {

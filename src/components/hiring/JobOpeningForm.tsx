@@ -237,7 +237,7 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
       confidential_participant_ids: confidential ? participants : [],
       target_deadline: values.target_deadline || null,
       close_reason: null,
-      status: "aguardando_descritivo",
+      status: "aguardando_publicacao",
       override_address: overrideAddress,
       address_street: overrideAddress ? (values.address_street || null) : null,
       address_number: overrideAddress ? (values.address_number || null) : null,

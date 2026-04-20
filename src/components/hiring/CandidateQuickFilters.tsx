@@ -49,7 +49,7 @@ export function CandidateQuickFilters({ value, onChange }: CandidateQuickFilters
       const { data, error } = await supabase
         .from("job_openings")
         .select("id, title, requested_by, status")
-        .neq("status", "encerrada")
+        .neq("status", "fechada")
         .order("opened_at", { ascending: false })
         .limit(200);
       if (error) throw error;

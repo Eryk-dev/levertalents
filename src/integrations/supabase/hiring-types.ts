@@ -14,13 +14,9 @@ import type { Database } from "./types";
 export type WorkMode = "presencial" | "remoto" | "hibrido";
 export type ContractType = "clt" | "pj" | "estagio" | "pj_equity";
 export type JobStatus =
-  | "aguardando_descritivo"
-  | "em_ajuste_pelo_rh"
-  | "aguardando_aprovacao_do_gestor"
-  | "pronta_para_publicar"
+  | "aguardando_publicacao"
   | "publicada"
-  | "em_triagem"
-  | "encerrada";
+  | "fechada";
 export type JobCloseReason = "contratado" | "cancelado" | "congelado";
 export type PublicationChannel = "linkedin" | "indeed" | "instagram" | "outros";
 export type DescriptionApproval = "rascunho" | "enviado" | "aprovado" | "rejeitado";
@@ -53,6 +49,18 @@ export type EvaluatorDecision = "aprovado" | "reprovado" | "pendente";
 export type HiringOutcome = "aprovado" | "reprovado";
 export type StandardMessageKind = "recusa" | "convite_fit" | "oferta" | "aprovacao_proxima_etapa";
 export type LogAction = "view" | "update" | "optimistic_conflict";
+export type DiscardReason =
+  | "antecedentes_reprovados"
+  | "perfil_desalinhado"
+  | "experiencia_insuficiente"
+  | "expectativa_salarial"
+  | "candidato_desistiu"
+  | "sem_retorno_candidato"
+  | "reprovado_entrevista_rh"
+  | "reprovado_entrevista_final"
+  | "avaliacao_rh_negativa"
+  | "posicao_preenchida"
+  | "outro";
 
 // --- Table rows -----------------------------------------------------------
 
@@ -227,13 +235,27 @@ export type ApplicationRow = {
   last_moved_by: string | null;
   notes: string | null;
   rejection_message_id: string | null;
+  discard_reason: DiscardReason | null;
+  discard_notes: string | null;
+  added_to_talent_pool: boolean;
   closed_at: string | null;
   created_at: string;
   updated_at: string;
 };
 export type ApplicationInsert = Omit<
   ApplicationRow,
-  "id" | "created_at" | "updated_at" | "stage" | "stage_entered_at" | "last_moved_by" | "notes" | "rejection_message_id" | "closed_at"
+  | "id"
+  | "created_at"
+  | "updated_at"
+  | "stage"
+  | "stage_entered_at"
+  | "last_moved_by"
+  | "notes"
+  | "rejection_message_id"
+  | "discard_reason"
+  | "discard_notes"
+  | "added_to_talent_pool"
+  | "closed_at"
 > & {
   id?: string;
   created_at?: string;
@@ -243,6 +265,9 @@ export type ApplicationInsert = Omit<
   last_moved_by?: string | null;
   notes?: string | null;
   rejection_message_id?: string | null;
+  discard_reason?: DiscardReason | null;
+  discard_notes?: string | null;
+  added_to_talent_pool?: boolean;
   closed_at?: string | null;
 };
 export type ApplicationUpdate = Partial<ApplicationRow>;
@@ -748,6 +773,7 @@ declare module "./types" {
         hiring_outcome_enum: HiringOutcome;
         standard_message_kind_enum: StandardMessageKind;
         log_action_enum: LogAction;
+        discard_reason_enum: DiscardReason;
       };
       CompositeTypes: Database["public"]["CompositeTypes"];
     };

@@ -150,13 +150,9 @@ export default function JobOpenings() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="aguardando_descritivo">Aguardando descritivo</SelectItem>
-              <SelectItem value="em_ajuste_pelo_rh">Em ajuste pelo RH</SelectItem>
-              <SelectItem value="aguardando_aprovacao_do_gestor">Aguardando aprovação</SelectItem>
-              <SelectItem value="pronta_para_publicar">Pronta para publicar</SelectItem>
+              <SelectItem value="aguardando_publicacao">Aguardando publicação</SelectItem>
               <SelectItem value="publicada">Publicada</SelectItem>
-              <SelectItem value="em_triagem">Em triagem</SelectItem>
-              <SelectItem value="encerrada">Encerrada</SelectItem>
+              <SelectItem value="fechada">Fechada</SelectItem>
             </SelectContent>
           </Select>
           <Select

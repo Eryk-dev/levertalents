@@ -104,7 +104,7 @@ export function useUpdateJobOpeningStatus() {
         patch: {
           status: args.nextStatus,
           close_reason: args.closeReason ?? null,
-          closed_at: args.nextStatus === "encerrada" ? new Date().toISOString() : null,
+          closed_at: args.nextStatus === "fechada" ? new Date().toISOString() : null,
         },
         invalidateKeys: [
           [...jobOpeningsKeys.all],

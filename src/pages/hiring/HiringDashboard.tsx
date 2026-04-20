@@ -29,7 +29,7 @@ export default function HiringDashboard() {
   const totalActiveJobs = useMemo(() => {
     if (!data) return 0;
     return data.jobsByStatus
-      .filter((r) => r.status !== "encerrada")
+      .filter((r) => r.status !== "fechada")
       .reduce((acc, row) => acc + row.count, 0);
   }, [data]);
 

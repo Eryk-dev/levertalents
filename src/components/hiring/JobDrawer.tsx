@@ -167,9 +167,9 @@ function JobDrawerBody({
                 <Button size="sm" variant="accent" className="h-[26px] text-[12.5px]" onClick={() => setFormOpen(true)}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Novo candidato
                 </Button>
-                {job.status !== "encerrada" ? (
+                {job.status !== "fechada" ? (
                   <Button size="sm" variant="outline" className="h-[26px] text-[12.5px]" onClick={() => setCloseOpen(true)}>
-                    <XCircle className="mr-1 h-3.5 w-3.5" /> Encerrar
+                    <XCircle className="mr-1 h-3.5 w-3.5" /> Fechar
                   </Button>
                 ) : null}
               </div>

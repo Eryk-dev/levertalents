@@ -53,7 +53,7 @@ export function useSetJobStatus() {
       successMessage?: string;
     }) => {
       const patch: Partial<JobOpeningRow> = { status: args.nextStatus };
-      if (args.nextStatus !== "encerrada") {
+      if (args.nextStatus !== "fechada") {
         patch.closed_at = null;
         patch.close_reason = null;
       }
@@ -83,7 +83,7 @@ export function useCloseJobOpening() {
       expectedUpdatedAt: string;
       reason: JobCloseReason;
     }) => {
-      if (!canTransition(args.currentStatus, "encerrada", "job")) {
+      if (!canTransition(args.currentStatus, "fechada", "job")) {
         toast({
           title: "Transição inválida",
           description: `Não é possível encerrar a partir de ${args.currentStatus}.`,
@@ -96,7 +96,7 @@ export function useCloseJobOpening() {
         id: args.id,
         expectedUpdatedAt: args.expectedUpdatedAt,
         patch: {
-          status: "encerrada",
+          status: "fechada",
           close_reason: args.reason,
           closed_at: new Date().toISOString(),
         },
@@ -104,7 +104,7 @@ export function useCloseJobOpening() {
           [...jobOpeningsKeys.all],
           [...jobOpeningsKeys.detail(args.id)],
         ],
-        successMessage: "Vaga encerrada",
+        successMessage: "Vaga fechada",
       });
     },
   };

@@ -21,24 +21,16 @@ import {
 import type { JobOpeningRow, JobStatus } from "@/integrations/supabase/hiring-types";
 
 const COLUMNS: JobStatus[] = [
-  "aguardando_descritivo",
-  "em_ajuste_pelo_rh",
-  "aguardando_aprovacao_do_gestor",
-  "pronta_para_publicar",
+  "aguardando_publicacao",
   "publicada",
-  "em_triagem",
-  "encerrada",
+  "fechada",
 ];
 
 // Linear-style column dot colors
 const COLUMN_DOT: Record<JobStatus, string> = {
-  aguardando_descritivo: "bg-text-subtle",
-  em_ajuste_pelo_rh: "bg-status-purple",
-  aguardando_aprovacao_do_gestor: "bg-status-amber",
-  pronta_para_publicar: "bg-status-amber",
+  aguardando_publicacao: "bg-status-amber",
   publicada: "bg-status-green",
-  em_triagem: "bg-status-blue",
-  encerrada: "bg-text-subtle",
+  fechada: "bg-text-subtle",
 };
 
 interface JobsKanbanProps {
@@ -179,7 +171,7 @@ export function JobsKanban({ jobs, companyById, onOpenJob }: JobsKanbanProps) {
             companyById={companyById}
             countsMap={countsMap as Record<string, JobApplicationCounts | undefined>}
             onOpenJob={onOpenJob}
-            collapsible={status === "encerrada"}
+            collapsible={status === "fechada"}
           />
         ))}
       </div>

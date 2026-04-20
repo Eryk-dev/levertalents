@@ -15,8 +15,6 @@ export function ConversionFunnel({ data }: ConversionFunnelProps) {
   const ordered: ApplicationStage[] = [
     "recebido",
     "em_interesse",
-    "aguardando_fit_cultural",
-    "fit_recebido",
     "antecedentes_ok",
     "apto_entrevista_rh",
     "entrevista_rh_feita",

@@ -1,20 +1,19 @@
 import type { ApplicationStage, JobStatus } from "@/integrations/supabase/hiring-types";
 
 export const JOB_STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
-  aguardando_descritivo: ["em_ajuste_pelo_rh", "encerrada"],
-  em_ajuste_pelo_rh: ["aguardando_aprovacao_do_gestor", "encerrada"],
-  aguardando_aprovacao_do_gestor: ["em_ajuste_pelo_rh", "pronta_para_publicar", "encerrada"],
-  pronta_para_publicar: ["publicada", "encerrada"],
-  publicada: ["em_triagem", "encerrada"],
-  em_triagem: ["encerrada"],
-  encerrada: [],
+  aguardando_publicacao: ["publicada", "fechada"],
+  publicada: ["aguardando_publicacao", "fechada"],
+  fechada: ["aguardando_publicacao", "publicada"],
 };
 
 export const APPLICATION_STAGE_TRANSITIONS: Record<ApplicationStage, ApplicationStage[]> = {
   recebido: ["em_interesse", "recusado"],
-  em_interesse: ["aguardando_fit_cultural", "recusado"],
-  aguardando_fit_cultural: ["fit_recebido", "sem_retorno", "recusado"],
-  sem_retorno: ["aguardando_fit_cultural", "recusado"],
+  // Fit Cultural deixou de ser etapa do Kanban — vai direto para Checagem.
+  em_interesse: ["antecedentes_ok", "recusado"],
+  // Stages legados mantidos para compatibilidade com dados antigos; todos
+  // avançam para antecedentes_ok quando o RH mover adiante.
+  aguardando_fit_cultural: ["antecedentes_ok", "recusado"],
+  sem_retorno: ["antecedentes_ok", "recusado"],
   fit_recebido: ["antecedentes_ok", "recusado"],
   antecedentes_ok: ["apto_entrevista_rh", "recusado"],
   apto_entrevista_rh: ["entrevista_rh_agendada", "recusado"],
@@ -44,13 +43,9 @@ export function canTransition(
 }
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
-  aguardando_descritivo: "Aguardando descritivo",
-  em_ajuste_pelo_rh: "Em ajuste pelo RH",
-  aguardando_aprovacao_do_gestor: "Aguardando aprovação do gestor",
-  pronta_para_publicar: "Pronta para publicar",
+  aguardando_publicacao: "Aguardando publicação",
   publicada: "Publicada",
-  em_triagem: "Em triagem",
-  encerrada: "Encerrada",
+  fechada: "Fechada",
 };
 
 export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
