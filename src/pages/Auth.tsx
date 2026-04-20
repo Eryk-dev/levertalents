@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import logo from "@/assets/lever-logo.png";
+import { LeverArrow } from "@/components/primitives/LeverArrow";
+import wordmarkDark from "@/assets/lever-wordmark-dark.svg";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -33,7 +35,7 @@ export default function Auth() {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+      if (event === "SIGNED_IN" && session) {
         const role = await getUserRole(session.user.id);
         redirectByRole(role);
       }
@@ -44,26 +46,29 @@ export default function Auth() {
 
   const getUserRole = async (userId: string) => {
     const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
       .maybeSingle();
-    return data?.role || 'colaborador';
+    return data?.role || "colaborador";
   };
 
   const redirectByRole = (role: string) => {
     switch (role) {
-      case 'socio':
-        navigate('/socio');
+      case "socio":
+        navigate("/socio");
         break;
-      case 'lider':
-        navigate('/gestor');
+      case "lider":
+        navigate("/gestor");
         break;
-      case 'rh':
-        navigate('/rh');
+      case "rh":
+        navigate("/rh");
+        break;
+      case "admin":
+        navigate("/admin");
         break;
       default:
-        navigate('/colaborador');
+        navigate("/colaborador");
     }
   };
 
@@ -83,106 +88,206 @@ export default function Auth() {
           email: validated.email,
           password: validated.password,
         });
-
         if (error) throw error;
-
-        toast.success("Login realizado com sucesso! Bem-vindo de volta.");
+        toast.success("Bem-vindo de volta.");
       } else {
         const { error } = await supabase.auth.signUp({
           email: validated.email,
           password: validated.password,
           options: {
-            data: {
-              full_name: validated.full_name,
-            },
+            data: { full_name: validated.full_name },
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
-
         if (error) throw error;
-
-        toast.success("Conta criada com sucesso! Você será redirecionado em instantes.");
+        toast.success("Conta criada. Redirecionando…");
       }
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        toast.error(error.errors[0].message);
-      } else {
-        toast.error(error.message || "Ocorreu um erro. Tente novamente.");
-      }
+    } catch (error: unknown) {
+      if (error instanceof z.ZodError) toast.error(error.errors[0].message);
+      else toast.error((error as Error).message || "Ocorreu um erro. Tente novamente.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-primary/80">
-      <div className="w-full max-w-md p-8 bg-card rounded-xl shadow-xl">
-        <div className="mb-8 text-center">
-          <img src={logo} alt="Lever Talents" className="w-48 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold">
-            {isLogin ? "Bem-vindo de volta" : "Criar conta"}
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            {isLogin ? "Entre com suas credenciais" : "Preencha os dados para começar"}
+    <div className="min-h-screen bg-bg font-sans text-text flex flex-col">
+      {/* Top bar */}
+      <header className="border-b border-border">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between px-5 lg:px-8 py-3.5">
+          <img src={wordmarkDark} alt="Lever Talents" className="h-7 w-auto" />
+          <p className="hidden md:block text-[11px] text-text-subtle uppercase tracking-[0.08em]">
+            Volume I · Edição Contínua
           </p>
         </div>
+      </header>
 
-        <form onSubmit={handleAuth} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <Label htmlFor="fullName">Nome completo</Label>
-              <Input
-                id="fullName"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                placeholder="Seu nome completo"
-              />
+      {/* Split main: pitch left, form right */}
+      <main className="flex-1 flex items-center justify-center px-5 lg:px-8 py-10">
+        <div className="w-full max-w-[1040px] grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+          {/* Left: pitch */}
+          <section className="min-w-0">
+            <div className="inline-flex items-center gap-2 text-[10.5px] font-semibold text-text-subtle uppercase tracking-[0.06em] mb-4">
+              <LeverArrow className="h-3 w-3 text-accent" variant="solid" />
+              Manifesto
             </div>
-          )}
+            <h1 className="text-[clamp(2rem,4vw,2.75rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-text max-w-[20ch]">
+              Contratar com método. Desenvolver com evidência.
+            </h1>
+            <p className="mt-5 text-[14px] leading-[1.6] text-text-muted max-w-[48ch]">
+              Plataforma de performance e recrutamento para PMEs que se cansaram
+              de decidir por achismo. Avaliações, PDIs, clima e hiring com a
+              disciplina de quem entende que decisão certa começa em critério claro.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-1.5">
+              {["Método", "Evidência", "Critério", "Cultura", "ROI"].map((w) => (
+                <span
+                  key={w}
+                  className="inline-flex items-center h-[22px] px-2 text-[11.5px] font-medium rounded border border-border bg-surface text-text-muted"
+                >
+                  {w}
+                </span>
+              ))}
+            </div>
+          </section>
 
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="seu@email.com"
-            />
-          </div>
+          {/* Right: form */}
+          <section className="w-full max-w-[400px] lg:ml-auto">
+            <div className="surface-raised p-6 md:p-7">
+              <div className="flex items-baseline justify-between mb-4">
+                <p className="text-[10.5px] font-semibold text-text-subtle uppercase tracking-[0.06em]">
+                  {isLogin ? "Acesso" : "Nova conta"}
+                </p>
+                <p className="text-[11px] text-text-subtle tabular">
+                  § {isLogin ? "1.1" : "1.2"}
+                </p>
+              </div>
 
-          <div>
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-          </div>
+              <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-text mb-1">
+                {isLogin ? "Bem-vindo." : "Vamos começar."}
+              </h2>
+              <p className="text-[12.5px] text-text-muted mb-6">
+                {isLogin
+                  ? "Informe suas credenciais para entrar."
+                  : "Preencha os dados para criar seu acesso."}
+              </p>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Carregando..." : isLogin ? "Entrar" : "Criar conta"}
-          </Button>
-        </form>
+              <form onSubmit={handleAuth} className="space-y-4">
+                {!isLogin && (
+                  <div className="space-y-1.5 animate-fade-in">
+                    <Label htmlFor="fullName" className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+                      Nome completo
+                    </Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                      placeholder="Seu nome"
+                      autoComplete="name"
+                      className="h-9 text-[13px]"
+                    />
+                  </div>
+                )}
 
-        <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-accent hover:underline"
-            >
-            {isLogin
-              ? "Não tem uma conta? Criar conta"
-              : "Já tem uma conta? Entrar"}
-          </button>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="voce@empresa.com"
+                    autoComplete="email"
+                    className="h-9 text-[13px]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+                      Senha
+                    </Label>
+                    {isLogin && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toast.info("Solicite redefinição ao administrador da sua empresa.")
+                        }
+                        className="text-[11px] text-text-muted hover:text-text transition-colors"
+                      >
+                        esqueci
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    className="h-9 text-[13px]"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-10 bg-text text-[hsl(var(--text-inverse))] hover:bg-[#1f2128] text-[13px] font-medium rounded-md gap-1.5"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {isLogin ? "Entrando…" : "Criando conta…"}
+                    </>
+                  ) : (
+                    <>
+                      {isLogin ? "Entrar" : "Criar conta"}
+                      <LeverArrow className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-5 pt-4 border-t border-border text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-[12.5px] text-text-muted hover:text-text transition-colors"
+                >
+                  {isLogin ? (
+                    <>
+                      Primeira vez aqui? <span className="text-accent-text font-medium">Criar conta</span>
+                    </>
+                  ) : (
+                    <>
+                      Já tem acesso? <span className="text-accent-text font-medium">Entrar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[10.5px] text-text-subtle uppercase tracking-[0.06em] mt-4 text-center">
+              Privado por padrão · Criptografia em repouso e trânsito
+            </p>
+          </section>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border">
+        <div className="max-w-[1200px] mx-auto px-5 lg:px-8 py-4 flex items-center justify-between text-[11px] text-text-subtle">
+          <span>© 2026 Lever Talents — Pessoas que alavancam resultados.</span>
+          <span className="uppercase tracking-[0.06em]">v 2.0</span>
+        </div>
+      </footer>
     </div>
   );
 }

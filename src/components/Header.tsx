@@ -1,68 +1,86 @@
-import { Bell, User, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link, useLocation } from "react-router-dom";
+import { ChevronRight, Plus } from "lucide-react";
 import { MobileNav } from "@/components/MobileNav";
-import { useNavigate } from "react-router-dom";
+import { PendingTasksDropdown } from "@/components/PendingTasksDropdown";
+import { getBreadcrumbs } from "@/lib/routes";
+import { Fragment } from "react";
+import { Btn } from "@/components/primitives/LinearKit";
+import { Icon } from "@/components/primitives/Icon";
 
 interface HeaderProps {
-  userName?: string;
-  onLogout?: () => void;
+  /**
+   * Toggle the desktop sidebar visibility. When provided, renders a
+   * ghost-icon menu button at the start of the header. Visual only
+   * for now — state can live anywhere.
+   */
+  onToggleSidebar?: () => void;
 }
 
-export function Header({ userName = "Usuário", onLogout }: HeaderProps) {
-  const navigate = useNavigate();
+export function Header({ onToggleSidebar }: HeaderProps) {
+  const location = useLocation();
+  const crumbs = getBreadcrumbs(location.pathname);
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center justify-between px-6">
-        <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-bg/95 backdrop-blur h-[42px] shrink-0">
+      <div className="flex h-full items-center justify-between px-3.5 gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {/* Desktop sidebar toggle */}
+          {onToggleSidebar && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              aria-label="Alternar sidebar"
+              className="hidden lg:grid h-6 w-6 place-items-center rounded text-text-muted hover:bg-bg-subtle hover:text-text transition-colors shrink-0"
+            >
+              <Icon name="menu" size={14} />
+            </button>
+          )}
           <MobileNav />
-          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <nav aria-label="Breadcrumb" className="min-w-0">
+            <ol className="flex items-center gap-1.5 text-[12.5px] min-w-0">
+              {crumbs.map((crumb, idx) => {
+                const isLast = idx === crumbs.length - 1;
+                return (
+                  <Fragment key={`${crumb.label}-${idx}`}>
+                    {idx > 0 && (
+                      <ChevronRight className="h-3 w-3 text-text-subtle shrink-0" strokeWidth={1.75} />
+                    )}
+                    {crumb.to && !isLast ? (
+                      <Link
+                        to={crumb.to}
+                        className="text-text-muted hover:text-text transition-colors whitespace-nowrap"
+                      >
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span
+                        className={
+                          isLast
+                            ? "text-text font-medium truncate"
+                            : "text-text-muted whitespace-nowrap"
+                        }
+                        aria-current={isLast ? "page" : undefined}
+                      >
+                        {crumb.label}
+                      </span>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </ol>
+          </nav>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-medium text-white flex items-center justify-center">
-              3
-            </span>
-          </Button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-accent text-accent-foreground">
-                    {userName.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden md:inline-block font-medium">{userName}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/perfil")}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-destructive"
-                onClick={onLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <PendingTasksDropdown />
+          <Btn
+            variant="secondary"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5" strokeWidth={2} />}
+            onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}
+          >
+            Criar
+          </Btn>
         </div>
       </div>
     </header>

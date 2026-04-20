@@ -1,106 +1,101 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Clock, Trash2, GripVertical } from "lucide-react";
+import { useDraggable } from "@dnd-kit/core";
+import { CalendarClock, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { LinearAvatar, Chip, ProgressBar } from "@/components/primitives/LinearKit";
 
-interface KanbanCardProps {
-  plan: any;
-  onDelete: (id: string) => void;
+export interface KanbanPlan {
+  id: string;
+  title: string;
+  status: string;
+  development_area?: string | null;
+  progress_percentage?: number | null;
+  deadline?: string | null;
+  user?: {
+    id?: string;
+    full_name?: string | null;
+    avatar_url?: string | null;
+  } | null;
 }
 
-export function KanbanCard({ plan, onDelete }: KanbanCardProps) {
-  const navigate = useNavigate();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: plan.id });
+interface KanbanCardProps {
+  plan: KanbanPlan;
+  onDelete?: (id: string) => void;
+  asOverlay?: boolean;
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+function formatDeadline(iso: string): { text: string; overdue: boolean; soon: boolean } {
+  const d = new Date(iso);
+  const days = Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+  const label = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  return { text: label, overdue: days < 0, soon: days >= 0 && days <= 7 };
+}
+
+export function KanbanCard({ plan, onDelete, asOverlay = false }: KanbanCardProps) {
+  const navigate = useNavigate();
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `plan:${plan.id}`,
+    disabled: asOverlay,
+  });
+
+  const progress = Math.max(0, Math.min(100, plan.progress_percentage ?? 0));
+  const deadline = plan.deadline ? formatDeadline(plan.deadline) : null;
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader className="pb-3">
-          <div className="flex items-start gap-3">
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing touch-none"
-            >
-              <GripVertical className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div
-              className="flex-1 min-w-0 cursor-pointer"
-              onClick={() => navigate(`/pdi`)}
-            >
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={plan.user?.avatar_url} />
-                  <AvatarFallback>
-                    {plan.user?.full_name?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {plan.user?.full_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {plan.title}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(plan.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Progresso</span>
-              <span className="font-medium">{plan.progress_percentage}%</span>
-            </div>
-            <Progress value={plan.progress_percentage} className="h-1" />
-          </div>
+    <div
+      ref={asOverlay ? undefined : setNodeRef}
+      {...(asOverlay ? {} : attributes)}
+      {...(asOverlay ? {} : listeners)}
+      onClick={(e) => {
+        if (asOverlay || isDragging) return;
+        e.preventDefault();
+        navigate("/pdi");
+      }}
+      role="button"
+      tabIndex={0}
+      className={cn(
+        "group relative block w-full select-none rounded-md border border-border bg-surface p-2.5 text-left",
+        "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+        !asOverlay && "cursor-grab hover:border-border-strong",
+        isDragging && !asOverlay && "opacity-30",
+        asOverlay && "cursor-grabbing shadow-popup",
+      )}
+    >
+      <div className="text-[12.5px] font-medium text-text tracking-[-0.005em] line-clamp-2">
+        {plan.title}
+      </div>
 
-          {plan.deadline && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>
-                Prazo: {new Date(plan.deadline).toLocaleDateString("pt-BR")}
-              </span>
-            </div>
-          )}
+      <div className="mt-2">
+        <ProgressBar value={progress} size={3} />
+      </div>
 
-          <div className="pt-2">
-            <Badge variant="outline" className="text-xs">
-              {plan.development_area}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="mt-2 flex items-center gap-1.5">
+        <LinearAvatar name={plan.user?.full_name || "?"} size={16} />
+        <span className="text-[11px] text-text-muted truncate flex-1">
+          {(plan.user?.full_name || "").split(" ")[0]}
+        </span>
+        {deadline && (
+          <Chip
+            color={deadline.overdue ? "red" : deadline.soon ? "amber" : "neutral"}
+            size="sm"
+            icon={<CalendarClock className="w-3 h-3" strokeWidth={1.75} />}
+          >
+            {deadline.text}
+          </Chip>
+        )}
+        {onDelete && !asOverlay && (
+          <button
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-text-subtle hover:text-status-red"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(plan.id);
+            }}
+            aria-label="Excluir PDI"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -10,15 +10,19 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    const loadUserRole = async (userId: string) => {
+    const loadUserRole = async (userId: string, metaRole?: string) => {
       const { data } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .maybeSingle();
-      
+
       if (mounted) {
-        setUserRole(data?.role || null);
+        // Fallback em DEV: se a trigger handle_new_user não rodou (ex.
+        // migration T2 ainda não aplicada), usa o role do raw_user_meta_data
+        // que foi passado no signUp. Em prod, user_roles já tem o row.
+        const fallbackRole = import.meta.env.DEV ? metaRole ?? null : null;
+        setUserRole(data?.role || fallbackRole || null);
         setLoading(false);
       }
     };
@@ -31,7 +35,7 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          loadUserRole(session.user.id);
+          loadUserRole(session.user.id, session.user.user_metadata?.role as string | undefined);
         } else {
           setUserRole(null);
           setLoading(false);
@@ -42,13 +46,13 @@ export function useAuth() {
     // THEN check for existing session
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!mounted) return;
-      
+
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
-        await loadUserRole(session.user.id);
+        await loadUserRole(session.user.id, session.user.user_metadata?.role as string | undefined);
       } else {
         setLoading(false);
       }

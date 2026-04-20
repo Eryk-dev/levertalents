@@ -1,243 +1,210 @@
 import { useState } from "react";
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { KanbanSquare, Target, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Target, CheckCircle2, Clock, Play, Filter, Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
-import { KanbanCard } from "@/components/KanbanCard";
+import { KanbanCard, type KanbanPlan } from "@/components/KanbanCard";
 import { toast } from "sonner";
+import { LoadingState, LinearEmpty, Btn, Row } from "@/components/primitives";
+import { useNavigate } from "react-router-dom";
+
+type PlanStatus = "pending_approval" | "approved" | "in_progress" | "completed";
+
+const COLUMNS: {
+  key: PlanStatus;
+  title: string;
+  icon: typeof Clock;
+  tone: "neutral" | "info" | "warning" | "success";
+}[] = [
+  { key: "pending_approval", title: "Aguardando aprovação", icon: Clock, tone: "warning" },
+  { key: "approved", title: "Aprovado", icon: CheckCircle2, tone: "neutral" },
+  { key: "in_progress", title: "Em progresso", icon: Play, tone: "info" },
+  { key: "completed", title: "Concluído", icon: CheckCircle2, tone: "success" },
+];
 
 export default function DevelopmentKanban() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activePlan, setActivePlan] = useState<KanbanPlan | null>(null);
   const { deletePlan } = useDevelopmentPlans();
-  const { data: profile } = useUserProfile();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const { data: teamPlans, isLoading } = useQuery({
     queryKey: ["team-development-plans"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    queryFn: async (): Promise<KanbanPlan[]> => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return [];
+
+      const teamIds =
+        (
+          await supabase.from("team_members").select("user_id").eq("leader_id", user.id)
+        ).data?.map((tm) => tm.user_id) ?? [];
 
       const { data } = await supabase
         .from("development_plans")
-        .select(`
-          *,
-          user:profiles!development_plans_user_id_fkey(id, full_name, avatar_url)
-        `)
-        .in("user_id", (
-          await supabase
-            .from("team_members")
-            .select("user_id")
-            .eq("leader_id", user.id)
-        ).data?.map(tm => tm.user_id) || []);
+        .select(`*, user:profiles!development_plans_user_id_fkey(id, full_name, avatar_url)`)
+        .in("user_id", teamIds);
 
-      return data || [];
+      return (data as unknown as KanbanPlan[]) ?? [];
     },
   });
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
-
   const updatePlanStatus = useMutation({
-    mutationFn: async ({ planId, newStatus }: { planId: string; newStatus: string }) => {
+    mutationFn: async ({ planId, newStatus }: { planId: string; newStatus: PlanStatus }) => {
       const { error } = await supabase
         .from("development_plans")
         .update({ status: newStatus })
         .eq("id", planId);
-
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-development-plans"] });
-      toast.success("Status atualizado com sucesso!");
+      toast.success("Status atualizado");
     },
-    onError: (error) => {
-      console.error("Erro ao atualizar status:", error);
-      toast.error("Erro ao atualizar o status do PDI");
-    },
+    onError: () => toast.error("Erro ao atualizar o status do PDI"),
   });
 
-  const handleDelete = (id: string) => {
-    deletePlan(id);
-    setDeleteDialog(null);
-  };
+  const plansByStatus = (status: PlanStatus): KanbanPlan[] =>
+    teamPlans?.filter((p) => p.status === status) ?? [];
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const id = event.active.id as string;
+    if (!id.startsWith("plan:")) return;
+    const planId = id.slice("plan:".length);
+    const plan = teamPlans?.find((p) => p.id === planId);
+    if (plan) setActivePlan(plan);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setActivePlan(null);
     const { active, over } = event;
-    setActiveId(null);
-
     if (!over) return;
-
-    const planId = active.id as string;
-    const newStatus = over.id as string;
-
-    // Get the plan to check current status
-    const plan = teamPlans?.find((p: any) => p.id === planId);
+    const activeId = active.id as string;
+    if (!activeId.startsWith("plan:")) return;
+    const planId = activeId.slice("plan:".length);
+    const newStatus = over.id as PlanStatus;
+    const plan = teamPlans?.find((p) => p.id === planId);
     if (!plan || plan.status === newStatus) return;
-
-    // Update the status
     updatePlanStatus.mutate({ planId, newStatus });
   };
 
-  const getPlansByStatus = (status: string) => {
-    return teamPlans?.filter((p: any) => p.status === status) || [];
-  };
-
-  const statusConfig = {
-    pending_approval: {
-      title: "Aguardando Aprovação",
-      icon: Clock,
-      color: "bg-yellow-500",
-      plans: getPlansByStatus("pending_approval"),
-    },
-    approved: {
-      title: "Aprovado",
-      icon: CheckCircle2,
-      color: "bg-green-500",
-      plans: getPlansByStatus("approved"),
-    },
-    in_progress: {
-      title: "Em Progresso",
-      icon: Target,
-      color: "bg-blue-500",
-      plans: getPlansByStatus("in_progress"),
-    },
-    completed: {
-      title: "Concluído",
-      icon: CheckCircle2,
-      color: "bg-primary",
-      plans: getPlansByStatus("completed"),
-    },
-  };
+  const total = teamPlans?.length ?? 0;
+  const active = plansByStatus("in_progress").length + plansByStatus("approved").length;
 
   return (
-    <div className="flex min-h-screen w-full">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Header userName={profile?.full_name} onLogout={handleLogout} />
-        <main className="flex-1 p-8 bg-background">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                  <KanbanSquare className="h-8 w-8" />
-                  Kanban de Desenvolvimento
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                  Acompanhe o progresso dos PDIs da sua equipe
-                </p>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <div className="grid gap-6 md:grid-cols-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="h-64" />
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="grid gap-6 md:grid-cols-4">
-                  {Object.entries(statusConfig).map(([key, config]) => (
-                    <KanbanColumn
-                      key={key}
-                      id={key}
-                      title={config.title}
-                      icon={config.icon}
-                      color={config.color}
-                      plans={config.plans}
-                      onDelete={(id) => setDeleteDialog(id)}
-                    />
-                  ))}
-                </div>
-                <DragOverlay>
-                  {activeId ? (
-                    <KanbanCard
-                      plan={teamPlans?.find((p: any) => p.id === activeId)}
-                      onDelete={() => {}}
-                    />
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
-            )}
-
-            {/* Legenda */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Legenda</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-500" />
-                  <span>Aguardando sua aprovação</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span>Aprovado e pronto</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-blue-500" />
-                  <span>Em desenvolvimento</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>Concluído</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tem certeza que deseja excluir este PDI? Esta ação não pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => deleteDialog && handleDelete(deleteDialog)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+    <div className="p-5 lg:p-7 font-sans text-text h-full flex flex-col animate-fade-in">
+      {/* Header */}
+      <div className="flex items-baseline justify-between mb-4">
+        <div>
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">
+            Kanban de PDIs · meu time
+          </h1>
+          <div className="text-[13px] text-text-muted mt-0.5">
+            {total} itens · {active} em execução · arraste entre colunas para mover
           </div>
-        </main>
+        </div>
+        <Row gap={6}>
+          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
+            Pessoa
+          </Btn>
+          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
+            Categoria
+          </Btn>
+          <Btn
+            variant="primary"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5" strokeWidth={2} />}
+            onClick={() => navigate("/pdi")}
+          >
+            Novo PDI
+          </Btn>
+        </Row>
       </div>
+
+      {isLoading ? (
+        <LoadingState layout="cards" count={4} />
+      ) : total === 0 ? (
+        <LinearEmpty
+          icon={<Target className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+          title="Nenhum PDI ativo no time"
+          description="Assim que seus liderados criarem PDIs, os cards aparecem aqui para aprovação e acompanhamento."
+        />
+      ) : (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActivePlan(null)}
+        >
+          <div className="flex-1 grid grid-cols-4 gap-2.5 min-h-0">
+            {COLUMNS.map((col) => (
+              <KanbanColumn
+                key={col.key}
+                id={col.key}
+                title={col.title}
+                icon={col.icon}
+                tone={col.tone}
+                plans={plansByStatus(col.key)}
+                onDelete={(id) => setDeleteDialog(id)}
+              />
+            ))}
+          </div>
+          <DragOverlay dropAnimation={null}>
+            {activePlan ? <KanbanCard plan={activePlan} asOverlay /> : null}
+          </DragOverlay>
+        </DndContext>
+      )}
+
+      <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este PDI? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteDialog) {
+                  deletePlan(deleteDialog);
+                  setDeleteDialog(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

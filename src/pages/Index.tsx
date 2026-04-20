@@ -1,51 +1,81 @@
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
-import { ScoreGauge } from "@/components/ScoreGauge";
-import { StatCard } from "@/components/StatCard";
-import { EvolutionChart } from "@/components/EvolutionChart";
-import { Calendar, Target, CheckSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import {
+  Calendar,
+  Target,
+  CheckCircle2,
+  ArrowRight,
+  Filter,
+  Plus,
+  Activity,
+  BarChart3,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { Link, useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useCollaboratorEvolution } from "@/hooks/useCollaboratorEvolution";
+import { usePendingTasks } from "@/hooks/usePendingTasks";
+import {
+  Btn,
+  Chip,
+  Row,
+  Col,
+  Card,
+  SectionHeader,
+  PriorityDot,
+  ProgressBar,
+  LinearAvatar,
+  LinearEmpty,
+} from "@/components/primitives/LinearKit";
+import { cn } from "@/lib/utils";
+
+function taskTypeToRoute(type: string) {
+  switch (type) {
+    case "pdi":
+    case "development_plan":
+      return "/pdi";
+    case "one_on_one":
+    case "1on1":
+      return "/11s";
+    case "evaluation":
+    case "self_evaluation":
+      return "/avaliacoes";
+    case "climate":
+    case "climate_survey":
+      return "/clima";
+    default:
+      return "/colaborador";
+  }
+}
 
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
+    queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
       return data;
     },
     enabled: !!user?.id,
   });
 
   const { data: nextOneOnOne } = useQuery({
-    queryKey: ['nextOneOnOne', user?.id],
+    queryKey: ["nextOneOnOne", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const { data } = await supabase
-        .from('one_on_ones')
-        .select(`
-          *,
-          leader:leader_id(full_name),
-          collaborator:collaborator_id(full_name)
-        `)
-        .eq('collaborator_id', user.id)
-        .eq('status', 'scheduled')
-        .gte('scheduled_date', new Date().toISOString())
-        .order('scheduled_date', { ascending: true })
+        .from("one_on_ones")
+        .select("*, leader:leader_id(full_name)")
+        .eq("collaborator_id", user.id)
+        .eq("status", "scheduled")
+        .gte("scheduled_date", new Date().toISOString())
+        .order("scheduled_date", { ascending: true })
         .limit(1)
         .maybeSingle();
       return data;
@@ -53,178 +83,338 @@ const Index = () => {
     enabled: !!user?.id,
   });
 
-  const { data: activePDIs } = useQuery({
-    queryKey: ['activePDIs', user?.id],
+  const { data: activePDIs = [] } = useQuery({
+    queryKey: ["activePDIs", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       const { data } = await supabase
-        .from('development_plans')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('status', ['in_progress', 'pending_approval'])
-        .order('created_at', { ascending: false });
+        .from("development_plans")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["in_progress", "approved", "pending_approval"])
+        .order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!user?.id,
   });
 
-  const { data: pendingTasks } = useQuery({
-    queryKey: ['pendingTasks', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('pending_tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('due_date', { ascending: true })
-        .limit(2);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const { data: pendingTasks = [] } = usePendingTasks();
 
-  const getNextOneOnOneText = () => {
-    if (!nextOneOnOne) return "Sem 1:1 agendado";
-    const scheduledDate = new Date(nextOneOnOne.scheduled_date);
-    const today = new Date();
-    const diffTime = scheduledDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return "1:1 hoje";
-    if (diffDays === 1) return "1:1 amanhã";
-    return `1:1 em ${diffDays} dias`;
-  };
+  const displayName =
+    profile?.full_name ||
+    (user?.user_metadata as { full_name?: string } | undefined)?.full_name ||
+    user?.email?.split("@")[0] ||
+    "";
+  const firstName = displayName.split(" ")[0] || "novamente";
+  const latestPdi = activePDIs[0];
+  const today = new Date();
 
-  const averageProgress = activePDIs && activePDIs.length > 0
+  const hour = today.getHours();
+  const greeting = hour < 6 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+
+  const nextTask = pendingTasks[0];
+  const restTasks = pendingTasks.slice(1, 6);
+  const totalPending = pendingTasks.length;
+
+  const averageProgress = activePDIs.length
     ? Math.round(activePDIs.reduce((acc, pdi) => acc + (pdi.progress_percentage || 0), 0) / activePDIs.length)
     : 0;
+
+  const getDueLabel = (due: string | null | undefined) => {
+    if (!due) return "Sem prazo";
+    return formatDistanceToNow(new Date(due), { locale: ptBR, addSuffix: true });
+  };
+
+  const getDuePriority = (due: string | null | undefined) => {
+    if (!due) return "low" as const;
+    const diff = new Date(due).getTime() - Date.now();
+    if (diff < 0) return "urgent" as const;
+    if (diff < 24 * 3600 * 1000) return "urgent" as const;
+    if (diff < 3 * 24 * 3600 * 1000) return "high" as const;
+    return "med" as const;
+  };
+
+  const isEmpty = totalPending === 0 && activePDIs.length === 0;
+
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col">
-        <Header userName={profile?.full_name} />
-        
-        <main className="flex-1 p-6 space-y-6">
-          {/* Welcome Section */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold">Olá, {profile?.full_name || 'Colaborador'}! 👋</h1>
-            <p className="text-muted-foreground text-lg">
-              Seu desenvolvimento é nossa prioridade
-            </p>
+    <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex items-baseline justify-between mb-1">
+        <div>
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">
+            {greeting}, {firstName}
+          </h1>
+          <div className="text-[13px] text-text-muted mt-0.5">
+            {totalPending === 0
+              ? "Tudo em dia."
+              : totalPending === 1
+              ? "Você tem 1 coisa para hoje."
+              : `${totalPending} itens pendentes · próxima ação já abaixo`}
           </div>
-          
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <StatCard
-              title="PDIs Ativos"
-              value={activePDIs?.length.toString() || "0"}
-              icon={Target}
-              className="flex items-center"
-            />
-            
-            <StatCard
-              title="Próxima Ação"
-              value={getNextOneOnOneText()}
-              icon={Calendar}
-              className="flex items-center"
-            />
-            
-            <StatCard
-              title="Progresso Médio"
-              value={`${averageProgress}%`}
-              icon={CheckSquare}
-            />
+        </div>
+        <Row gap={6}>
+          <Btn variant="secondary" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
+            Filtros
+          </Btn>
+          <Btn variant="primary" size="sm" icon={<Plus className="w-3.5 h-3.5" strokeWidth={2} />} onClick={() => navigate("/pdi")}>
+            Nova ação
+          </Btn>
+        </Row>
+      </div>
+
+      {/* Next action hero */}
+      {nextTask && (
+        <div className="mt-4 mb-5 surface-paper border-l-[3px] border-l-accent p-3.5 flex items-center gap-3.5">
+          <div className="w-9 h-9 rounded-lg bg-accent-soft text-accent-text grid place-items-center shrink-0">
+            <Target className="w-[18px] h-[18px]" strokeWidth={1.75} />
           </div>
-          
-          {/* Evolution Chart */}
-          <EvolutionChart />
-          
-          {/* Current Objectives */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card-elevated space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">PDI Mais Recente</h3>
-                <Target className="h-5 w-5 text-accent" />
-              </div>
-              {activePDIs && activePDIs.length > 0 ? (
-                <>
-                  <p className="text-muted-foreground">
-                    {activePDIs[0].title}
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progresso</span>
-                      <span className="font-medium">{activePDIs[0].progress_percentage || 0}%</span>
+          <div className="flex-1 min-w-0">
+            <Row gap={6} className="mb-0.5">
+              <span className="text-[10.5px] uppercase tracking-[0.08em] text-accent-text font-semibold">
+                Próxima ação
+              </span>
+              <span className="text-[10.5px] text-text-subtle">·</span>
+              <span className="text-[10.5px] text-text-subtle">
+                {getDueLabel(nextTask.due_date)}
+              </span>
+            </Row>
+            <div className="text-[15px] font-medium tracking-[-0.01em]">{nextTask.title}</div>
+            {nextTask.description && (
+              <div className="text-[12px] text-text-muted mt-0.5 line-clamp-1">{nextTask.description}</div>
+            )}
+          </div>
+          <Row gap={6}>
+            <Btn variant="secondary" size="sm">
+              Adiar
+            </Btn>
+            <Btn
+              variant="accent"
+              size="sm"
+              iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
+              onClick={() => navigate(taskTypeToRoute(nextTask.task_type))}
+            >
+              Começar
+            </Btn>
+          </Row>
+        </div>
+      )}
+
+      {/* Inbox de ações */}
+      <SectionHeader
+        title="Sua caixa de ações"
+        right={
+          <span className="text-[11.5px] text-text-subtle tabular">
+            {totalPending} {totalPending === 1 ? "item" : "itens"}
+          </span>
+        }
+      />
+      {isEmpty ? (
+        <LinearEmpty
+          icon={<CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+          title="Tudo em dia"
+          description="Nenhuma pendência agora. Que tal aproveitar para revisar seu PDI ou agendar a próxima 1:1?"
+          actions={
+            <>
+              <Btn
+                variant="secondary"
+                size="sm"
+                icon={<Target className="w-3.5 h-3.5" strokeWidth={1.75} />}
+                onClick={() => navigate("/pdi")}
+              >
+                Revisar PDI
+              </Btn>
+              <Btn
+                variant="primary"
+                size="sm"
+                icon={<Calendar className="w-3.5 h-3.5" strokeWidth={1.75} />}
+                onClick={() => navigate("/11s")}
+              >
+                Agendar 1:1
+              </Btn>
+            </>
+          }
+        />
+      ) : restTasks.length > 0 ? (
+        <div className="surface-paper">
+          {restTasks.map((t, i) => {
+            const prio = getDuePriority(t.due_date);
+            const label = getDueLabel(t.due_date);
+            const chipColor =
+              prio === "urgent" ? "red" : prio === "high" ? "amber" : ("neutral" as const);
+            return (
+              <div
+                key={t.id}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-bg-subtle transition-colors",
+                  i < restTasks.length - 1 && "border-b border-border",
+                )}
+                onClick={() => navigate(taskTypeToRoute(t.task_type))}
+              >
+                <PriorityDot level={prio} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-[450] text-text truncate">{t.title}</div>
+                  {t.description && (
+                    <div className="text-[11.5px] text-text-subtle mt-0.5 line-clamp-1">
+                      {t.description}
                     </div>
-                    <Progress value={activePDIs[0].progress_percentage || 0} className="h-2" />
-                  </div>
-                  <Button 
-                    onClick={() => navigate('/pdi')}
-                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                  >
-                    Ver Detalhes
-                  </Button>
-                </>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhum PDI ativo no momento
+                  )}
+                </div>
+                <Chip color={chipColor} size="sm">
+                  {label}
+                </Chip>
+                <ChevronRight className="w-3.5 h-3.5 text-text-subtle" strokeWidth={1.75} />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <LinearEmpty
+          icon={<CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+          title="Apenas a próxima ação"
+          description="Sua caixa de entrada está limpa. Termine o próximo item lá em cima e ganhe o dia."
+        />
+      )}
+
+      {/* Secondary: PDI mini + pulse */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+        <Card title="Seu PDI atual" action={<Link to="/pdi" className="link-accent">Abrir PDI →</Link>}>
+          {latestPdi ? (
+            <div>
+              <Row gap={6}>
+                <Chip color="accent" size="sm">{latestPdi.development_area || "Desenvolvimento"}</Chip>
+                <Chip color="neutral" size="sm">{latestPdi.status === "in_progress" ? "Em andamento" : latestPdi.status}</Chip>
+              </Row>
+              <div className="text-[13px] text-text mt-2.5 font-[450]">{latestPdi.title}</div>
+              {latestPdi.target_date && (
+                <div className="text-[12px] text-text-muted mt-0.5">
+                  Prazo · {new Date(latestPdi.target_date).toLocaleDateString("pt-BR")}
                 </div>
               )}
-            </div>
-            
-            <div className="card-elevated space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Ações Pendentes</h3>
-                <CheckSquare className="h-5 w-5 text-accent" />
+              <ProgressBar value={latestPdi.progress_percentage || 0} className="mt-2.5" />
+              <div className="flex justify-between mt-2 text-[11.5px] text-text-muted">
+                <span>Progresso</span>
+                <span className="font-semibold text-text tabular">
+                  {latestPdi.progress_percentage || 0}%
+                </span>
               </div>
-              {pendingTasks && pendingTasks.length > 0 ? (
-                <>
-                  <div className="space-y-3">
-                    {pendingTasks.map((task) => {
-                      const dueDate = task.due_date ? new Date(task.due_date) : null;
-                      const today = new Date();
-                      const isOverdue = dueDate && dueDate < today;
-                      const daysUntilDue = dueDate 
-                        ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-                        : null;
-                      
-                      return (
-                        <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                          <div className={`h-2 w-2 rounded-full ${
-                            isOverdue ? 'bg-status-red' : 
-                            daysUntilDue && daysUntilDue <= 1 ? 'bg-status-yellow' : 
-                            'bg-status-green'
-                          }`} />
-                          <span className="flex-1">{task.title}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {dueDate ? (
-                              isOverdue ? 'Atrasado' :
-                              daysUntilDue === 0 ? 'Vence hoje' :
-                              daysUntilDue === 1 ? 'Vence amanhã' :
-                              `Vence em ${daysUntilDue} dias`
-                            ) : 'Sem prazo'}
-                          </span>
-                        </div>
-                      );
+            </div>
+          ) : (
+            <div className="py-4 text-center">
+              <div className="text-[13px] text-text-muted mb-2.5">Sem PDI ativo.</div>
+              <Btn
+                variant="primary"
+                size="sm"
+                icon={<Plus className="w-3.5 h-3.5" strokeWidth={2} />}
+                onClick={() => navigate("/pdi")}
+              >
+                Criar primeiro PDI
+              </Btn>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Próxima 1:1" action={<Link to="/11s" className="link-accent">Ver todas →</Link>}>
+          {nextOneOnOne ? (
+            <div>
+              <Row gap={10} align="center">
+                <LinearAvatar name={nextOneOnOne.leader?.full_name || "Líder"} size={36} />
+                <div>
+                  <div className="text-[13px] font-medium">{nextOneOnOne.leader?.full_name || "Líder"}</div>
+                  <div className="text-[11.5px] text-text-muted">
+                    {formatDistanceToNow(new Date(nextOneOnOne.scheduled_date), {
+                      locale: ptBR,
+                      addSuffix: true,
+                    })}
+                    · {new Date(nextOneOnOne.scheduled_date).toLocaleDateString("pt-BR", {
+                      weekday: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </div>
-                  <Button variant="outline" className="w-full">
-                    Ver Todas
-                  </Button>
-                </>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma ação pendente
+                </div>
+              </Row>
+              {nextOneOnOne.agenda && (
+                <div className="text-[12px] text-text-muted mt-3 leading-relaxed line-clamp-3">
+                  {nextOneOnOne.agenda}
                 </div>
               )}
+              <Btn
+                variant="secondary"
+                size="sm"
+                className="mt-3 w-full justify-center"
+                iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
+                onClick={() => navigate("/11s")}
+              >
+                Abrir pauta
+              </Btn>
             </div>
-          </div>
-        </main>
+          ) : (
+            <div className="py-4 text-center">
+              <div className="text-[13px] text-text-muted mb-2.5">Nenhuma 1:1 agendada.</div>
+              <Btn
+                variant="primary"
+                size="sm"
+                icon={<Calendar className="w-3.5 h-3.5" strokeWidth={1.75} />}
+                onClick={() => navigate("/11s")}
+              >
+                Agendar 1:1
+              </Btn>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Resumo ciclo */}
+      <SectionHeader title="Seu ciclo" right={<Link to="/avaliacoes" className="link-accent">Avaliações →</Link>} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <MiniKpi
+          label="PDIs ativos"
+          value={String(activePDIs.length)}
+          detail={activePDIs.length ? "em andamento" : "Comece um PDI"}
+          icon={<Target className="w-4 h-4" strokeWidth={1.75} />}
+        />
+        <MiniKpi
+          label="Progresso médio"
+          value={`${averageProgress}%`}
+          detail={activePDIs.length ? "dos seus planos" : "sem base ainda"}
+          icon={<BarChart3 className="w-4 h-4" strokeWidth={1.75} />}
+        />
+        <MiniKpi
+          label="Pendências"
+          value={String(totalPending)}
+          detail={totalPending ? "para esta semana" : "Caixa limpa"}
+          icon={<Activity className="w-4 h-4" strokeWidth={1.75} />}
+        />
       </div>
     </div>
   );
 };
+
+function MiniKpi({
+  label,
+  value,
+  detail,
+  icon,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="surface-paper p-3.5">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] uppercase tracking-[0.05em] text-text-subtle font-semibold">
+          {label}
+        </div>
+        <span className="text-text-muted">{icon}</span>
+      </div>
+      <div className="text-[26px] font-semibold tabular tracking-[-0.02em] mt-2 leading-[1.05]">
+        {value}
+      </div>
+      <div className="text-[11.5px] text-text-muted mt-1">{detail}</div>
+    </div>
+  );
+}
 
 export default Index;

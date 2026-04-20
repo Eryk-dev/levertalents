@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { StatCard as StatCardPrimitive } from "@/components/primitives/StatCard";
 
 interface StatCardProps {
   title: string;
@@ -10,37 +10,14 @@ interface StatCardProps {
   className?: string;
 }
 
-export function StatCard({ 
-  title, 
-  value, 
-  icon: Icon, 
-  trend, 
-  trendValue,
-  className 
-}: StatCardProps) {
+export function StatCard({ title, value, icon, trend, trendValue, className }: StatCardProps) {
   return (
-    <div className={cn("stat-card", className)}>
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold">{value}</p>
-          {trendValue && (
-            <p className={cn(
-              "text-sm font-medium",
-              trend === "up" && "text-status-green",
-              trend === "down" && "text-status-red",
-              trend === "neutral" && "text-muted-foreground"
-            )}>
-              {trendValue}
-            </p>
-          )}
-        </div>
-        {Icon && (
-          <div className="rounded-lg bg-accent/10 p-3">
-            <Icon className="h-6 w-6 text-accent" />
-          </div>
-        )}
-      </div>
-    </div>
+    <StatCardPrimitive
+      label={title}
+      value={value}
+      icon={icon}
+      trend={trend && trendValue ? { direction: trend, value: trendValue } : undefined}
+      className={className}
+    />
   );
 }

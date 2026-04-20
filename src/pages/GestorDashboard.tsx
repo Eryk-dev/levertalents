@@ -1,207 +1,402 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
-import { EmptyState } from "@/components/EmptyState";
-import { AlertTriangle, BarChart3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertTriangle,
+  Users,
+  Calendar,
+  Target,
+  TrendingUp,
+  ArrowRight,
+  ChevronRight,
+  Filter,
+  CheckCircle2,
+  MessageSquare,
+  BarChart3,
+  Activity,
+} from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useLeaderAlerts } from "@/hooks/useLeaderAlerts";
+import { useTeamIndicators } from "@/hooks/useTeamIndicators";
+import { useNineBoxDistribution } from "@/hooks/useNineBoxDistribution";
+import { LoadingState } from "@/components/primitives/LoadingState";
+import { NineBoxMatrix } from "@/components/NineBoxMatrix";
+import {
+  Btn,
+  Chip,
+  Row,
+  Card,
+  SectionHeader,
+  LinearAvatar,
+  LinearEmpty,
+  PriorityDot,
+} from "@/components/primitives/LinearKit";
+
+type LeaderAlert = {
+  type: "gap" | "score" | "pending";
+  message: string;
+  action: string;
+  relatedId?: string;
+};
+
+function alertToRoute(alert: LeaderAlert): string {
+  switch (alert.type) {
+    case "score":
+      return alert.relatedId ? `/colaborador/${alert.relatedId}` : "/avaliacoes";
+    case "pending":
+      return alert.message.toLowerCase().includes("pdi") ? "/pdi" : "/11s";
+    case "gap":
+    default:
+      return "/meu-time";
+  }
+}
+
+function alertPriority(alert: LeaderAlert): "urgent" | "high" | "med" {
+  if (alert.type === "score") return "urgent";
+  if (alert.type === "pending") return "high";
+  return "med";
+}
 
 export default function GestorDashboard() {
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
-  const { data: alerts = [], isLoading: isLoadingAlerts } = useLeaderAlerts(profile?.id);
+  const leaderId = profile?.id;
 
-  // Busca os membros da equipe do líder logado
+  const { data: alerts = [], isLoading: isLoadingAlerts } = useLeaderAlerts(leaderId);
+  const { data: indicators, isLoading: isLoadingIndicators } = useTeamIndicators(leaderId);
+  const { data: nineBox, isLoading: isLoadingNineBox } = useNineBoxDistribution("team", leaderId);
+
   const { data: rawTeamMembers = [], isLoading: isLoadingTeam } = useQuery({
-    queryKey: ['team-members-raw', profile?.id],
+    queryKey: ["team-members-raw", leaderId],
+    enabled: !!leaderId,
     queryFn: async () => {
-      if (!profile?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('id, user_id, position')
-        .eq('leader_id', profile.id);
-
-      if (error) {
-        console.error('Error fetching team members:', error);
-        return [];
-      }
+      if (!leaderId) return [];
+      const { data } = await supabase
+        .from("team_members")
+        .select("id, user_id, position")
+        .eq("leader_id", leaderId);
       return data || [];
     },
-    enabled: !!profile?.id,
   });
 
-  // Busca os perfis dos membros da equipe
   const userIds = rawTeamMembers.map((m: any) => m.user_id);
   const { data: memberProfiles = [] } = useQuery({
-    queryKey: ['member-profiles', userIds],
+    queryKey: ["member-profiles", userIds],
+    enabled: userIds.length > 0,
     queryFn: async () => {
       if (userIds.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', userIds);
-
-      if (error) {
-        console.error('Error fetching profiles:', error);
-        return [];
-      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
       return data || [];
     },
-    enabled: userIds.length > 0,
   });
 
-  // Combina os dados
-  const teamMembers: any[] = rawTeamMembers.map((tm: any) => {
-    const memberProfile = memberProfiles.find((p: any) => p.id === tm.user_id);
-    return {
-      ...tm,
-      profiles: memberProfile
-    };
-  });
+  const teamMembers = rawTeamMembers.map((tm: any) => ({
+    ...tm,
+    profile: memberProfiles.find((p: any) => p.id === tm.user_id),
+  }));
 
-  const isLoading = isLoadingTeam;
+  const firstName = (profile?.full_name || "").split(" ")[0] || "Gestor";
+  const hour = new Date().getHours();
+  const greeting = hour < 6 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/auth';
-  };
+  const typedAlerts = (alerts as LeaderAlert[]) || [];
+  const topAlert = typedAlerts[0];
+  const restAlerts = typedAlerts.slice(1);
+  const criticalCount = typedAlerts.filter((a) => a.type === "score").length;
+  const pendingCount = typedAlerts.filter((a) => a.type === "pending").length;
+
+  const heroSubtitle =
+    criticalCount > 0 && pendingCount > 0
+      ? `${criticalCount} ${criticalCount === 1 ? "score baixo" : "scores baixos"} · ${pendingCount} ${pendingCount === 1 ? "pendência" : "pendências"}`
+      : criticalCount > 0
+      ? `${criticalCount} ${criticalCount === 1 ? "colaborador precisa" : "colaboradores precisam"} de atenção imediata`
+      : pendingCount > 0
+      ? `${pendingCount} ${pendingCount === 1 ? "item pendente" : "itens pendentes"} do time`
+      : "";
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col">
-        <Header userName={profile?.full_name || 'Gestor'} onLogout={handleLogout} />
-        
-        <main className="flex-1 p-6 space-y-6 overflow-auto">
-          {/* Welcome Section */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold">Olá, Gestor</h1>
-            <p className="text-muted-foreground text-lg">
-              Gerencie sua equipe e acompanhe o desempenho
-            </p>
+    <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex items-baseline justify-between mb-1">
+        <div>
+          <div className="text-[10.5px] uppercase tracking-[0.08em] text-text-subtle font-semibold mb-0.5">
+            Liderança
           </div>
-          
-          {/* Alertas Críticos */}
-          <div className="card-elevated space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-status-red" />
-                Alertas Críticos
-              </h2>
-              <Badge variant="destructive">{alerts.length}</Badge>
-            </div>
-            {isLoadingAlerts ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-              </div>
-            ) : alerts.length === 0 ? (
-              <div className="text-center p-8 text-muted-foreground">
-                <p>Nenhum alerta crítico no momento.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {alerts.map((alert, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <p className="text-sm font-medium">{alert.message}</p>
-                    <Button size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-white">
-                      {alert.action}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">
+            {greeting}, {firstName}
+          </h1>
+          <div className="text-[13px] text-text-muted mt-0.5">
+            {indicators?.memberCount
+              ? `${indicators.memberCount} ${indicators.memberCount === 1 ? "pessoa" : "pessoas"} no time${
+                  typedAlerts.length ? ` · ${typedAlerts.length} ${typedAlerts.length === 1 ? "sinal" : "sinais"} para revisar` : ""
+                }`
+              : "Panorama do time"}
           </div>
-          
-          {/* Indicadores do Time — empty state até ter cálculo real */}
-          <div className="card-elevated space-y-4">
-            <h2 className="text-xl font-semibold">Indicadores do time</h2>
-            <EmptyState
-              title="Aguardando dados reais"
-              message="Reuniões 1:1 realizadas, score médio do time e taxa de engajamento serão calculados a partir das avaliações e 1:1s registradas."
-            />
-          </div>
+        </div>
+        <Row gap={6}>
+          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
+            Filtros
+          </Btn>
+          <Btn
+            variant="secondary"
+            size="sm"
+            icon={<Calendar className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            onClick={() => navigate("/11s")}
+          >
+            Agendar 1:1
+          </Btn>
+        </Row>
+      </div>
 
-          {/* Minha Equipe */}
-          <div className="card-elevated space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Minha Equipe</h2>
-              <Badge>{teamMembers.length} membros</Badge>
-            </div>
-            
-            {isLoading ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-              </div>
-            ) : teamMembers.length === 0 ? (
-              <div className="text-center p-8 text-muted-foreground">
-                <p>Você ainda não possui membros na sua equipe.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {teamMembers.map((member: any) => {
-                  const memberProfile = member.profiles;
-                  const initials = memberProfile?.full_name
-                    ?.split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2) || '??';
-                  
-                  return (
-                    <div key={member.id} className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
-                            {initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-semibold">{memberProfile?.full_name || 'Nome não disponível'}</h3>
-                              <p className="text-sm text-muted-foreground">{member.position || 'Cargo não definido'}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between pt-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => navigate(`/colaborador/${member.user_id}`)}
-                            >
-                              Ver Perfil
-                            </Button>
-                          </div>
-                        </div>
+      {/* Next action hero */}
+      {topAlert && (
+        <div className="mt-4 mb-5 surface-paper border-l-[3px] border-l-accent p-3.5 flex items-center gap-3.5">
+          <div className="w-9 h-9 rounded-lg bg-accent-soft text-accent-text grid place-items-center shrink-0">
+            <Target className="w-[18px] h-[18px]" strokeWidth={1.75} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <Row gap={6} className="mb-0.5">
+              <span className="text-[10.5px] uppercase tracking-[0.08em] text-accent-text font-semibold">
+                Próxima ação
+              </span>
+              {heroSubtitle && (
+                <>
+                  <span className="text-[10.5px] text-text-subtle">·</span>
+                  <span className="text-[10.5px] text-text-subtle">{heroSubtitle}</span>
+                </>
+              )}
+            </Row>
+            <div className="text-[15px] font-medium tracking-[-0.01em] truncate">{topAlert.message}</div>
+          </div>
+          <Row gap={6}>
+            <Btn variant="secondary" size="sm" onClick={() => navigate("/meu-time")}>
+              Ver time
+            </Btn>
+            <Btn
+              variant="accent"
+              size="sm"
+              iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
+              onClick={() => navigate(alertToRoute(topAlert))}
+            >
+              {topAlert.action || "Abrir"}
+            </Btn>
+          </Row>
+        </div>
+      )}
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+        <KpiTile
+          label="Meu time"
+          value={indicators?.memberCount != null ? String(indicators.memberCount) : isLoadingIndicators ? "—" : "0"}
+          detail={
+            indicators?.memberCount
+              ? `${indicators.memberCount === 1 ? "pessoa" : "pessoas"} sob liderança`
+              : "Sem time vinculado"
+          }
+          icon={<Users className="w-4 h-4" strokeWidth={1.75} />}
+        />
+        <KpiTile
+          label="Score médio"
+          value={indicators?.avgPerformanceScore != null ? indicators.avgPerformanceScore.toFixed(1) : "—"}
+          detail={
+            indicators?.avgPerformanceScore != null ? "avaliações concluídas" : "aguardando avaliações"
+          }
+          icon={<Target className="w-4 h-4" strokeWidth={1.75} />}
+          delta={
+            indicators?.avgPerformanceScore != null
+              ? indicators.avgPerformanceScore >= 4
+                ? "good"
+                : indicators.avgPerformanceScore < 3
+                ? "bad"
+                : undefined
+              : undefined
+          }
+        />
+        <KpiTile
+          label="1:1s (30d)"
+          value={String(indicators?.completedOneOnOnesLast30d ?? 0)}
+          detail="concluídas no período"
+          icon={<Calendar className="w-4 h-4" strokeWidth={1.75} />}
+        />
+        <KpiTile
+          label="Progresso PDI"
+          value={indicators?.avgPdiProgress != null ? `${Math.round(indicators.avgPdiProgress)}%` : "—"}
+          detail={
+            indicators?.pendingApprovalPdis
+              ? `${indicators.pendingApprovalPdis} aguarda${
+                  indicators.pendingApprovalPdis === 1 ? "" : "m"
+                } aprovação`
+              : "Média dos PDIs ativos"
+          }
+          icon={<TrendingUp className="w-4 h-4" strokeWidth={1.75} />}
+        />
+      </div>
+
+      {/* Alerts + Team grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+        <div className="lg:col-span-2">
+          <SectionHeader
+            title="Alertas críticos"
+            right={
+              typedAlerts.length > 0 ? (
+                <span className="text-[11.5px] text-text-subtle tabular">
+                  {typedAlerts.length} {typedAlerts.length === 1 ? "sinal" : "sinais"}
+                </span>
+              ) : null
+            }
+          />
+          {isLoadingAlerts ? (
+            <LoadingState variant="inline" message="Analisando pendências…" />
+          ) : typedAlerts.length === 0 ? (
+            <LinearEmpty
+              icon={<CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+              title="Nada crítico agora"
+              description="Scores baixos, 1:1s atrasadas ou PDIs pendentes aparecem aqui."
+            />
+          ) : restAlerts.length > 0 ? (
+            <div className="surface-paper">
+              {restAlerts.map((alert, idx) => {
+                const prio = alertPriority(alert);
+                return (
+                  <div
+                    key={`${alert.type}-${idx}`}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-bg-subtle transition-colors ${
+                      idx < restAlerts.length - 1 ? "border-b border-border" : ""
+                    }`}
+                    onClick={() => navigate(alertToRoute(alert))}
+                  >
+                    <PriorityDot level={prio} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-[450] text-text truncate">{alert.message}</div>
+                      <div className="text-[11.5px] text-text-subtle mt-0.5">
+                        {alert.type === "score"
+                          ? "Performance abaixo do esperado"
+                          : alert.type === "pending"
+                          ? "Pendência do time"
+                          : "Gap de acompanhamento"}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          
-          {/* Matriz 9BOX — empty state até o ciclo de avaliação gerar dados */}
-          <div className="card-elevated space-y-3">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-accent" />
-              Matriz 9BOX
-            </h2>
-            <EmptyState
-              title="Matriz indisponível"
-              message="A distribuição do time pelos 9 quadrantes será gerada quando o ciclo de avaliação atual for fechado."
+                    <Chip color={prio === "urgent" ? "red" : prio === "high" ? "amber" : "neutral"} size="sm">
+                      {alert.action}
+                    </Chip>
+                    <ChevronRight className="w-3.5 h-3.5 text-text-subtle" strokeWidth={1.75} />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <LinearEmpty
+              icon={<CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+              title="Apenas o sinal acima"
+              description="Resolva o alerta em destaque para limpar a caixa."
             />
-          </div>
-        </main>
+          )}
+        </div>
+
+        <div>
+          <SectionHeader
+            title="Meu time"
+            right={
+              teamMembers.length > 0 ? (
+                <button onClick={() => navigate("/meu-time")} className="link-accent text-[11.5px]">
+                  Ver todos →
+                </button>
+              ) : null
+            }
+          />
+          {isLoadingTeam ? (
+            <LoadingState variant="spinner" message="Carregando…" />
+          ) : teamMembers.length === 0 ? (
+            <LinearEmpty
+              icon={<Users className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+              title="Sem time vinculado"
+              description="Peça ao RH para alocar pessoas ao seu time."
+            />
+          ) : (
+            <div className="surface-paper">
+              {teamMembers.slice(0, 6).map((member: any, idx: number) => {
+                const name = member.profile?.full_name || "Sem nome";
+                const visible = teamMembers.slice(0, 6);
+                return (
+                  <button
+                    key={member.id}
+                    onClick={() => navigate(`/colaborador/${member.user_id}`)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-bg-subtle transition-colors ${
+                      idx < visible.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <LinearAvatar name={name} size={26} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12.5px] font-medium text-text truncate">{name}</div>
+                      <div className="text-[11px] text-text-subtle truncate">
+                        {member.position || "—"}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-3 h-3 text-text-subtle" strokeWidth={1.75} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 9-Box */}
+      <SectionHeader
+        title="9-Box · performance × potencial"
+        right={
+          nineBox?.totalEvaluated ? (
+            <span className="text-[11.5px] text-text-subtle tabular">
+              {nineBox.totalEvaluated} avaliad{nineBox.totalEvaluated === 1 ? "o" : "os"}
+            </span>
+          ) : null
+        }
+      />
+      <Card contentClassName="p-5">
+        {isLoadingNineBox ? (
+          <LoadingState variant="spinner" message="Calculando distribuição…" />
+        ) : (
+          <NineBoxMatrix distribution={nineBox} />
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function KpiTile({
+  label,
+  value,
+  detail,
+  icon,
+  delta,
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+  icon: React.ReactNode;
+  delta?: "good" | "bad";
+}) {
+  return (
+    <div className="surface-paper p-3.5">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] uppercase tracking-[0.05em] text-text-subtle font-semibold">
+          {label}
+        </div>
+        <span className="text-text-muted">{icon}</span>
+      </div>
+      <div className="text-[26px] font-semibold tabular tracking-[-0.02em] mt-2 leading-[1.05]">
+        {value}
+      </div>
+      <div
+        className={`text-[11.5px] mt-1 ${
+          delta === "good" ? "text-status-green" : delta === "bad" ? "text-status-red" : "text-text-muted"
+        }`}
+      >
+        {detail}
       </div>
     </div>
   );

@@ -1,10 +1,4 @@
-import { useState } from "react";
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useUserProfile } from "@/hooks/useUserProfile";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,30 +9,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useTeams } from "@/hooks/useTeams";
-import { Plus, Trash2, Edit2, Users, UserPlus, Building } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { Search, Plus } from "lucide-react";
+import { LoadingState } from "@/components/primitives/LoadingState";
+import {
+  Btn,
+  Row,
+  LinearAvatar,
+  LinearEmpty,
+} from "@/components/primitives/LinearKit";
+import { Users } from "lucide-react";
 
 export default function TeamManagement() {
-  const navigate = useNavigate();
   const {
     companies,
     teams,
@@ -48,32 +46,17 @@ export default function TeamManagement() {
     createTeam,
     updateTeam,
     deleteTeam,
-    assignLeaderToTeam,
-    addMemberToTeam,
-    removeMemberFromTeam,
   } = useTeams();
-  const { data: profile } = useUserProfile();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
 
   // Team form state
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("");
   const [teamCompany, setTeamCompany] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
 
-  // Leader assignment state
-  const [selectedTeamForLeader, setSelectedTeamForLeader] = useState("");
-  const [selectedLeader, setSelectedLeader] = useState("");
-
-  // Member assignment state
-  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
-  const [selectedTeamForMember, setSelectedTeamForMember] = useState("");
-  const [selectedMember, setSelectedMember] = useState("");
-  const [memberPosition, setMemberPosition] = useState("");
+  // Search
+  const [query, setQuery] = useState("");
 
   const handleSaveTeam = async () => {
     if (!teamName || !teamCompany) return;
@@ -90,37 +73,6 @@ export default function TeamManagement() {
     setTeamCompany("");
   };
 
-  const handleEditTeam = (team: typeof teams[0]) => {
-    setEditingTeam(team.id);
-    setTeamName(team.name);
-    setTeamCompany(team.company_id);
-    setTeamDialogOpen(true);
-  };
-
-  const handleAssignLeader = async () => {
-    if (!selectedTeamForLeader || !selectedLeader) {
-      toast.error("Selecione um time e um líder");
-      return;
-    }
-    
-    try {
-      await assignLeaderToTeam(selectedLeader, selectedTeamForLeader);
-      setSelectedTeamForLeader("");
-      setSelectedLeader("");
-    } catch (error) {
-      console.error("Erro ao atribuir líder:", error);
-    }
-  };
-
-  const handleAddMember = async () => {
-    if (!selectedTeamForMember || !selectedMember) return;
-    await addMemberToTeam(selectedMember, selectedTeamForMember, memberPosition);
-    setMemberDialogOpen(false);
-    setSelectedTeamForMember("");
-    setSelectedMember("");
-    setMemberPosition("");
-  };
-
   const getTeamLeader = (teamId: string) => {
     const team = teams.find((t) => t.id === teamId);
     if (!team?.leader_id) return null;
@@ -131,388 +83,229 @@ export default function TeamManagement() {
     return teamMembers.filter((m) => m.team_id === teamId);
   };
 
-  const leaders = users.filter((u) => u.role === "lider");
-  const collaborators = users.filter((u) => u.role === "colaborador");
+  const rows = useMemo(() => {
+    return teams
+      .map((team) => {
+        const leader = getTeamLeader(team.id);
+        const members = getTeamMembers(team.id);
+        return {
+          id: team.id,
+          name: team.name,
+          company: team.company?.name || "—",
+          leader,
+          peopleCount: members.length,
+          // TODO: integrar clima por time (climate_responses agregado por equipe).
+          clima: null as number | null,
+          // TODO: integrar PDI ativo por time (development_plans filtrados por time).
+          pdiAtivo: null as number | null,
+          _team: team,
+        };
+      })
+      .filter((r) => {
+        if (!query.trim()) return true;
+        const q = query.toLowerCase();
+        return (
+          r.name.toLowerCase().includes(q) ||
+          r.company.toLowerCase().includes(q) ||
+          (r.leader?.full_name || "").toLowerCase().includes(q)
+        );
+      });
+  }, [teams, teamMembers, users, query]);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
+    return <LoadingState variant="spinner" message="Carregando gestão de times..." />;
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Header userName={profile?.full_name} onLogout={handleLogout} />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Gerenciamento de Times</h1>
-              <p className="text-muted-foreground">
-                Gerencie times, líderes e colaboradores
-              </p>
-            </div>
-
-            <Tabs defaultValue="teams" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="teams" className="flex items-center gap-2">
-                  <Building className="h-4 w-4" />
-                  Times
-                </TabsTrigger>
-                <TabsTrigger value="leaders" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Líderes
-                </TabsTrigger>
-                <TabsTrigger value="members" className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Colaboradores
-                </TabsTrigger>
-              </TabsList>
-
-              {/* TEAMS TAB */}
-              <TabsContent value="teams" className="space-y-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle>Times</CardTitle>
-                      <CardDescription>Gerencie os times da organização</CardDescription>
-                    </div>
-                    <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button onClick={() => {
-                          setEditingTeam(null);
-                          setTeamName("");
-                          setTeamCompany("");
-                        }}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Novo Time
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>
-                            {editingTeam ? "Editar Time" : "Criar Novo Time"}
-                          </DialogTitle>
-                          <DialogDescription>
-                            Preencha as informações do time
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Nome do Time</Label>
-                            <Input
-                              value={teamName}
-                              onChange={(e) => setTeamName(e.target.value)}
-                              placeholder="Ex: Time de Desenvolvimento"
-                            />
-                          </div>
-                          <div>
-                            <Label>Empresa</Label>
-                            <Select value={teamCompany} onValueChange={setTeamCompany}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione a empresa" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {companies.map((company) => (
-                                  <SelectItem key={company.id} value={company.id}>
-                                    {company.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setTeamDialogOpen(false)}
-                              className="flex-1"
-                            >
-                              Cancelar
-                            </Button>
-                            <Button onClick={handleSaveTeam} className="flex-1">
-                              Salvar
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Time</TableHead>
-                          <TableHead>Empresa</TableHead>
-                          <TableHead>Líder</TableHead>
-                          <TableHead>Membros</TableHead>
-                          <TableHead>Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {teams.map((team) => {
-                          const leader = getTeamLeader(team.id);
-                          const members = getTeamMembers(team.id);
-                          return (
-                            <TableRow key={team.id}>
-                              <TableCell className="font-medium">{team.name}</TableCell>
-                              <TableCell>{team.company?.name}</TableCell>
-                              <TableCell>
-                                {leader ? (
-                                  <Badge variant="secondary">{leader.full_name}</Badge>
-                                ) : (
-                                  <span className="text-muted-foreground">Sem líder</span>
-                                )}
-                              </TableCell>
-                              <TableCell>{members.length}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditTeam(team)}
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteTeam(team.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* LEADERS TAB */}
-              <TabsContent value="leaders" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Atribuir Líderes</CardTitle>
-                    <CardDescription>
-                      Atribua um líder a um time
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label>Time</Label>
-                        <Select
-                          value={selectedTeamForLeader}
-                          onValueChange={setSelectedTeamForLeader}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o time" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teams.map((team) => (
-                              <SelectItem key={team.id} value={team.id}>
-                                {team.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Líder</Label>
-                        <Select value={selectedLeader} onValueChange={setSelectedLeader}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o líder" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {leaders.map((leader) => (
-                              <SelectItem key={leader.id} value={leader.id}>
-                                {leader.full_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-end">
-                        <Button onClick={handleAssignLeader} className="w-full">
-                          Atribuir Líder
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-4">Times e Líderes</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Empresa</TableHead>
-                            <TableHead>Líder Atual</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {teams.map((team) => {
-                            const leader = getTeamLeader(team.id);
-                            return (
-                              <TableRow key={team.id}>
-                                <TableCell className="font-medium">{team.name}</TableCell>
-                                <TableCell>{team.company?.name}</TableCell>
-                                <TableCell>
-                                  {leader ? (
-                                    <Badge variant="secondary">{leader.full_name}</Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground">Sem líder</span>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* MEMBERS TAB */}
-              <TabsContent value="members" className="space-y-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle>Colaboradores</CardTitle>
-                      <CardDescription>
-                        Gerencie os colaboradores dos times
-                      </CardDescription>
-                    </div>
-                    <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Adicionar Colaborador
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Adicionar Colaborador ao Time</DialogTitle>
-                          <DialogDescription>
-                            Selecione o colaborador e o time
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Time</Label>
-                            <Select
-                              value={selectedTeamForMember}
-                              onValueChange={setSelectedTeamForMember}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o time" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {teams.map((team) => (
-                                  <SelectItem key={team.id} value={team.id}>
-                                    {team.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Colaborador</Label>
-                            <Select value={selectedMember} onValueChange={setSelectedMember}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o colaborador" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {collaborators.map((user) => (
-                                  <SelectItem key={user.id} value={user.id}>
-                                    {user.full_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Cargo (Opcional)</Label>
-                            <Input
-                              value={memberPosition}
-                              onChange={(e) => setMemberPosition(e.target.value)}
-                              placeholder="Ex: Desenvolvedor Frontend"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setMemberDialogOpen(false)}
-                              className="flex-1"
-                            >
-                              Cancelar
-                            </Button>
-                            <Button onClick={handleAddMember} className="flex-1">
-                              Adicionar
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Colaborador</TableHead>
-                          <TableHead>Time</TableHead>
-                          <TableHead>Cargo</TableHead>
-                          <TableHead>Líder</TableHead>
-                          <TableHead>Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {teamMembers.map((member) => {
-                          const team = teams.find((t) => t.id === member.team_id);
-                          const user = users.find((u) => u.id === member.user_id);
-                          const leader = users.find((u) => u.id === member.leader_id);
-                          
-                          return (
-                            <TableRow key={member.id}>
-                              <TableCell className="font-medium">
-                                {user?.full_name || member.profile?.full_name}
-                              </TableCell>
-                              <TableCell>{team?.name}</TableCell>
-                              <TableCell>
-                                {member.position || (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {leader ? (
-                                  <Badge variant="secondary">{leader.full_name}</Badge>
-                                ) : (
-                                  <span className="text-muted-foreground">Sem líder</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeMemberFromTeam(member.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+    <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex items-baseline justify-between">
+        <div>
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">Times</h1>
+          <div className="text-[13px] text-text-muted mt-0.5">
+            {rows.length} {rows.length === 1 ? "resultado" : "resultados"}
           </div>
-        </main>
+        </div>
+        <Row gap={6}>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-[5px] border border-border rounded-md bg-surface text-[12px]">
+            <Search className="w-3 h-3 text-text-subtle" strokeWidth={1.75} />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar..."
+              className="bg-transparent outline-none w-[160px] text-text placeholder:text-text-subtle"
+            />
+          </div>
+          <Btn
+            variant="primary"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5" strokeWidth={2} />}
+            onClick={() => {
+              setEditingTeam(null);
+              setTeamName("");
+              setTeamCompany("");
+              setTeamDialogOpen(true);
+            }}
+          >
+            Novo time
+          </Btn>
+        </Row>
       </div>
+
+      {/* Dense table — Linear style */}
+      {rows.length === 0 ? (
+        <div className="mt-5">
+          <LinearEmpty
+            icon={<Users className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+            title={query ? "Nenhum time encontrado" : "Nenhum time cadastrado"}
+            description={
+              query
+                ? "Ajuste a busca para ver mais resultados."
+                : "Crie o primeiro time para começar a organizar líderes e colaboradores."
+            }
+          />
+        </div>
+      ) : (
+        <div className="mt-5 surface-paper overflow-hidden">
+          <div className="cell-header grid grid-cols-[1.6fr_1.3fr_1.4fr_0.8fr_0.8fr_0.9fr] gap-4">
+            <div>Nome</div>
+            <div>Empresa</div>
+            <div>Líder</div>
+            <div>Pessoas</div>
+            <div>Clima</div>
+            <div>PDI ativo</div>
+          </div>
+          {rows.map((r, i) => (
+            <div
+              key={r.id}
+              onClick={() => {
+                setEditingTeam(r.id);
+                setTeamName(r._team.name);
+                setTeamCompany(r._team.company_id);
+                setTeamDialogOpen(true);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setConfirmDelete({ id: r.id, name: r.name });
+              }}
+              className={`grid grid-cols-[1.6fr_1.3fr_1.4fr_0.8fr_0.8fr_0.9fr] gap-4 items-center px-3.5 py-2.5 text-[13px] cursor-pointer hover:bg-bg-subtle transition-colors ${
+                i < rows.length - 1 ? "border-b border-border" : ""
+              }`}
+            >
+              <div className="font-medium text-text truncate">{r.name}</div>
+              <div className="text-text-muted truncate">{r.company}</div>
+              <div className="min-w-0">
+                {r.leader ? (
+                  <Row gap={8}>
+                    <LinearAvatar name={r.leader.full_name} size={22} />
+                    <span className="text-text truncate">{r.leader.full_name}</span>
+                  </Row>
+                ) : (
+                  <span className="text-text-subtle italic">Sem líder</span>
+                )}
+              </div>
+              <div className="tabular text-text-muted">{r.peopleCount}</div>
+              <div className="tabular text-text-muted">
+                {r.clima != null ? r.clima.toFixed(1) : "—"}
+              </div>
+              <div className="tabular text-text-muted">
+                {r.pdiAtivo != null ? `${r.pdiAtivo}%` : "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dialog criar/editar time */}
+      <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingTeam ? "Editar time" : "Novo time"}</DialogTitle>
+            <DialogDescription>Preencha as informações do time</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10.5px] uppercase tracking-[0.06em] text-text-subtle font-semibold">
+                Nome do time
+              </Label>
+              <Input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Ex: Time de Desenvolvimento"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10.5px] uppercase tracking-[0.06em] text-text-subtle font-semibold">
+                Empresa
+              </Label>
+              <Select value={teamCompany} onValueChange={setTeamCompany}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              {editingTeam ? (
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const row = rows.find((x) => x.id === editingTeam);
+                    if (row) {
+                      setTeamDialogOpen(false);
+                      setConfirmDelete({ id: row.id, name: row.name });
+                    }
+                  }}
+                >
+                  Excluir time
+                </Btn>
+              ) : (
+                <span />
+              )}
+              <Row gap={8}>
+                <Btn variant="secondary" size="sm" onClick={() => setTeamDialogOpen(false)}>
+                  Cancelar
+                </Btn>
+                <Btn variant="primary" size="sm" onClick={handleSaveTeam}>
+                  Salvar
+                </Btn>
+              </Row>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir time?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{confirmDelete?.name}</strong> será removido. Colaboradores vinculados ficarão
+              sem time até que um novo seja atribuído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDelete) deleteTeam(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

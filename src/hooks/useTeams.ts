@@ -252,6 +252,21 @@ export function useTeams() {
     await loadTeamMembers();
   };
 
+  const updateMemberCost = async (memberId: string, cost: number | null) => {
+    const { error } = await supabase
+      .from("team_members")
+      .update({ cost })
+      .eq("id", memberId);
+
+    if (error) {
+      toast.error("Erro ao atualizar custo");
+      throw error;
+    }
+
+    toast.success("Custo atualizado");
+    await loadTeamMembers();
+  };
+
   return {
     companies,
     teams,
@@ -264,6 +279,7 @@ export function useTeams() {
     assignLeaderToTeam,
     addMemberToTeam,
     removeMemberFromTeam,
+    updateMemberCost,
     refresh: loadData,
   };
 }

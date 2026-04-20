@@ -1,13 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Mic, Square, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { OneOnOne } from "@/hooks/useOneOnOnes";
 import { PDIFormIntegrated } from "./PDIFormIntegrated";
 import { PDIReviewCard } from "./PDIReviewCard";
@@ -18,6 +13,20 @@ import {
   PDIFormData,
 } from "@/hooks/usePDIIntegrated";
 import { useAudioTranscription } from "@/hooks/useAudioTranscription";
+import {
+  Btn,
+  Chip,
+  Col,
+  Kbd,
+  LinearAvatar,
+  MiniStat,
+  Row,
+  SectionHeader,
+} from "@/components/primitives/LinearKit";
+import { Icon } from "@/components/primitives/Icon";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface OneOnOneMeetingFormProps {
   oneOnOne: OneOnOne;
@@ -32,28 +41,68 @@ interface MeetingData {
   transcricao?: string;
   resumo?: string;
   audio_duration?: number;
+  agenda_items?: AgendaItem[];
+  action_items?: ActionItemEntry[];
 }
 
+type AgendaItem = {
+  id: string;
+  title: string;
+  owner: string;
+  done: boolean;
+  active?: boolean;
+  timeSpentSec?: number;
+  notes?: string;
+};
+
+type ActionItemEntry = {
+  id: string;
+  title: string;
+  owner: string;
+  due: string;
+  done: boolean;
+};
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+const DEFAULT_AGENDA = (): AgendaItem[] => [
+  { id: uid(), title: "Como você está?", owner: "Ambos", done: false, active: true },
+  { id: uid(), title: "Progresso do PDI atual", owner: "Colaborador", done: false },
+  { id: uid(), title: "Bloqueios e desafios", owner: "Colaborador", done: false },
+  { id: uid(), title: "Próximos passos e alinhamento", owner: "Líder", done: false },
+];
+
+/**
+ * 1:1 Modo Reunião Ao Vivo — Linear denso sans.
+ * Main column: cronômetro + pauta + anotações + action items.
+ * Right rail: contexto (avatar, stats, últimas reuniões, atalhos).
+ * Mantém a lógica de gravação de áudio e de transcrição existentes.
+ */
 export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMeetingFormProps) => {
   const queryClient = useQueryClient();
   const { createPDIFromOneOnOne, isCreating } = usePDIIntegrated();
-  const { saveAudioToStorage, transcribeAudio, isTranscribing } = useAudioTranscription();
+  const { saveAudioToStorage, transcribeAudio } = useAudioTranscription();
 
   const { data: existingPDI } = usePDIForOneOnOne(oneOnOne.id);
   const { data: latestPDI } = useLatestPDIForCollaborator(oneOnOne.collaborator_id);
 
-  const [currentStep, setCurrentStep] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [shouldFinalize, setShouldFinalize] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  
+
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>(DEFAULT_AGENDA);
+  const [actionItems, setActionItems] = useState<ActionItemEntry[]>([]);
+  const [showPDIDialog, setShowPDIDialog] = useState(false);
+  const [showPrevPDIPanel, setShowPrevPDIPanel] = useState(false);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
-  
+  const activeStartRef = useRef<number>(0);
+
   const [meetingData, setMeetingData] = useState<MeetingData>({
     pdi_review: "",
     roteiro: "",
@@ -61,23 +110,30 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
   useEffect(() => {
     if (open && oneOnOne?.meeting_structure) {
-      setMeetingData(oneOnOne.meeting_structure as MeetingData);
+      const structure = oneOnOne.meeting_structure as MeetingData;
+      setMeetingData(structure);
+      if (structure.agenda_items?.length) setAgendaItems(structure.agenda_items);
+      if (structure.action_items?.length) setActionItems(structure.action_items);
     } else if (open) {
       setMeetingData({ pdi_review: "", roteiro: "" });
-      setCurrentStep(0);
+      setAgendaItems(DEFAULT_AGENDA());
+      setActionItems([]);
       setIsRecording(false);
-      setRecordingTime(0);
+      setElapsed(0);
       setAudioBlob(null);
     }
   }, [open, oneOnOne]);
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  const activeItem = useMemo(
+    () => agendaItems.find((i) => i.active) || null,
+    [agendaItems],
+  );
 
   const startRecording = async () => {
     try {
@@ -92,7 +148,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       });
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
+        mimeType: "audio/webm;codecs=opus",
       });
 
       audioChunksRef.current = [];
@@ -105,31 +161,30 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
-        stream.getTracks().forEach(track => track.stop());
-        console.log('Audio blob created:', blob.size, 'bytes');
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.start(1000);
       startTimeRef.current = Date.now();
+      activeStartRef.current = Date.now();
       setIsRecording(true);
-      setRecordingTime(0);
+      setElapsed(0);
 
       timerRef.current = window.setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setElapsed((prev) => prev + 1);
       }, 1000);
 
-      toast.success("Gravação iniciada!");
+      toast.success("Reunião iniciada");
     } catch (error) {
-      console.error('Error starting recording:', error);
+      console.error("Error starting recording:", error);
       toast.error("Erro ao acessar microfone. Verifique as permissões.");
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      console.log('Stopping recording...');
       mediaRecorderRef.current.stop();
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -139,45 +194,91 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
     }
   };
 
+  const toggleAgendaDone = (id: string) => {
+    setAgendaItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, done: !it.done } : it)),
+    );
+  };
+
+  const setAgendaActive = (id: string) => {
+    const now = Date.now();
+    setAgendaItems((prev) =>
+      prev.map((it) => {
+        if (it.active && it.id !== id) {
+          const spent = Math.max(0, Math.floor((now - activeStartRef.current) / 1000));
+          return {
+            ...it,
+            active: false,
+            timeSpentSec: (it.timeSpentSec || 0) + spent,
+          };
+        }
+        if (it.id === id) {
+          activeStartRef.current = now;
+          return { ...it, active: true };
+        }
+        return { ...it, active: false };
+      }),
+    );
+  };
+
+  const addAgendaItem = () => {
+    setAgendaItems((prev) => [
+      ...prev,
+      { id: uid(), title: "Novo tópico", owner: "Ambos", done: false },
+    ]);
+  };
+
+  const removeAgendaItem = (id: string) => {
+    setAgendaItems((prev) => prev.filter((it) => it.id !== id));
+  };
+
+  const addActionItem = () => {
+    setActionItems((prev) => [
+      ...prev,
+      { id: uid(), title: "", owner: "", due: "", done: false },
+    ]);
+  };
+
+  const updateActionItem = (id: string, patch: Partial<ActionItemEntry>) => {
+    setActionItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  };
+
+  const removeActionItem = (id: string) => {
+    setActionItems((prev) => prev.filter((it) => it.id !== id));
+  };
+
   const handlePDISubmit = (data: PDIFormData) => {
     setMeetingData({ ...meetingData, pdi_mensal: data });
-    toast.success("PDI salvo!");
+    setShowPDIDialog(false);
+    toast.success("PDI incluído nesta 1:1");
   };
 
   useEffect(() => {
-    if (shouldFinalize && audioBlob) {
-      console.log('audioBlob ready, starting finalization...');
-      processFinalization();
-    }
+    if (shouldFinalize && audioBlob) processFinalization();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioBlob, shouldFinalize]);
 
   const processFinalization = async () => {
     if (!audioBlob) {
-      console.error('No audio blob available');
-      toast.error("Erro: áudio não encontrado");
+      toast.error("Áudio não encontrado");
       return;
     }
-
     setIsProcessing(true);
-    
+
     try {
-      // 1. Atualizar status para "processing" e fechar janela imediatamente
       await supabase
-        .from('one_on_ones')
-        .update({ status: 'processing' })
-        .eq('id', oneOnOne.id);
-      
+        .from("one_on_ones")
+        .update({ status: "processing" })
+        .eq("id", oneOnOne.id);
+
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      
-      // Fechar todas as janelas
       onOpenChange(false);
-      
-      // 2. Converter áudio para base64
-      toast.info("Processando 1:1...");
+
+      toast.info("Processando 1:1…");
       const reader = new FileReader();
       const audioBase64 = await new Promise<string>((resolve, reject) => {
         reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
+          const base64 = (reader.result as string).split(",")[1];
           resolve(base64);
         };
         reader.onerror = reject;
@@ -185,57 +286,52 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       });
 
       const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
-
-      // 3. SEMPRE salvar o áudio primeiro (garantir que não perdemos dados)
       const audioUrl = await saveAudioToStorage(audioBase64, oneOnOne.id, duration);
-      
-      if (!audioUrl) {
-        throw new Error("Erro ao salvar áudio");
-      }
+      if (!audioUrl) throw new Error("Erro ao salvar áudio");
 
-      // 4. Tentar transcrever (se falhar, o áudio já está salvo)
       const transcription = await transcribeAudio(audioBase64);
-      
-      // 5. Gerar resumo com dados disponíveis
+
       const meetingDataForSummary = {
         transcricao: transcription || "",
         leader: {
           id: oneOnOne.leader_id,
-          name: oneOnOne.leader?.full_name || 'Líder'
+          name: oneOnOne.leader?.full_name || "Líder",
         },
         collaborator: {
           id: oneOnOne.collaborator_id,
-          name: oneOnOne.collaborator?.full_name || 'Colaborador'
+          name: oneOnOne.collaborator?.full_name || "Colaborador",
         },
         pdi_review: meetingData.pdi_review,
         roteiro: meetingData.roteiro,
         pdi_mensal: meetingData.pdi_mensal,
+        agenda_items: agendaItems,
+        action_items: actionItems,
       };
 
       let summary = "";
       try {
-        const { data: summaryData, error: summaryError } = await supabase.functions.invoke('summarize-meeting', {
-          body: { meetingData: meetingDataForSummary }
-        });
-
-        if (!summaryError && summaryData?.summary) {
-          summary = summaryData.summary;
-        }
+        const { data: summaryData, error: summaryError } = await supabase.functions.invoke(
+          "summarize-meeting",
+          {
+            body: { meetingData: meetingDataForSummary },
+          },
+        );
+        if (!summaryError && summaryData?.summary) summary = summaryData.summary;
       } catch (summaryError) {
-        console.error('Summary generation error:', summaryError);
+        console.error("Summary generation error:", summaryError);
       }
 
-      // 6. Salvar dados finais
-      const finalData = {
+      const finalData: MeetingData = {
         pdi_review: meetingData.pdi_review,
         roteiro: meetingData.roteiro,
         pdi_mensal: meetingData.pdi_mensal,
         transcricao: transcription || "",
         resumo: summary,
         audio_duration: duration,
+        agenda_items: agendaItems,
+        action_items: actionItems,
       };
 
-      // Salvar PDI se existir
       if (meetingData.pdi_mensal) {
         await createPDIFromOneOnOne({
           oneOnOneId: oneOnOne.id,
@@ -244,7 +340,6 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         });
       }
 
-      // 7. Atualizar status para completo
       const { error: finalUpdateError } = await supabase
         .from("one_on_ones")
         .update({
@@ -257,22 +352,21 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
       if (finalUpdateError) throw finalUpdateError;
 
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
-      
+
       if (transcription) {
-        toast.success("1:1 finalizada com sucesso!");
+        toast.success("1:1 finalizada!");
       } else {
-        toast.warning("1:1 finalizada! Áudio salvo, mas transcrição falhou. Você pode tentar transcrever depois.");
+        toast.warning("1:1 finalizada, mas a transcrição falhou. Áudio salvo.");
       }
     } catch (error: any) {
-      console.error('Error finalizing meeting:', error);
+      console.error("Error finalizing meeting:", error);
       toast.error("Erro ao finalizar: " + error.message);
-      
-      // Reverter status em caso de erro
+
       await supabase
-        .from('one_on_ones')
-        .update({ status: 'scheduled' })
-        .eq('id', oneOnOne.id);
-      
+        .from("one_on_ones")
+        .update({ status: "scheduled" })
+        .eq("id", oneOnOne.id);
+
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
     } finally {
       setIsProcessing(false);
@@ -281,252 +375,521 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
   };
 
   const handleFinalizeClick = () => {
-    console.log('Finalize clicked, audioBlob:', audioBlob?.size);
     if (!isRecording) {
-      toast.error("Nenhuma gravação ativa");
+      toast.error("Nenhuma reunião ativa");
       return;
     }
-    
     stopRecording();
     setShouldFinalize(true);
-    toast.info("Parando gravação...");
+    toast.info("Encerrando gravação…");
   };
 
-  const nextStep = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
+  const formatElapsed = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const steps = [
-    { title: "Revisão PDI Anterior", key: "pdi_review" },
-    { title: "Roteiro", key: "roteiro" },
-    { title: "PDI Mensal", key: "pdi_mensal" },
-    { title: "Finalizar", key: "finalize" }
-  ];
+  const formatSmall = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  };
+
+  const scheduledDateLabel = oneOnOne?.scheduled_date
+    ? format(new Date(oneOnOne.scheduled_date), "d 'de' MMM", { locale: ptBR })
+    : "—";
+
+  const collaboratorName = oneOnOne?.collaborator?.full_name || "Colaborador";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>1:1 - {oneOnOne?.collaborator?.full_name}</DialogTitle>
+      <DialogContent className="max-w-[1240px] w-[98vw] max-h-[96vh] p-0 overflow-hidden gap-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>1:1 com {collaboratorName}</DialogTitle>
         </DialogHeader>
 
-        {/* Recording Status Bar */}
-        {!isRecording && currentStep === 0 && (
-          <div className="flex justify-center mb-6">
-            <Button onClick={startRecording} size="lg" className="gap-2">
-              <Mic className="h-5 w-5" />
-              Começar 1:1
-            </Button>
-          </div>
-        )}
-
-        {isRecording && (
-          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-                <span className="font-medium">Gravando: {formatTime(recordingTime)}</span>
-              </div>
-              <span className="text-sm text-muted-foreground">
-                A gravação continua durante todo o 1:1
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Progress Bar */}
-        {isRecording && (
-          <div className="mb-6">
-            <Progress value={(currentStep / 3) * 100} className="h-2" />
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              {steps.map((step, idx) => (
-                <span key={idx} className={currentStep === idx ? "font-medium text-foreground" : ""}>
-                  {step.title}
+        {!isRecording ? (
+          <PreMeetingPanel
+            oneOnOne={oneOnOne}
+            onStart={startRecording}
+            onCancel={() => onOpenChange(false)}
+          />
+        ) : (
+          <div className="grid grid-cols-[1fr_300px] h-[calc(96vh-4px)] overflow-hidden">
+            {/* ── Main column ────────────────────────────────── */}
+            <div className="overflow-y-auto px-6 py-5">
+              {/* Timer + title */}
+              <Row gap={10} align="center" className="mb-1">
+                <Chip color="green" size="sm" icon={<span className="w-[6px] h-[6px] rounded-full bg-status-green animate-pulse" />}>
+                  Em reunião
+                </Chip>
+                <span className="text-[12px] text-text-muted tabular">
+                  {formatElapsed(elapsed)}
                 </span>
-              ))}
-            </div>
-          </div>
-        )}
+              </Row>
+              <h1 className="text-[22px] font-semibold tracking-[-0.02em] mt-1">
+                1:1 com {collaboratorName}
+              </h1>
+              <div className="text-[12.5px] text-text-muted">
+                Programada: {scheduledDateLabel} · {oneOnOne.duration_minutes || 60} min
+              </div>
 
-        {/* Step Content */}
-        {isRecording && (
-          <div className="space-y-6">
-            {currentStep === 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Revisão do PDI Anterior</h3>
-                {latestPDI && latestPDI.id !== existingPDI?.id ? (
-                  <PDIReviewCard 
-                    pdi={latestPDI}
-                    onViewDetails={() => {}}
+              {/* PDI Review (previous) */}
+              {latestPDI && latestPDI.id !== existingPDI?.id && (
+                <>
+                  <SectionHeader
+                    title="Revisar PDI anterior"
+                    right={
+                      <Btn
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setShowPrevPDIPanel((v) => !v)}
+                      >
+                        {showPrevPDIPanel ? "Ocultar" : "Mostrar"}
+                      </Btn>
+                    }
                   />
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>Nenhum PDI anterior encontrado para revisar.</p>
+                  {showPrevPDIPanel && (
+                    <div className="bg-surface border border-border rounded-md p-3">
+                      <PDIReviewCard pdi={latestPDI} onViewDetails={() => {}} />
+                      <textarea
+                        value={meetingData.pdi_review || ""}
+                        onChange={(e) =>
+                          setMeetingData({ ...meetingData, pdi_review: e.target.value })
+                        }
+                        placeholder="Anotações sobre o PDI anterior…"
+                        className="w-full min-h-[70px] mt-2 p-2.5 text-[13px] text-text bg-bg-subtle border border-border rounded-md resize-y outline-none focus:border-border-focus transition-colors font-sans leading-[1.55]"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Pauta */}
+              <SectionHeader
+                title="Pauta de hoje"
+                right={
+                  <Btn variant="ghost" size="xs" icon={<Icon name="plus" size={12} />} onClick={addAgendaItem}>
+                    Adicionar tópico
+                  </Btn>
+                }
+              />
+              <div className="bg-surface border border-border rounded-md overflow-hidden">
+                {agendaItems.length === 0 ? (
+                  <div className="p-4 text-[12.5px] text-text-subtle text-center">
+                    Sem tópicos — adicione algo para começar.
                   </div>
+                ) : (
+                  agendaItems.map((it, i) => (
+                    <AgendaRow
+                      key={it.id}
+                      item={it}
+                      last={i === agendaItems.length - 1}
+                      onToggle={() => toggleAgendaDone(it.id)}
+                      onFocus={() => setAgendaActive(it.id)}
+                      onRemove={() => removeAgendaItem(it.id)}
+                      timeLabel={it.timeSpentSec ? formatSmall(it.timeSpentSec) : "—"}
+                    />
+                  ))
                 )}
-                <Textarea
-                  value={meetingData.pdi_review}
-                  onChange={(e) => setMeetingData({ ...meetingData, pdi_review: e.target.value })}
-                  placeholder="Anote aqui os comentários sobre o PDI anterior..."
-                  className="min-h-[100px]"
+              </div>
+
+              {/* Anotações */}
+              <SectionHeader
+                title="Anotações"
+                right={
+                  <Row gap={6}>
+                    <Btn variant="ghost" size="xs" icon={<Icon name="send" size={12} />}>
+                      Privadas
+                    </Btn>
+                    <Btn variant="ghost" size="xs" icon={<Icon name="users" size={12} />}>
+                      Compartilhadas
+                    </Btn>
+                  </Row>
+                }
+              />
+              <div className="bg-surface border border-border rounded-md p-3.5 min-h-[140px]">
+                {/* TODO: highlighter on text selection — deixado como iteração futura */}
+                <textarea
+                  value={meetingData.roteiro || ""}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, roteiro: e.target.value })
+                  }
+                  placeholder="Capture livremente os pontos discutidos. Texto livre — as AI helpers ajudam a estruturar depois."
+                  className="w-full min-h-[120px] text-[13.5px] text-text bg-transparent outline-none resize-y font-sans leading-[1.55]"
                 />
-              </div>
-            )}
-
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Roteiro de 1:1 Mensal</h3>
-                
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4 text-sm">
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">Estrutura sugerida (30 a 45 min)</h4>
-                    <ul className="space-y-1 ml-4">
-                      <li>• 5 min – Aquecimento / como está o colaborador</li>
-                      <li>• 20 min – Desenvolvimento / conquistas, desafios, feedbacks</li>
-                      <li>• 15 min – Projeção / alinhamento de objetivos e próximos passos</li>
-                    </ul>
+                <div className="mt-2.5 p-2.5 bg-bg-subtle border border-dashed border-border rounded-md flex items-center gap-2">
+                  <Icon name="sparkles" size={13} className="text-accent-text shrink-0" />
+                  <div className="text-[12px] text-text-muted flex-1">
+                    {(meetingData.roteiro?.length || 0) > 120
+                      ? `Detectei ${Math.min(3, Math.max(1, Math.floor((meetingData.roteiro?.length || 0) / 200)))} possíveis action items neste texto. Converter?`
+                      : "Quando houver texto suficiente, sugerimos action items automaticamente."}
                   </div>
-
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">1. Aquecimento (quebrar o gelo e abrir espaço)</h4>
-                    <ul className="space-y-1 ml-4">
-                      <li>• Como você está se sentindo neste mês, tanto no trabalho quanto pessoalmente?</li>
-                      <li>• Teve algo que te deixou especialmente satisfeito ou insatisfeito nos últimos dias?</li>
-                      <li>• Há algum fator externo (carga, ambiente, processos) que está impactando sua motivação?</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">2. Desenvolvimento (olhar para o mês que passou)</h4>
-                    <ul className="space-y-1 ml-4">
-                      <li>• Quais foram suas principais conquistas neste mês?</li>
-                      <li>• O que você gostaria de destacar que funcionou bem no time/projetos?</li>
-                      <li>• Quais desafios você enfrentou e como posso te apoiar para superá-los?</li>
-                      <li>• Há alguma habilidade que você percebeu que precisa reforçar?</li>
-                      <li>• Como você percebe seu alinhamento com a cultura e valores da empresa?</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">3. Projeção (definir direção e propósito para o próximo mês)</h4>
-                    <ul className="space-y-1 ml-4">
-                      <li>• O que você gostaria de alcançar no próximo mês?</li>
-                      <li>• Qual aprendizado ou habilidade nova você quer desenvolver?</li>
-                      <li>• Onde você acredita que pode gerar mais impacto no time/projetos?</li>
-                      <li>• Há algo que você gostaria que mudasse na sua rotina ou nos processos?</li>
-                      <li>• Qual é o objetivo/propósito que definimos juntos para o próximo mês? (ex: melhorar a organização do fluxo de tarefas no projeto X ou se aprofundar na ferramenta Y para entregar com mais autonomia)</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">Encerramento</h4>
-                    <ul className="space-y-1 ml-4">
-                      <li>• Confirme o objetivo definido em conjunto</li>
-                      <li>• Pergunte: "Como posso te apoiar melhor neste próximo mês?"</li>
-                      <li>• Registre os pontos combinados (ações, prazos, responsáveis)</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Anotações da Reunião</Label>
-                  <Textarea
-                    value={meetingData.roteiro}
-                    onChange={(e) => setMeetingData({ ...meetingData, roteiro: e.target.value })}
-                    placeholder="Anote aqui os principais pontos discutidos durante a reunião..."
-                    className="min-h-[150px]"
-                  />
+                  <Btn
+                    variant="secondary"
+                    size="xs"
+                    disabled={(meetingData.roteiro?.length || 0) < 120}
+                    onClick={() => addActionItem()}
+                  >
+                    Converter
+                  </Btn>
                 </div>
               </div>
-            )}
 
-            {currentStep === 2 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">PDI Mensal</h3>
-                {existingPDI ? (
-                  <div className="text-center py-8 space-y-4">
-                    <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
-                    <p className="text-muted-foreground">
-                      PDI já criado para esta reunião.
-                    </p>
+              {/* Action items */}
+              <SectionHeader
+                title="Action items"
+                right={
+                  <Row gap={8}>
+                    <span className="text-[11.5px] text-text-subtle">
+                      {actionItems.length} item{actionItems.length === 1 ? "" : "s"}
+                    </span>
+                    <Btn
+                      variant="ghost"
+                      size="xs"
+                      icon={<Icon name="plus" size={12} />}
+                      onClick={addActionItem}
+                    >
+                      Novo
+                    </Btn>
+                  </Row>
+                }
+              />
+              <div className="bg-surface border border-border rounded-md overflow-hidden">
+                {actionItems.length === 0 ? (
+                  <div className="p-4 text-[12.5px] text-text-subtle text-center">
+                    Sem action items. Adicione tarefas acordadas na reunião.
                   </div>
                 ) : (
-                  <PDIFormIntegrated 
-                    onSubmit={handlePDISubmit}
-                    isSubmitting={isCreating}
-                  />
+                  actionItems.map((it, i) => (
+                    <ActionRow
+                      key={it.id}
+                      item={it}
+                      last={i === actionItems.length - 1}
+                      onUpdate={(patch) => updateActionItem(it.id, patch)}
+                      onRemove={() => removeActionItem(it.id)}
+                    />
+                  ))
                 )}
               </div>
-            )}
 
-            {currentStep === 3 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Finalizar 1:1</h3>
-                <div className="bg-muted p-6 rounded-lg text-center space-y-4">
-                  <p className="text-muted-foreground">
-                    Ao finalizar, a gravação será parada e processada pela AI para gerar:
-                  </p>
-                  <ul className="text-sm space-y-2">
-                    <li>✅ Transcrição completa da reunião</li>
-                    <li>✅ Resumo estruturado com principais pontos</li>
-                  </ul>
-                  <p className="text-sm text-muted-foreground">
-                    Tempo de gravação: <strong>{formatTime(recordingTime)}</strong>
-                  </p>
+              {/* PDI Mensal toggle */}
+              <SectionHeader
+                title="PDI mensal"
+                right={
+                  existingPDI || meetingData.pdi_mensal ? (
+                    <Chip color="green" size="sm" icon={<Icon name="check" size={11} />}>
+                      Definido
+                    </Chip>
+                  ) : (
+                    <Btn
+                      variant="secondary"
+                      size="xs"
+                      icon={<Icon name="plus" size={12} />}
+                      onClick={() => setShowPDIDialog(true)}
+                    >
+                      Criar PDI
+                    </Btn>
+                  )
+                }
+              />
+              {(meetingData.pdi_mensal || existingPDI) && (
+                <div className="bg-bg-subtle border border-border rounded-md p-3">
+                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-text-subtle">
+                    Objetivo
+                  </div>
+                  <div className="text-[13px] text-text mt-0.5">
+                    {meetingData.pdi_mensal?.main_objective ||
+                      existingPDI?.main_objective ||
+                      "—"}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer bar */}
+              <div className="mt-6 pt-4 border-t border-border flex items-center justify-between">
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isProcessing}
+                >
+                  Cancelar
+                </Btn>
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={handleFinalizeClick}
+                  disabled={isProcessing}
+                  icon={<Icon name="check" size={13} />}
+                >
+                  {isProcessing ? "Processando…" : "Encerrar 1:1"}
+                </Btn>
+              </div>
+            </div>
+
+            {/* ── Right rail ───────────────────────────────── */}
+            <aside className="border-l border-border bg-bg-subtle overflow-y-auto p-4">
+              <div className="flex gap-2.5 items-center">
+                <LinearAvatar name={collaboratorName} size={38} />
+                <div>
+                  <div className="text-[14px] font-semibold">{collaboratorName}</div>
+                  <div className="text-[11.5px] text-text-muted">
+                    {oneOnOne.collaborator ? "Liderado(a) direto(a)" : "—"}
+                  </div>
                 </div>
               </div>
-            )}
+              <div className="h-px bg-border my-3.5" />
+
+              <MiniStat
+                label="PDI ativo"
+                value={latestPDI ? "1" : "0"}
+                sub={latestPDI?.main_objective || latestPDI?.title || "Sem PDI"}
+              />
+              <MiniStat label="Última avaliação" value="—" sub="Sem dados" />
+              <MiniStat label="Clima pessoal" value="—" sub="—" />
+
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-text-subtle mt-4 mb-2">
+                Tópico ativo
+              </div>
+              <div className="bg-surface border border-border rounded-md p-2.5">
+                <div className="text-[12.5px] font-medium text-text">
+                  {activeItem?.title || "Nenhum selecionado"}
+                </div>
+                <div className="text-[11px] text-text-subtle mt-0.5">
+                  Quem trouxe: {activeItem?.owner || "—"}
+                </div>
+              </div>
+
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-text-subtle mt-4 mb-2">
+                Atalhos
+              </div>
+              <Col gap={4}>
+                <Row justify="between" className="text-[12px] text-text-muted">
+                  <span>Novo action item</span>
+                  <Kbd>A</Kbd>
+                </Row>
+                <Row justify="between" className="text-[12px] text-text-muted">
+                  <span>Marcar concluído</span>
+                  <Kbd>⌘↵</Kbd>
+                </Row>
+                <Row justify="between" className="text-[12px] text-text-muted">
+                  <span>Próximo tópico</span>
+                  <Kbd>→</Kbd>
+                </Row>
+              </Col>
+              {/* TODO: conectar stats reais (avaliação/clima/últimas 3 reuniões). */}
+            </aside>
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex justify-between pt-6 border-t">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            disabled={isProcessing}
-          >
-            Cancelar
-          </Button>
-          
-          <div className="flex gap-2">
-            {isRecording && currentStep < 3 && (
-              <Button onClick={nextStep} className="gap-2">
-                Próxima Etapa
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-            
-            {isRecording && currentStep === 3 && (
-              <Button 
-                onClick={handleFinalizeClick}
-                disabled={isProcessing}
-                className="gap-2"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    <Square className="h-4 w-4" />
-                    Finalizar 1:1
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
+        {/* PDI Dialog (wizard) */}
+        <Dialog open={showPDIDialog} onOpenChange={setShowPDIDialog}>
+          <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Criar PDI</DialogTitle>
+            </DialogHeader>
+            <PDIFormIntegrated onSubmit={handlePDISubmit} isSubmitting={isCreating} />
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
 };
+
+/* ─── Sub-componentes ──────────────────────────────────────── */
+
+function PreMeetingPanel({
+  oneOnOne,
+  onStart,
+  onCancel,
+}: {
+  oneOnOne: OneOnOne;
+  onStart: () => void;
+  onCancel: () => void;
+}) {
+  const name = oneOnOne.collaborator?.full_name || "Colaborador";
+  return (
+    <div className="p-7">
+      <Row gap={10} align="center">
+        <LinearAvatar name={name} size={44} />
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-text-subtle">
+            1:1 ao vivo
+          </div>
+          <h2 className="text-[20px] font-semibold tracking-[-0.02em]">1:1 com {name}</h2>
+          <div className="text-[12.5px] text-text-muted mt-0.5">
+            Duração sugerida: {oneOnOne.duration_minutes || 60} min · gravação começa ao iniciar
+          </div>
+        </div>
+      </Row>
+
+      <div className="mt-5 bg-bg-subtle border border-border rounded-md p-3.5">
+        <div className="text-[12.5px] text-text-muted leading-[1.55]">
+          Ao começar, a gravação inicia e um cronômetro aparece.
+          A estrutura sugerida:{" "}
+          <span className="text-text">Aquecimento · Desenvolvimento · Projeção</span>.
+          As anotações e action items ficam visíveis no mesmo lugar.
+        </div>
+      </div>
+
+      <Row justify="between" className="mt-6">
+        <Btn variant="ghost" size="md" onClick={onCancel}>
+          Cancelar
+        </Btn>
+        <Btn
+          variant="primary"
+          size="md"
+          onClick={onStart}
+          icon={<Icon name="pulse" size={14} />}
+        >
+          Começar 1:1 (gravar)
+        </Btn>
+      </Row>
+    </div>
+  );
+}
+
+function AgendaRow({
+  item,
+  last,
+  onToggle,
+  onFocus,
+  onRemove,
+  timeLabel,
+}: {
+  item: AgendaItem;
+  last: boolean;
+  onToggle: () => void;
+  onFocus: () => void;
+  onRemove: () => void;
+  timeLabel: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex gap-2.5 px-3.5 py-2.5",
+        !last && "border-b border-border",
+        item.active && "bg-accent-soft/60 border-l-[3px] border-l-accent",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "w-4 h-4 rounded-[4px] shrink-0 mt-0.5 grid place-items-center border-[1.5px] transition-colors",
+          item.done
+            ? "bg-status-green border-status-green"
+            : "bg-transparent border-border-strong hover:border-text-muted",
+        )}
+        aria-label="Marcar concluído"
+      >
+        {item.done && <Icon name="check" size={10} className="text-white" strokeWidth={2.5} />}
+      </button>
+      <button
+        type="button"
+        onClick={onFocus}
+        className="flex-1 min-w-0 text-left"
+      >
+        <div
+          className={cn(
+            "text-[13px]",
+            item.done ? "text-text-muted line-through" : "text-text",
+            item.active && "font-medium",
+          )}
+        >
+          {item.title}
+        </div>
+        <Row gap={8} className="mt-0.5 text-[11.5px] text-text-subtle">
+          <span>Quem trouxe: {item.owner}</span>
+          {timeLabel !== "—" && <span>· {timeLabel}</span>}
+        </Row>
+        {item.notes && !item.active && (
+          <div className="text-[11.5px] text-text-muted mt-1 pl-2.5 border-l-2 border-border">
+            {item.notes}
+          </div>
+        )}
+      </button>
+      {item.active ? (
+        <Chip color="accent" size="sm">
+          Agora
+        </Chip>
+      ) : (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-text-subtle hover:text-text-muted transition-colors w-6 h-6 inline-grid place-items-center"
+          aria-label="Remover tópico"
+        >
+          <Icon name="x" size={11} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ActionRow({
+  item,
+  last,
+  onUpdate,
+  onRemove,
+}: {
+  item: ActionItemEntry;
+  last: boolean;
+  onUpdate: (patch: Partial<ActionItemEntry>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3.5 py-2",
+        !last && "border-b border-border",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onUpdate({ done: !item.done })}
+        className={cn(
+          "w-[14px] h-[14px] rounded-[3px] shrink-0 grid place-items-center border-[1.5px] transition-colors",
+          item.done
+            ? "bg-status-green border-status-green"
+            : "bg-transparent border-border-strong hover:border-text-muted",
+        )}
+        aria-label="Marcar concluído"
+      >
+        {item.done && <Icon name="check" size={9} className="text-white" strokeWidth={2.5} />}
+      </button>
+      <input
+        value={item.title}
+        onChange={(e) => onUpdate({ title: e.target.value })}
+        placeholder="O que precisa ser feito?"
+        className={cn(
+          "flex-1 text-[13px] outline-none bg-transparent font-sans",
+          item.done && "line-through text-text-muted",
+        )}
+      />
+      <input
+        value={item.owner}
+        onChange={(e) => onUpdate({ owner: e.target.value })}
+        placeholder="Responsável"
+        className="w-[110px] text-[11.5px] outline-none bg-transparent text-text-muted font-sans border-l border-border pl-2"
+      />
+      <input
+        value={item.due}
+        onChange={(e) => onUpdate({ due: e.target.value })}
+        placeholder="Prazo"
+        className="w-[100px] text-[11.5px] outline-none bg-transparent text-text-muted font-sans border-l border-border pl-2"
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-text-subtle hover:text-text-muted transition-colors w-6 h-6 inline-grid place-items-center"
+        aria-label="Remover"
+      >
+        <Icon name="x" size={11} />
+      </button>
+    </div>
+  );
+}

@@ -1,46 +1,57 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Btn, Col, Row } from "@/components/primitives/LinearKit";
+import { Icon } from "@/components/primitives/Icon";
 
 interface ManualPDIFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
 
+/**
+ * Formulário manual/retroativo de PDI.
+ * Migrado para padrão Linear (labels uppercase, inputs densos).
+ * Mantém Popover/Calendar shadcn para date-picking (útil em múltiplas datas).
+ *
+ * TODO: Unificar com PDIFormIntegrated — hoje existem dois modelos
+ * (legacy: title/description/goals/action_items e novo: main_objective/…).
+ * Este form ainda gera dados no schema legacy para preencher histórico retroativo
+ * com datas arbitrárias; merge exigirá ajuste em pipelines de listagem.
+ */
 export function ManualPDIForm({ onSuccess, onCancel }: ManualPDIFormProps) {
   const { register, handleSubmit, setValue } = useForm();
   const [selectedCollaborator, setSelectedCollaborator] = useState<string>("");
   const [startDate, setStartDate] = useState<Date>();
   const [deadline, setDeadline] = useState<Date>();
   const [completedDate, setCompletedDate] = useState<Date>();
+  const [status, setStatus] = useState<string>("in_progress");
   const { userRole } = useAuth();
   const isLeader = userRole === "lider";
 
   const { data: teamMembers } = useQuery({
     queryKey: ["team-members-for-pdi"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || !isLeader) return [];
 
       const { data } = await supabase
         .from("team_members")
-        .select(`
+        .select(
+          `
           user_id,
           user:profiles!team_members_user_id_fkey(id, full_name)
-        `)
+        `,
+        )
         .eq("leader_id", user.id);
 
       return data || [];
@@ -49,7 +60,9 @@ export function ManualPDIForm({ onSuccess, onCancel }: ManualPDIFormProps) {
   });
 
   const onSubmit = async (formData: any) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     const pdiData = {
@@ -60,190 +73,232 @@ export function ManualPDIForm({ onSuccess, onCancel }: ManualPDIFormProps) {
       goals: formData.goals,
       action_items: formData.action_items,
       timeline: formData.timeline || null,
-      status: formData.status,
+      status,
       progress_percentage: parseInt(formData.progress_percentage) || 0,
       deadline: deadline ? format(deadline, "yyyy-MM-dd") : null,
       created_at: startDate ? startDate.toISOString() : new Date().toISOString(),
       completed_at: completedDate ? completedDate.toISOString() : null,
     };
 
-    const { error } = await supabase
-      .from("development_plans")
-      .insert([pdiData]);
-
+    const { error } = await supabase.from("development_plans").insert([pdiData]);
     if (error) {
       console.error("Error creating PDI:", error);
       return;
     }
-
     onSuccess();
   };
 
+  const inputBase =
+    "w-full h-[34px] px-2.5 text-[13px] text-text bg-surface border border-border rounded-md outline-none focus:border-border-focus transition-colors font-sans";
+  const textareaBase =
+    "w-full min-h-[70px] p-2.5 text-[13px] text-text bg-surface border border-border rounded-md resize-y outline-none focus:border-border-focus transition-colors font-sans leading-[1.55]";
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {isLeader && (
-        <div className="space-y-2">
-          <Label>Colaborador *</Label>
-          <Select value={selectedCollaborator} onValueChange={setSelectedCollaborator} required>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o colaborador" />
-            </SelectTrigger>
-            <SelectContent>
-              {teamMembers?.map((member: any) => (
-                <SelectItem key={member.user_id} value={member.user_id}>
-                  {member.user.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label>Título *</Label>
-        <Input {...register("title")} placeholder="Ex: Desenvolvimento em Liderança" required />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Área de Desenvolvimento *</Label>
-        <Input {...register("development_area")} placeholder="Ex: Liderança, Técnico, Comunicação" required />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Descrição</Label>
-        <Textarea {...register("description")} placeholder="Descreva o contexto e objetivo..." rows={3} />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Objetivos *</Label>
-        <Textarea {...register("goals")} placeholder="Liste os objetivos específicos..." rows={3} required />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Plano de Ação *</Label>
-        <Textarea {...register("action_items")} placeholder="Descreva as ações necessárias..." rows={3} required />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Prazo Descritivo</Label>
-        <Input {...register("timeline")} placeholder="Ex: 3 meses, Q2 2024" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Data de Início</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "PPP", { locale: ptBR }) : "Selecione a data"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Prazo Final</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !deadline && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {deadline ? format(deadline, "PPP", { locale: ptBR }) : "Selecione a data"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={deadline}
-                onSelect={setDeadline}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Status Inicial *</Label>
-        <Select onValueChange={(value) => setValue("status", value)} required>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending_approval">Aguardando Aprovação</SelectItem>
-            <SelectItem value="approved">Aprovado</SelectItem>
-            <SelectItem value="in_progress">Em Andamento</SelectItem>
-            <SelectItem value="completed">Concluído</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Progresso Inicial (%)</Label>
-        <Input
-          type="number"
-          min="0"
-          max="100"
-          defaultValue="0"
-          {...register("progress_percentage")}
-          placeholder="0-100"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Data de Conclusão (se já concluído)</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full justify-start text-left font-normal",
-                !completedDate && "text-muted-foreground"
-              )}
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Col gap={14}>
+        {isLeader && (
+          <FieldLabel label="Colaborador" required>
+            <select
+              value={selectedCollaborator}
+              onChange={(e) => setSelectedCollaborator(e.target.value)}
+              className={`${inputBase} appearance-none cursor-pointer`}
+              required
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {completedDate ? format(completedDate, "PPP", { locale: ptBR }) : "Selecione a data"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={completedDate}
-              onSelect={setCompletedDate}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
+              <option value="">Selecione o colaborador</option>
+              {teamMembers?.map((member: any) => (
+                <option key={member.user_id} value={member.user_id}>
+                  {member.user.full_name}
+                </option>
+              ))}
+            </select>
+          </FieldLabel>
+        )}
 
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit">
-          Salvar PDI
-        </Button>
-      </div>
+        <FieldLabel label="Título" required>
+          <input
+            {...register("title")}
+            placeholder="Ex: Desenvolvimento em Liderança"
+            required
+            className={inputBase}
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Área de desenvolvimento" required>
+          <input
+            {...register("development_area")}
+            placeholder="Ex: Liderança, Técnico, Comunicação"
+            required
+            className={inputBase}
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Descrição" optional>
+          <textarea
+            {...register("description")}
+            placeholder="Descreva o contexto e objetivo…"
+            rows={3}
+            className={textareaBase}
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Objetivos" required>
+          <textarea
+            {...register("goals")}
+            placeholder="Liste os objetivos específicos…"
+            rows={3}
+            required
+            className={textareaBase}
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Plano de ação" required>
+          <textarea
+            {...register("action_items")}
+            placeholder="Descreva as ações necessárias…"
+            rows={3}
+            required
+            className={textareaBase}
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Prazo descritivo" optional>
+          <input
+            {...register("timeline")}
+            placeholder="Ex: 3 meses, Q2 2026"
+            className={inputBase}
+          />
+        </FieldLabel>
+
+        <Row gap={10} align="start">
+          <FieldLabel label="Data de início" className="flex-1" optional>
+            <DateTrigger
+              value={startDate}
+              onChange={setStartDate}
+              placeholder="Selecione"
+            />
+          </FieldLabel>
+          <FieldLabel label="Prazo final" className="flex-1" optional>
+            <DateTrigger
+              value={deadline}
+              onChange={setDeadline}
+              placeholder="Selecione"
+            />
+          </FieldLabel>
+        </Row>
+
+        <FieldLabel label="Status inicial" required>
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setValue("status", e.target.value);
+            }}
+            className={`${inputBase} appearance-none cursor-pointer`}
+            required
+          >
+            <option value="pending_approval">Aguardando aprovação</option>
+            <option value="approved">Aprovado</option>
+            <option value="in_progress">Em andamento</option>
+            <option value="completed">Concluído</option>
+          </select>
+        </FieldLabel>
+
+        <Row gap={10} align="start">
+          <FieldLabel label="Progresso inicial (%)" className="flex-1" optional>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              defaultValue="0"
+              {...register("progress_percentage")}
+              placeholder="0-100"
+              className={inputBase}
+            />
+          </FieldLabel>
+          <FieldLabel
+            label="Data de conclusão"
+            className="flex-1"
+            optional
+          >
+            <DateTrigger
+              value={completedDate}
+              onChange={setCompletedDate}
+              placeholder="Se já concluído"
+            />
+          </FieldLabel>
+        </Row>
+
+        <Row justify="end" gap={8} className="pt-3 border-t border-border">
+          <Btn variant="secondary" size="md" type="button" onClick={onCancel}>
+            Cancelar
+          </Btn>
+          <Btn variant="primary" size="md" type="submit">
+            Salvar PDI
+          </Btn>
+        </Row>
+      </Col>
     </form>
+  );
+}
+
+/* ─── Helpers ──────────────────────────────────────────────── */
+
+function FieldLabel({
+  label,
+  required,
+  optional,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-text">
+          {label}
+          {required && <span className="text-status-red ml-0.5">*</span>}
+        </label>
+        {optional && <span className="text-[11px] text-text-subtle">Opcional</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DateTrigger({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value?: Date;
+  onChange: (v?: Date) => void;
+  placeholder: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "w-full h-[34px] px-2.5 text-[13px] bg-surface border border-border rounded-md outline-none font-sans inline-flex items-center gap-2 transition-colors hover:border-border-strong",
+            !value && "text-text-subtle",
+            value && "text-text",
+          )}
+        >
+          <Icon name="calendar" size={12} className="text-text-muted" />
+          <span className="flex-1 text-left truncate">
+            {value ? format(value, "PPP", { locale: ptBR }) : placeholder}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="single" selected={value} onSelect={onChange} initialFocus />
+      </PopoverContent>
+    </Popover>
   );
 }

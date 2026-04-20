@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import GestorDashboard from "./pages/GestorDashboard";
@@ -21,7 +22,18 @@ import MyTeam from "./pages/MyTeam";
 import CollaboratorProfile from "./pages/CollaboratorProfile";
 import DevelopmentKanban from "./pages/DevelopmentKanban";
 import NotFound from "./pages/NotFound";
+
+const JobOpenings = lazy(() => import("./pages/hiring/JobOpenings"));
+const JobOpeningDetail = lazy(() => import("./pages/hiring/JobOpeningDetail"));
+const CandidatesList = lazy(() => import("./pages/hiring/CandidatesList"));
+const CandidateProfile = lazy(() => import("./pages/hiring/CandidateProfile"));
+const HiringDashboard = lazy(() => import("./pages/hiring/HiringDashboard"));
+const CulturalFitTemplates = lazy(() => import("./pages/hiring/CulturalFitTemplates"));
+const PublicCulturalFit = lazy(() => import("./pages/hiring/PublicCulturalFit"));
+const PublicJobOpening = lazy(() => import("./pages/hiring/PublicJobOpening"));
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Layout } from "@/components/Layout";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -39,10 +51,9 @@ const App = () => {
     );
   }
 
-  // Redireciona para o dashboard correto baseado no role
   const getDefaultRoute = () => {
     if (!isAuthenticated) return "/auth";
-    
+
     switch (userRole) {
       case 'admin':
         return '/admin';
@@ -62,102 +73,171 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <ErrorBoundary>
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
             <Route path="/" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
-            <Route path="/colaborador" element={isAuthenticated ? <Index /> : <Navigate to="/auth" />} />
-            <Route 
-              path="/gestor" 
-              element={
-                isAuthenticated ? (
+
+            {/* Authenticated routes share a persistent Layout (sidebar + header) */}
+            <Route element={isAuthenticated ? <Layout /> : <Navigate to="/auth" replace />}>
+              <Route path="/colaborador" element={<Index />} />
+              <Route
+                path="/gestor"
+                element={
                   <ProtectedRoute allowedRoles={["lider", "socio", "admin"]}>
                     <GestorDashboard />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route 
-              path="/rh" 
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route
+                path="/rh"
+                element={
                   <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
                     <RHDashboard />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route 
-              path="/socio" 
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route
+                path="/socio"
+                element={
                   <ProtectedRoute allowedRoles={["socio", "admin"]}>
                     <SocioDashboard />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route 
-              path="/admin"
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route
+                path="/admin"
+                element={
                   <ProtectedRoute allowedRoles={["admin", "socio"]}>
                     <AdminDashboard />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route 
-              path="/admin/criar-usuario" 
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route
+                path="/admin/criar-usuario"
+                element={
                   <ProtectedRoute allowedRoles={["admin"]}>
                     <CreateUser />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route path="/avaliacoes" element={isAuthenticated ? <Evaluations /> : <Navigate to="/auth" />} />
-            <Route 
-              path="/11s" 
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route path="/avaliacoes" element={<Evaluations />} />
+              <Route
+                path="/11s"
+                element={
                   <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <OneOnOnes />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route path="/clima" element={isAuthenticated ? <Climate /> : <Navigate to="/auth" />} />
-            <Route path="/pdi" element={isAuthenticated ? <DevelopmentPlans /> : <Navigate to="/auth" />} />
-            <Route path="/perfil" element={isAuthenticated ? <Profile /> : <Navigate to="/auth" />} />
-            <Route path="/times" element={isAuthenticated ? <TeamManagement /> : <Navigate to="/auth" />} />
-            <Route path="/empresas" element={isAuthenticated ? <CompanyManagement /> : <Navigate to="/auth" />} />
-            <Route path="/criar-usuario" element={isAuthenticated ? <CreateUser /> : <Navigate to="/auth" />} />
-            <Route 
-              path="/meu-time" 
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route path="/clima" element={<Climate />} />
+              <Route path="/pdi" element={<DevelopmentPlans />} />
+              <Route path="/perfil" element={<Profile />} />
+              <Route path="/times" element={<TeamManagement />} />
+              <Route path="/empresas" element={<CompanyManagement />} />
+              <Route path="/criar-usuario" element={<CreateUser />} />
+              <Route
+                path="/meu-time"
+                element={
                   <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <MyTeam />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
-            />
-            <Route path="/colaborador/:userId" element={isAuthenticated ? <CollaboratorProfile /> : <Navigate to="/auth" />} />
-            <Route 
-              path="/kanban" 
-              element={
-                isAuthenticated ? (
+                }
+              />
+              <Route path="/colaborador/:userId" element={<CollaboratorProfile />} />
+              <Route
+                path="/kanban"
+                element={
                   <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <DevelopmentKanban />
                   </ProtectedRoute>
-                ) : <Navigate to="/auth" />
-              } 
+                }
+              />
+              <Route
+                path="/hiring/jobs"
+                element={
+                  <ProtectedRoute allowedRoles={["lider", "rh", "socio", "admin"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <JobOpenings />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hiring/jobs/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["lider", "rh", "socio", "admin"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <JobOpeningDetail />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hiring/candidates"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <CandidatesList />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hiring/candidates/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin", "lider"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <CandidateProfile />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hiring/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin", "lider"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <HiringDashboard />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hiring/fit-templates"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <CulturalFitTemplates />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
+
+            <Route
+              path="/hiring/fit/:token"
+              element={
+                <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                  <PublicCulturalFit />
+                </Suspense>
+              }
             />
+
+            <Route
+              path="/vagas/:id"
+              element={
+                <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                  <PublicJobOpening />
+                </Suspense>
+              }
+            />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
   );

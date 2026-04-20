@@ -5,22 +5,40 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-[13px] font-medium tracking-[-0.005em] ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        /* Primary: solid ink — main action */
+        default: "bg-text text-[hsl(var(--text-inverse))] hover:bg-[#1f2128]",
+        /* Destructive: red */
+        destructive:
+          "bg-status-red text-white hover:bg-status-red/90",
+        /* Outline: surface + border — secondary actions */
+        outline:
+          "border border-border bg-surface text-text hover:bg-bg-subtle",
+        /* Secondary: subtle chip */
+        secondary:
+          "bg-bg-subtle text-text border border-border hover:bg-bg-muted",
+        /* Ghost: invisible until hover */
+        ghost: "text-text-muted hover:bg-bg-subtle hover:text-text",
+        /* Link: accent underline */
+        link: "text-accent-text underline underline-offset-4 decoration-accent decoration-1 hover:text-accent",
+        /* Accent: Linear indigo — primary-colored action */
+        accent:
+          "bg-accent text-[hsl(var(--accent-foreground))] hover:bg-accent-hover",
+        /* Turquoise: legacy alias → maps to accent */
+        turquoise:
+          "bg-accent text-[hsl(var(--accent-foreground))] hover:bg-accent-hover",
+        /* Soft: accent-tinted subtle chip */
+        soft: "bg-accent-soft text-accent-text border border-transparent hover:bg-accent-soft/80",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        /* Linear sizes — md=30, sm=26, lg=36 (primitives.jsx:23) */
+        default: "h-[30px] px-3 py-1 text-[13px]",
+        sm: "h-[26px] px-2 text-[12px]",
+        lg: "h-[36px] px-4 text-[13px]",
+        icon: "h-[30px] w-[30px]",
       },
     },
     defaultVariants: {

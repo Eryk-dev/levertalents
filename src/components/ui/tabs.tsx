@@ -5,6 +5,9 @@ import { cn } from "@/lib/utils";
 
 const Tabs = TabsPrimitive.Root;
 
+/**
+ * Linear-style tabs — underline indicator, dense spacing.
+ */
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
@@ -12,7 +15,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+      "relative inline-flex items-end gap-4 border-b border-border h-auto",
       className,
     )}
     {...props}
@@ -27,7 +30,15 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+      "group relative inline-flex items-center gap-1.5 whitespace-nowrap px-0 pb-2.5 pt-1 text-[12.5px] font-medium",
+      "text-text-muted transition-colors",
+      "hover:text-text",
+      "data-[state=active]:text-text data-[state=active]:font-semibold",
+      "focus-visible:outline-none focus-visible:ring-0",
+      "disabled:pointer-events-none disabled:opacity-50",
+      "after:absolute after:left-0 after:right-0 after:-bottom-px after:h-[2px] after:bg-text",
+      "after:origin-left after:scale-x-0 after:transition-transform after:duration-200",
+      "data-[state=active]:after:scale-x-100",
       className,
     )}
     {...props}
@@ -41,10 +52,7 @@ const TabsContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
-    className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className,
-    )}
+    className={cn("mt-4 focus-visible:outline-none animate-fade-in", className)}
     {...props}
   />
 ));

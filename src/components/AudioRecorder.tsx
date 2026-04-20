@@ -125,7 +125,7 @@ export const AudioRecorder = ({ onRecordingComplete, onError, disabled }: AudioR
       {recordingState === "recording" && (
         <>
           <div className="flex items-center gap-2 flex-1">
-            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
             <span className="text-sm font-medium">Gravando: {formatTime(recordingTime)}</span>
           </div>
           <Button
