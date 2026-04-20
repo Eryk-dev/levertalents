@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Node / build
+node_modules
+dist
+dist-ssr
+*.local
+
+# Env (vars entram via build-arg — nunca copiar .env para dentro da imagem)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+*.sw?
+
+# Ferramentas / meta
+.claude
+.specify
+.playwright-mcp
+specs
+supabase/.temp
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Docs que não precisam ir pra imagem
+README.md
+CLAUDE.md
+UX-AUDIT-VAGAS.md

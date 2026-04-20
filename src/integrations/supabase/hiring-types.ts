@@ -91,6 +91,7 @@ export type JobOpeningRow = {
   address_state: string | null;
   address_zip: string | null;
   public_slug: string | null;
+  cultural_fit_survey_id: string | null;
 };
 export type JobOpeningInsert = Omit<
   JobOpeningRow,
@@ -122,6 +123,7 @@ export type JobOpeningInsert = Omit<
   address_state?: string | null;
   address_zip?: string | null;
   public_slug?: string | null;
+  cultural_fit_survey_id?: string | null;
 };
 export type JobOpeningUpdate = Partial<JobOpeningRow>;
 
@@ -502,6 +504,7 @@ export type JobPublicRow = Pick<
   | "target_deadline"
   | "status"
   | "updated_at"
+  | "cultural_fit_survey_id"
 >;
 
 export type CompanyPublicRow = Pick<
@@ -668,6 +671,17 @@ declare module "./types" {
         };
         job_descriptions_public: {
           Row: JobDescriptionPublicRow;
+          Relationships: [];
+        };
+        cultural_fit_surveys_public: {
+          Row: Pick<CulturalFitSurveyRow, "id" | "name" | "active">;
+          Relationships: [];
+        };
+        cultural_fit_questions_public: {
+          Row: Pick<
+            CulturalFitQuestionRow,
+            "id" | "survey_id" | "order_index" | "kind" | "prompt" | "options" | "scale_min" | "scale_max"
+          >;
           Relationships: [];
         };
         v_hiring_jobs_by_status: {

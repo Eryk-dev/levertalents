@@ -77,6 +77,7 @@ const schema = z
     address_city: z.string().optional(),
     address_state: z.string().optional(),
     address_zip: z.string().optional(),
+    cultural_fit_survey_id: z.string().uuid().optional().or(z.literal("")),
   })
   .refine(
     (v) =>
@@ -129,6 +130,19 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
       if (!canSeeAll)
         q = q.in("id", companyIds.length ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
       const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: surveys = [] } = useQuery({
+    queryKey: ["form-cultural-fit-surveys"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cultural_fit_surveys")
+        .select("id, name, active")
+        .eq("active", true)
+        .order("name");
       if (error) throw error;
       return data ?? [];
     },
@@ -204,6 +218,7 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
       address_city: overrideAddress ? (values.address_city || null) : null,
       address_state: overrideAddress ? (values.address_state || null) : null,
       address_zip: overrideAddress ? (values.address_zip || null) : null,
+      cultural_fit_survey_id: values.cultural_fit_survey_id || null,
     };
     createVaga.mutate(insert, {
       onSuccess: (row) => onSuccess(row.id),
@@ -515,6 +530,31 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
               placeholder="Liste o que compõe o pacote"
               {...register("benefits")}
             />
+          </Field>
+
+          <Field
+            label="Fit cultural aplicado"
+            span={2}
+            hint="Candidato preenche junto com a candidatura. Deixe em branco para pedir depois."
+          >
+            <Select
+              value={watch("cultural_fit_survey_id") || "none"}
+              onValueChange={(v) =>
+                setValue("cultural_fit_survey_id", v === "none" ? "" : v, { shouldValidate: true })
+              }
+            >
+              <SelectTrigger id="cultural_fit_survey_id" className="h-[34px]">
+                <SelectValue placeholder="Nenhum" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum (coletar depois)</SelectItem>
+                {surveys.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <div className="md:col-span-2 mt-1 rounded-md border border-border bg-bg-subtle/50 p-3">
