@@ -5,7 +5,7 @@
 -- Kanban de vagas tenha dados reais em cada coluna.
 --
 -- Aplicar via Supabase Studio > SQL Editor (cola e roda) ou via CLI
--- (`npx supabase link --project-ref neewgjxntjyfvwbwdwgf && npx supabase db push`).
+-- (`npx supabase link --project-ref wrbrbhuhsaaupqsimkqz && npx supabase db push`).
 
 -- 1. Promove o user UX Admin Test a admin. Atualize este uid se for
 --    repetir o bootstrap com outro email. O signup em /auth com
