@@ -8,6 +8,18 @@ const corsHeaders = {
 
 const ALLOWED_ROLES = new Set(['admin', 'socio', 'rh'])
 
+// Prioridade de role quando o mesmo user_id tem múltiplas rows em user_roles
+// (cenário legado: trigger de signup inseriu 'colaborador' e migration seed
+// adicionou 'admin' depois). Usamos para escolher qual role exibir no mapping.
+const ROLE_PRIORITY = ['admin', 'socio', 'rh', 'lider', 'colaborador'] as const
+
+function pickHighestRole(roles: string[]): string | null {
+  for (const role of ROLE_PRIORITY) {
+    if (roles.includes(role)) return role
+  }
+  return roles[0] ?? null
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -38,13 +50,14 @@ serve(async (req) => {
       )
     }
 
-    const { data: callerRole } = await supabaseAdmin
+    const { data: callerRoles } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', userData.user.id)
-      .maybeSingle()
 
-    if (!callerRole || !ALLOWED_ROLES.has(callerRole.role)) {
+    const callerRoleSet = new Set((callerRoles ?? []).map((r) => r.role))
+    const callerAllowed = [...callerRoleSet].some((r) => ALLOWED_ROLES.has(r))
+    if (!callerAllowed) {
       return new Response(
         JSON.stringify({ error: 'Forbidden' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
@@ -63,13 +76,18 @@ serve(async (req) => {
     ])
 
     const profileById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]))
-    const roleById = new Map((roles ?? []).map((r) => [r.user_id, r.role]))
+    const rolesByUserId = new Map<string, string[]>()
+    for (const r of roles ?? []) {
+      const list = rolesByUserId.get(r.user_id) ?? []
+      list.push(r.role)
+      rolesByUserId.set(r.user_id, list)
+    }
 
     const users = authUsers.map((u) => ({
       id: u.id,
       email: u.email ?? '',
       full_name: profileById.get(u.id) ?? u.email ?? '',
-      role: roleById.get(u.id) ?? null,
+      role: pickHighestRole(rolesByUserId.get(u.id) ?? []),
     }))
 
     users.sort((a, b) => a.full_name.localeCompare(b.full_name))
