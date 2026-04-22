@@ -1,0 +1,139 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type {
+  ApplicationStage,
+  CandidateRow,
+  DiscardReason,
+} from "@/integrations/supabase/hiring-types";
+import "@/integrations/supabase/hiring-types";
+
+export const talentPoolKeys = {
+  list: (filters: TalentPoolFilters) =>
+    ["hiring", "talent-pool", "list", filters] as const,
+};
+
+export interface TalentPoolFilters {
+  search: string;
+  discardReasons: DiscardReason[];
+  jobIds: string[];
+  onlyTalentPool: boolean;
+}
+
+export interface TalentPoolApplication {
+  id: string;
+  stage: ApplicationStage;
+  job_id: string | null;
+  job_title: string | null;
+  discard_reason: DiscardReason | null;
+  added_to_talent_pool: boolean;
+  closed_at: string | null;
+  created_at: string;
+}
+
+export interface TalentPoolCandidate extends CandidateRow {
+  applications: TalentPoolApplication[];
+  last_conversation_at: string | null;
+  last_conversation_summary: string | null;
+  conversation_count: number;
+}
+
+/**
+ * Lista candidatos do Banco de Talentos — todos que já participaram de ao menos
+ * um processo. O filtro `onlyTalentPool=true` restringe aos que têm ao menos
+ * uma application com `added_to_talent_pool = true` (marcada explicitamente
+ * pelo RH ao recusar). Desligado, mostra todo o histórico para consulta.
+ */
+export function useTalentPool(filters: TalentPoolFilters) {
+  return useQuery({
+    queryKey: talentPoolKeys.list(filters),
+    queryFn: async (): Promise<TalentPoolCandidate[]> => {
+      let q = supabase
+        .from("candidates")
+        .select(
+          `*,
+           applications:applications(
+             id, stage, discard_reason, added_to_talent_pool, closed_at, created_at,
+             job:job_openings!applications_job_opening_id_fkey(id, title)
+           ),
+           conversations:candidate_conversations(
+             id, summary, occurred_at
+           )`,
+        )
+        .is("anonymized_at", null)
+        .order("full_name")
+        .limit(300);
+
+      if (filters.search.trim().length > 1) {
+        const pattern = `%${filters.search.trim()}%`;
+        q = q.or(`full_name.ilike.${pattern},email.ilike.${pattern}`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      type AppRaw = {
+        id: string;
+        stage: ApplicationStage;
+        discard_reason: DiscardReason | null;
+        added_to_talent_pool: boolean;
+        closed_at: string | null;
+        created_at: string;
+        job: { id: string; title: string } | null;
+      };
+      type ConvRaw = { id: string; summary: string | null; occurred_at: string };
+      type Raw = CandidateRow & {
+        applications?: AppRaw[] | null;
+        conversations?: ConvRaw[] | null;
+      };
+
+      const mapped: TalentPoolCandidate[] = ((data ?? []) as Raw[]).map((c) => {
+        const apps = (c.applications ?? []).map<TalentPoolApplication>((a) => ({
+          id: a.id,
+          stage: a.stage,
+          job_id: a.job?.id ?? null,
+          job_title: a.job?.title ?? null,
+          discard_reason: a.discard_reason,
+          added_to_talent_pool: a.added_to_talent_pool,
+          closed_at: a.closed_at,
+          created_at: a.created_at,
+        }));
+        const convs = [...(c.conversations ?? [])].sort(
+          (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+        );
+        const last = convs[0];
+        return {
+          ...c,
+          applications: apps,
+          last_conversation_at: last?.occurred_at ?? null,
+          last_conversation_summary: last?.summary ?? null,
+          conversation_count: convs.length,
+        };
+      });
+
+      return mapped.filter((c) => {
+        // Precisa ter pelo menos 1 aplicação — é o critério de estar no banco.
+        if (c.applications.length === 0) return false;
+
+        if (filters.onlyTalentPool) {
+          if (!c.applications.some((a) => a.added_to_talent_pool)) return false;
+        }
+
+        if (filters.discardReasons.length > 0) {
+          const match = c.applications.some(
+            (a) => a.discard_reason && filters.discardReasons.includes(a.discard_reason),
+          );
+          if (!match) return false;
+        }
+
+        if (filters.jobIds.length > 0) {
+          const match = c.applications.some(
+            (a) => a.job_id && filters.jobIds.includes(a.job_id),
+          );
+          if (!match) return false;
+        }
+
+        return true;
+      });
+    },
+  });
+}

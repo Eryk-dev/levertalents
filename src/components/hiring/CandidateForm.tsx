@@ -48,7 +48,7 @@ export function CandidateForm({ jobOpeningId, companyId, onCreated, onCancel }: 
   const create = useCreateCandidate();
   const uploadCv = useUploadCv();
 
-  const { register, handleSubmit, formState, setValue, watch } = useForm<FormValues>({
+  const { register, handleSubmit, formState, setValue, watch, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { document_type: "cpf" },
   });
@@ -78,6 +78,10 @@ export function CandidateForm({ jobOpeningId, companyId, onCreated, onCancel }: 
               file: cv,
             });
           }
+          reset({ document_type: "cpf" });
+          setCv(null);
+          setEmail("");
+          setAllowCreateSame(false);
           onCreated(row.id);
         },
       },

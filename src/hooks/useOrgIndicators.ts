@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 
 export type OrgIndicators = {
   totalCollaborators: number;
@@ -33,6 +34,11 @@ export function useOrgIndicators() {
           .select("id", { count: "exact", head: true })
           .eq("status", "pending_approval"),
       ]);
+
+      if (teamMembersRes.error) throw handleSupabaseError(teamMembersRes.error, "Falha ao carregar time", { silent: true });
+      if (evaluationsRes.error) throw handleSupabaseError(evaluationsRes.error, "Falha ao carregar avaliações", { silent: true });
+      if (oneOnOnesRes.error) throw handleSupabaseError(oneOnOnesRes.error, "Falha ao carregar 1:1s", { silent: true });
+      if (pendingPdisRes.error) throw handleSupabaseError(pendingPdisRes.error, "Falha ao carregar PDIs pendentes", { silent: true });
 
       const evaluations = evaluationsRes.data || [];
       const completedEvaluations = evaluations.length;

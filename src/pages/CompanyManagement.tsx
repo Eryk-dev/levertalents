@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import { LoadingState } from "@/components/primitives/LoadingState";
 import { Btn, Row, LinearEmpty } from "@/components/primitives/LinearKit";
 import { CompanyDrawer } from "@/components/company/CompanyDrawer";
@@ -45,8 +46,8 @@ export default function CompanyManagement() {
       if (error) throw error;
       toast.success("Empresa excluída");
       refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao excluir empresa");
+    } catch (err) {
+      handleSupabaseError(err as Error, "Erro ao excluir empresa");
     } finally {
       setConfirmDelete(null);
     }

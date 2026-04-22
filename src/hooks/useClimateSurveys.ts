@@ -143,9 +143,13 @@ export const useClimateSurveys = () => {
         );
 
       if (error) throw error;
+      return responses[0]?.survey_id;
     },
-    onSuccess: () => {
+    onSuccess: (surveyId) => {
       queryClient.invalidateQueries({ queryKey: ["climate_responses_user"] });
+      if (surveyId) {
+        queryClient.invalidateQueries({ queryKey: ["climate_responses_user", surveyId] });
+      }
       toast.success("Respostas enviadas com sucesso!");
     },
     onError: (error: Error) => {
@@ -183,6 +187,7 @@ export const useClimateQuestions = (surveyId: string | undefined) => {
       return (data ?? []) as ClimateQuestion[];
     },
     enabled: !!surveyId,
+    refetchOnMount: "always",
   });
 };
 
@@ -203,5 +208,6 @@ export const useUserResponseIds = (surveyId: string | undefined) => {
       return (data ?? []).map((r) => r.question_id);
     },
     enabled: !!surveyId,
+    refetchOnMount: "always",
   });
 };

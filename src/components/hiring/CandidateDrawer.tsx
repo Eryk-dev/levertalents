@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -111,6 +111,12 @@ function CandidateDrawerBody({
   const { data: applications = [] } = useApplicationsByCandidate(candidateId);
   const [activeAppId, setActiveAppId] = useState<string | null>(preferredApplicationId);
   const [tab, setTab] = useState<DrawerTab>("perfil");
+
+  // Reset para a aba "perfil" sempre que o candidato muda; mantém a aba
+  // durante edições do MESMO candidato.
+  useEffect(() => {
+    setTab("perfil");
+  }, [candidateId]);
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [issueLinkOpen, setIssueLinkOpen] = useState(false);
   const [refusalOpen, setRefusalOpen] = useState(false);

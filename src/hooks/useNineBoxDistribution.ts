@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 
 export type NineBoxAxis = "low" | "mid" | "high";
 export type NineBoxCell = `${NineBoxAxis}-${NineBoxAxis}`;
@@ -48,13 +49,15 @@ export function useNineBoxDistribution(scope: NineBoxScope, leaderId?: string | 
     queryFn: async () => {
       let userIds: string[] = [];
       if (scope === "team" && leaderId) {
-        const { data: members } = await supabase
+        const { data: members, error: membersError } = await supabase
           .from("team_members")
           .select("user_id")
           .eq("leader_id", leaderId);
+        if (membersError) throw handleSupabaseError(membersError, "Falha ao carregar time", { silent: true });
         userIds = (members || []).map((m) => m.user_id);
       } else if (scope === "org") {
-        const { data: members } = await supabase.from("team_members").select("user_id");
+        const { data: members, error: membersError } = await supabase.from("team_members").select("user_id");
+        if (membersError) throw handleSupabaseError(membersError, "Falha ao carregar time", { silent: true });
         userIds = [...new Set((members || []).map((m) => m.user_id))];
       }
 
@@ -78,6 +81,9 @@ export function useNineBoxDistribution(scope: NineBoxScope, leaderId?: string | 
           .eq("status", "completed"),
         supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds),
       ]);
+
+      if (evaluationsRes.error) throw handleSupabaseError(evaluationsRes.error, "Falha ao carregar avaliações", { silent: true });
+      if (profilesRes.error) throw handleSupabaseError(profilesRes.error, "Falha ao carregar perfis", { silent: true });
 
       const evaluations = evaluationsRes.data || [];
       const profiles = profilesRes.data || [];

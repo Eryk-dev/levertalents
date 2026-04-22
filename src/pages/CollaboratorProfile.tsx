@@ -40,8 +40,29 @@ export default function CollaboratorProfile() {
   const { userRole } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
 
+  // Check if lider is the direct leader of the target user (for scope restriction).
+  const { data: isDirectReport } = useQuery({
+    queryKey: ["lider-direct-report", userId],
+    enabled: userRole === "lider" && !!userId,
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      const { data } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("leader_id", user.id)
+        .maybeSingle();
+      return !!data;
+    },
+  });
+
   const canManage =
-    userRole === "admin" || userRole === "rh" || userRole === "socio" || userRole === "lider";
+    userRole === "admin" ||
+    userRole === "rh" ||
+    userRole === "socio" ||
+    (userRole === "lider" && isDirectReport === true);
+  const isReadOnlyLider = userRole === "lider" && isDirectReport === false;
 
   const { data: collaborator, isLoading } = useQuery({
     queryKey: ["collaborator-profile", userId],
@@ -172,6 +193,9 @@ export default function CollaboratorProfile() {
           <Row gap={8}>
             <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">{displayName}</h1>
             <Chip color="green" size="sm">Ativo</Chip>
+            {isReadOnlyLider && (
+              <Chip color="neutral" size="sm">Apenas leitura</Chip>
+            )}
           </Row>
           <div className="text-[13px] text-text-muted mt-0.5">
             {position}

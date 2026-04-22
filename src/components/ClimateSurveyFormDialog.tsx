@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useClimateSurveys } from "@/hooks/useClimateSurveys";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import { Btn, Col, Row } from "@/components/primitives/LinearKit";
 
 interface Props {
@@ -38,16 +40,24 @@ export function ClimateSurveyFormDialog({ open, onOpenChange, onCreated }: Props
 
   const handleSubmit = async () => {
     if (!title || !startDate || !endDate) return;
-    const created = await createSurveyAsync({
-      title,
-      description: description || undefined,
-      start_date: startDate,
-      end_date: endDate,
-      status,
-    });
-    reset();
-    onOpenChange(false);
-    onCreated?.(created.id);
+    if (startDate > endDate) {
+      toast.error("A data de início deve ser anterior ou igual à data de fim.");
+      return;
+    }
+    try {
+      const created = await createSurveyAsync({
+        title,
+        description: description || undefined,
+        start_date: startDate,
+        end_date: endDate,
+        status,
+      });
+      reset();
+      onOpenChange(false);
+      onCreated?.(created.id);
+    } catch (err) {
+      handleSupabaseError(err as Error, "Erro ao criar pesquisa");
+    }
   };
 
   const inputBase =

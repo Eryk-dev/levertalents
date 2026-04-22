@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 
 export type TeamIndicators = {
   memberCount: number;
@@ -16,10 +17,11 @@ export function useTeamIndicators(leaderId: string | null | undefined) {
     queryFn: async () => {
       if (!leaderId) throw new Error("leaderId required");
 
-      const { data: members } = await supabase
+      const { data: members, error: membersError } = await supabase
         .from("team_members")
         .select("user_id")
         .eq("leader_id", leaderId);
+      if (membersError) throw handleSupabaseError(membersError, "Falha ao carregar time", { silent: true });
 
       const memberIds = (members || []).map((m) => m.user_id);
       const memberCount = memberIds.length;
@@ -54,6 +56,10 @@ export function useTeamIndicators(leaderId: string | null | undefined) {
           .select("progress_percentage, status")
           .in("user_id", memberIds),
       ]);
+
+      if (evaluationsRes.error) throw handleSupabaseError(evaluationsRes.error, "Falha ao carregar avaliações", { silent: true });
+      if (oneOnOnesRes.error) throw handleSupabaseError(oneOnOnesRes.error, "Falha ao carregar 1:1s", { silent: true });
+      if (pdisRes.error) throw handleSupabaseError(pdisRes.error, "Falha ao carregar PDIs", { silent: true });
 
       const evaluations = evaluationsRes.data || [];
       const avgPerformanceScore = evaluations.length

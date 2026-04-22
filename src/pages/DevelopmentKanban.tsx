@@ -162,8 +162,18 @@ export default function DevelopmentKanban() {
     if (!activeId.startsWith("plan:")) return;
     const planId = activeId.slice("plan:".length);
     const newStatus = over.id as PlanStatus;
-    const plan = teamPlans?.find((p) => p.id === planId);
-    if (!plan || plan.status === newStatus) return;
+    // Source of truth is the raw query cache (teamPlans), NOT filteredPlans —
+    // a filtered view can hide the card from the currently rendered subset but
+    // the drop target is still valid. We also check the react-query cache as a
+    // fallback to survive a transient re-render.
+    const sourcePlans =
+      teamPlans ?? queryClient.getQueryData<KanbanPlan[]>(["team-development-plans"]);
+    const plan = sourcePlans?.find((p) => p.id === planId);
+    if (!plan) {
+      toast.error("Não foi possível mover o card");
+      return;
+    }
+    if (plan.status === newStatus) return;
     updatePlanStatus.mutate({ planId, newStatus });
   };
 

@@ -22,11 +22,11 @@ import { cn } from "@/lib/utils";
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_CV_BYTES = 8 * 1024 * 1024;
+const MAX_CV_BYTES = 10 * 1024 * 1024;
 const ALLOWED_CV_TYPES = [
   "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/png",
+  "image/jpeg",
 ];
 
 // ---------------------------------------------------------------------------
@@ -75,12 +75,12 @@ function buildSchema(fitSurvey: { id: string; name: string } | null, fitQuestion
         .refine((fl) => fl && fl.length > 0, "Currículo é obrigatório.")
         .refine(
           (fl) => !fl || fl.length === 0 || fl[0].size <= MAX_CV_BYTES,
-          "Arquivo maior que 8 MB.",
+          "Arquivo maior que 10 MB.",
         )
         .refine(
           (fl) =>
             !fl || fl.length === 0 || ALLOWED_CV_TYPES.includes(fl[0].type),
-          "Formato inválido. Use PDF ou DOC/DOCX.",
+          "Formato inválido. Use PDF, PNG ou JPEG.",
         ),
       fit_responses: z.record(z.any()).optional(),
       consent: z.literal(true, {
@@ -494,7 +494,7 @@ export default function PublicApplicationForm({
                 <div>
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
                     className="sr-only"
                     tabIndex={-1}
                     aria-hidden
@@ -503,7 +503,23 @@ export default function PublicApplicationForm({
                       ref(el);
                       fileInputRef.current = el;
                     }}
-                    onChange={(e) => onChange(e.target.files)}
+                    onChange={(e) => {
+                      const list = e.target.files;
+                      const file = list && list.length > 0 ? list[0] : null;
+                      if (file) {
+                        if (file.size > MAX_CV_BYTES) {
+                          toast.error("Arquivo maior que 10 MB.");
+                          e.target.value = "";
+                          return;
+                        }
+                        if (!ALLOWED_CV_TYPES.includes(file.type)) {
+                          toast.error("Formato inválido. Use PDF, PNG ou JPEG.");
+                          e.target.value = "";
+                          return;
+                        }
+                      }
+                      onChange(list);
+                    }}
                   />
                   <button
                     type="button"
@@ -518,7 +534,7 @@ export default function PublicApplicationForm({
                   >
                     <Paperclip size={14} className="shrink-0 text-text-subtle" />
                     <span className="truncate">
-                      {selectedFileName ?? "Escolher arquivo (PDF, DOC ou DOCX — máx 8 MB)"}
+                      {selectedFileName ?? "Escolher arquivo (PDF, PNG ou JPEG — máx 10 MB)"}
                     </span>
                   </button>
                 </div>

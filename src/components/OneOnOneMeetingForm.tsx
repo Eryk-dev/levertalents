@@ -254,7 +254,12 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
   };
 
   useEffect(() => {
-    if (shouldFinalize && audioBlob) processFinalization();
+    if (shouldFinalize && audioBlob) {
+      // Reset immediately so a late-arriving blob doesn't retrigger this effect,
+      // and so a retry can set it true again cleanly.
+      setShouldFinalize(false);
+      processFinalization();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioBlob, shouldFinalize]);
 
@@ -340,10 +345,16 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
         });
       }
 
+      const transcriptionSucceeded =
+        typeof transcription === "string" && transcription.trim().length > 0;
+      const nextStatus: OneOnOne["status"] = transcriptionSucceeded
+        ? "completed"
+        : "scheduled";
+
       const { error: finalUpdateError } = await supabase
         .from("one_on_ones")
         .update({
-          status: "completed",
+          status: nextStatus,
           meeting_structure: finalData as any,
           updated_at: new Date().toISOString(),
         })
@@ -353,14 +364,17 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
 
       queryClient.invalidateQueries({ queryKey: ["one_on_ones"] });
 
-      if (transcription) {
+      if (transcriptionSucceeded) {
         toast.success("1:1 finalizada!");
       } else {
-        toast.warning("1:1 finalizada, mas a transcrição falhou. Áudio salvo.");
+        toast.error(
+          "Transcrição falhou. O áudio foi salvo — tente transcrever novamente na 1:1.",
+        );
       }
     } catch (error: any) {
       console.error("Error finalizing meeting:", error);
-      toast.error("Erro ao finalizar: " + error.message);
+      const message = error?.message || "erro desconhecido";
+      toast.error(`Erro ao finalizar 1:1: ${message}. Status revertido para agendada.`);
 
       await supabase
         .from("one_on_ones")
@@ -455,7 +469,7 @@ export const OneOnOneMeetingForm = ({ open, onOpenChange, oneOnOne }: OneOnOneMe
                     <div className="bg-surface border border-border rounded-md p-3">
                       <PDIReviewCard pdi={latestPDI} onViewDetails={() => {}} />
                       <textarea
-                        value={meetingData.pdi_review || ""}
+                        value={meetingData.pdi_review ?? ""}
                         onChange={(e) =>
                           setMeetingData({ ...meetingData, pdi_review: e.target.value })
                         }

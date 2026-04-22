@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import {
   AlertTriangle,
   Users,
@@ -42,10 +43,11 @@ type LeaderAlert = {
   relatedId?: string;
 };
 
-function alertToRoute(alert: LeaderAlert): string {
+function alertToRoute(alert: LeaderAlert): string | null {
+  if (!alert.relatedId && alert.type === "score") return null;
   switch (alert.type) {
     case "score":
-      return alert.relatedId ? `/colaborador/${alert.relatedId}` : "/avaliacoes";
+      return alert.relatedId ? `/colaborador/${alert.relatedId}` : null;
     case "pending":
       return alert.message.toLowerCase().includes("pdi") ? "/pdi" : "/11s";
     case "gap":
@@ -89,11 +91,12 @@ export default function GestorDashboard() {
     enabled: !!leaderId,
     queryFn: async () => {
       if (!leaderId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("team_members")
         .select("id, user_id, position")
         .eq("leader_id", leaderId);
-      return data || [];
+      if (error) throw handleSupabaseError(error, "Falha ao carregar membros do time", { silent: true });
+      return data ?? [];
     },
   });
 
@@ -103,11 +106,12 @@ export default function GestorDashboard() {
     enabled: userIds.length > 0,
     queryFn: async () => {
       if (userIds.length === 0) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url")
         .in("id", userIds);
-      return data || [];
+      if (error) throw handleSupabaseError(error, "Falha ao carregar perfis do time", { silent: true });
+      return data ?? [];
     },
   });
 
@@ -236,7 +240,11 @@ export default function GestorDashboard() {
               variant="accent"
               size="sm"
               iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
-              onClick={() => navigate(alertToRoute(topAlert))}
+              disabled={!alertToRoute(topAlert)}
+              onClick={() => {
+                const route = alertToRoute(topAlert);
+                if (route) navigate(route);
+              }}
             >
               {topAlert.action || "Abrir"}
             </Btn>
@@ -325,11 +333,14 @@ export default function GestorDashboard() {
                 const prio = alertPriority(alert);
                 return (
                   <div
-                    key={`${alert.type}-${idx}`}
+                    key={`${alert.type}-${alert.relatedId ?? "none"}-${idx}`}
                     className={`flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-bg-subtle transition-colors ${
                       idx < restAlerts.length - 1 ? "border-b border-border" : ""
                     }`}
-                    onClick={() => navigate(alertToRoute(alert))}
+                    onClick={() => {
+                      const route = alertToRoute(alert);
+                      if (route) navigate(route);
+                    }}
                   >
                     <PriorityDot level={prio} />
                     <div className="flex-1 min-w-0">

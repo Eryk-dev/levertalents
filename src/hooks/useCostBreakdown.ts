@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 
 export type CostTeamRow = {
   teamId: string;
@@ -20,13 +21,15 @@ export function useCostBreakdown() {
   return useQuery<CostBreakdown>({
     queryKey: ["cost-breakdown"],
     queryFn: async () => {
-      const { data: members } = await supabase
+      const { data: members, error: membersError } = await supabase
         .from("team_members")
         .select("user_id, team_id, cost");
+      if (membersError) throw handleSupabaseError(membersError, "Falha ao carregar custos de membros", { silent: true });
 
-      const { data: teams } = await supabase
+      const { data: teams, error: teamsError } = await supabase
         .from("teams")
         .select("id, name, company:companies(name)");
+      if (teamsError) throw handleSupabaseError(teamsError, "Falha ao carregar times", { silent: true });
 
       const teamMap = new Map<string, { name: string; companyName: string | null }>();
       (teams || []).forEach((t: any) => {

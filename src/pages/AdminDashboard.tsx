@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import { Label } from "@/components/ui/label";
 import {
   Trash2,
@@ -49,7 +50,10 @@ import {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: users = [], isLoading } = useUsers();
+  const { data: users = [], isLoading, error: usersError } = useUsers();
+  useEffect(() => {
+    if (usersError) handleSupabaseError(usersError, "Falha ao carregar usuários");
+  }, [usersError]);
   const { data: org } = useOrgIndicators();
   const { data: climate } = useClimateOverview();
   const { data: profile } = useUserProfile();
@@ -95,19 +99,25 @@ export default function AdminDashboard() {
       toast.error("Selecione um usuário e uma role.");
       return;
     }
-    try {
-      await supabase.from("user_roles").delete().eq("user_id", selectedUser);
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: selectedUser, role: selectedRole as any });
-      if (error) throw error;
-      toast.success("Papel atribuído");
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      setSelectedUser("");
-      setSelectedRole("");
-    } catch (error: any) {
-      toast.error(`Erro ao atribuir: ${error.message}`);
+    const { error: deleteError } = await supabase
+      .from("user_roles")
+      .delete()
+      .eq("user_id", selectedUser);
+    if (deleteError) {
+      handleSupabaseError(deleteError, "Erro ao atribuir papel");
+      return;
     }
+    const { error: insertError } = await supabase
+      .from("user_roles")
+      .insert({ user_id: selectedUser, role: selectedRole as any });
+    if (insertError) {
+      handleSupabaseError(insertError, "Erro ao atribuir papel");
+      return;
+    }
+    toast.success("Papel atribuído");
+    queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    setSelectedUser("");
+    setSelectedRole("");
   };
 
   const handleRemoveRole = async (userId: string) => {
@@ -390,8 +400,9 @@ export default function AdminDashboard() {
                         onClick={() => setConfirmRemoveUserId(user.id)}
                         className="text-status-red hover:bg-status-red-soft"
                         icon={<Trash2 className="w-3 h-3" strokeWidth={1.75} />}
+                        aria-label="Remover papel do usuário"
                       >
-                        {""}
+                        <span className="sr-only">Remover papel do usuário</span>
                       </Btn>
                     )}
                   </div>

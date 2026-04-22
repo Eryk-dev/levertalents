@@ -91,7 +91,7 @@ export default function Auth() {
         if (error) throw error;
         toast.success("Bem-vindo de volta.");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: validated.email,
           password: validated.password,
           options: {
@@ -100,7 +100,12 @@ export default function Auth() {
           },
         });
         if (error) throw error;
-        toast.success("Conta criada. Redirecionando…");
+        if (data.session) {
+          toast.success("Conta criada. Bem-vindo!");
+        } else {
+          toast.success("Conta criada. Confirme seu email para entrar.");
+          setIsLogin(true);
+        }
       }
     } catch (error: unknown) {
       if (error instanceof z.ZodError) toast.error(error.errors[0].message);

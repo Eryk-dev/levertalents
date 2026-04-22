@@ -28,6 +28,7 @@ const JobOpenings = lazy(() => import("./pages/hiring/JobOpenings"));
 const JobOpeningDetail = lazy(() => import("./pages/hiring/JobOpeningDetail"));
 const CandidatesList = lazy(() => import("./pages/hiring/CandidatesList"));
 const CandidateProfile = lazy(() => import("./pages/hiring/CandidateProfile"));
+const TalentPool = lazy(() => import("./pages/hiring/TalentPool"));
 const HiringDashboard = lazy(() => import("./pages/hiring/HiringDashboard"));
 const CulturalFitTemplates = lazy(() => import("./pages/hiring/CulturalFitTemplates"));
 const PublicCulturalFit = lazy(() => import("./pages/hiring/PublicCulturalFit"));
@@ -123,7 +124,14 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/avaliacoes" element={<Evaluations />} />
+              <Route
+                path="/avaliacoes"
+                element={
+                  <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
+                    <Evaluations />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/11s"
                 element={
@@ -132,12 +140,46 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/clima" element={<Climate />} />
-              <Route path="/pdi" element={<DevelopmentPlans />} />
-              <Route path="/perfil" element={<Profile />} />
-              <Route path="/times" element={<TeamManagement />} />
-              <Route path="/empresas" element={<CompanyManagement />} />
-              <Route path="/criar-usuario" element={<CreateUser />} />
+              <Route
+                path="/clima"
+                element={
+                  <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
+                    <Climate />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pdi"
+                element={
+                  <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
+                    <DevelopmentPlans />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/perfil"
+                element={
+                  <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/times"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                    <TeamManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresas"
+                element={
+                  <ProtectedRoute allowedRoles={["socio", "admin"]}>
+                    <CompanyManagement />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/meu-time"
                 element={
@@ -146,7 +188,14 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/colaborador/:userId" element={<CollaboratorProfile />} />
+              <Route
+                path="/colaborador/:userId"
+                element={
+                  <ProtectedRoute allowedRoles={["lider", "rh", "socio", "admin"]}>
+                    <CollaboratorProfile />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/kanban"
                 element={
@@ -188,7 +237,7 @@ const App = () => {
               <Route
                 path="/hiring/candidates"
                 element={
-                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                  <ProtectedRoute allowedRoles={["lider", "rh", "socio", "admin"]}>
                     <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
                       <CandidatesList />
                     </Suspense>
@@ -201,6 +250,16 @@ const App = () => {
                   <ProtectedRoute allowedRoles={["rh", "socio", "admin", "lider"]}>
                     <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
                       <CandidateProfile />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hiring/talent-pool"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <TalentPool />
                     </Suspense>
                   </ProtectedRoute>
                 }

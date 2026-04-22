@@ -168,6 +168,8 @@ export function useSidebarGroups(): NavSection[] {
     hiringItems.push({ to: "/hiring/jobs", icon: "briefcase", label: "Vagas", end: false, badge: 12 });
   if (canManage)
     hiringItems.push({ to: "/hiring/candidates", icon: "userPlus", label: "Candidatos", end: false, badge: 47 });
+  if (canManage)
+    hiringItems.push({ to: "/hiring/talent-pool", icon: "book", label: "Banco de Talentos", end: false });
   if (canManage || isLeader)
     hiringItems.push({ to: "/hiring/dashboard", icon: "chart", label: "Dashboard" });
   if (canManage)

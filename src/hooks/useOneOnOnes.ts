@@ -8,7 +8,7 @@ export interface OneOnOne {
   collaborator_id: string;
   scheduled_date: string;
   duration_minutes: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  status: 'scheduled' | 'processing' | 'completed' | 'cancelled' | 'rescheduled';
   agenda: string;
   notes: string;
   leader_feedback: string;

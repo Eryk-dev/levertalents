@@ -13,7 +13,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import { LoadingState } from "@/components/primitives/LoadingState";
 import { useCostBreakdown } from "@/hooks/useCostBreakdown";
 import { useOrgIndicators } from "@/hooks/useOrgIndicators";
@@ -60,16 +62,23 @@ function downloadCSV(rows: Record<string, unknown>[], filename: string) {
 export default function SocioDashboard() {
   const navigate = useNavigate();
   const { data: profile } = useUserProfile();
-  const { data: cost, isLoading: isLoadingCost } = useCostBreakdown();
-  const { data: org } = useOrgIndicators();
+  const { data: cost, isLoading: isLoadingCost, error: costError } = useCostBreakdown();
+  const { data: org, error: orgError } = useOrgIndicators();
   const { data: climate } = useClimateOverview();
+
+  useEffect(() => {
+    if (costError) handleSupabaseError(costError, "Falha ao carregar custos");
+  }, [costError]);
+  useEffect(() => {
+    if (orgError) handleSupabaseError(orgError, "Falha ao carregar indicadores");
+  }, [orgError]);
 
   const firstName = (profile?.full_name || "").split(" ")[0] || "Sócio";
   const hour = new Date().getHours();
   const greeting = hour < 6 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   const topTeams = (cost?.teams || []).slice(0, 6);
-  const maxTeamCost = Math.max(1, ...topTeams.map((t) => t.totalCost));
+  const maxTeamCost = Math.max(0, ...topTeams.map((t) => t.totalCost));
 
   const alertsCount = (org?.lowScoreCollaborators ?? 0) + (org?.pendingApprovalPdis ?? 0);
   const heroTitle =
@@ -288,7 +297,7 @@ export default function SocioDashboard() {
                       {formatBRL(team.totalCost)}
                     </span>
                   </Row>
-                  <ProgressBar value={(team.totalCost / maxTeamCost) * 100} color="hsl(var(--accent))" />
+                  <ProgressBar value={maxTeamCost > 0 ? (team.totalCost / maxTeamCost) * 100 : 0} color="hsl(var(--accent))" />
                   <div className="text-[11px] text-text-muted mt-1 tabular">
                     {team.memberCount} {team.memberCount === 1 ? "pessoa" : "pessoas"} ·{" "}
                     {formatBRL(team.avgCost)}/pessoa

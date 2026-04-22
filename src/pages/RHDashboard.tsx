@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   TrendingUp,
@@ -32,6 +32,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import {
   BarChart,
   Bar,
@@ -85,9 +86,16 @@ function downloadCSV(rows: Record<string, unknown>[], filename: string) {
 export default function RHDashboard() {
   const navigate = useNavigate();
   const { data: profile } = useUserProfile();
-  const { data: org, isLoading: isLoadingOrg } = useOrgIndicators();
-  const { data: climate, isLoading: isLoadingClimate } = useClimateOverview();
+  const { data: org, isLoading: isLoadingOrg, error: orgError } = useOrgIndicators();
+  const { data: climate, isLoading: isLoadingClimate, error: climateError } = useClimateOverview();
   const { data: nineBox, isLoading: isLoadingNineBox } = useNineBoxDistribution("org");
+
+  useEffect(() => {
+    if (orgError) handleSupabaseError(orgError, "Falha ao carregar indicadores");
+  }, [orgError]);
+  useEffect(() => {
+    if (climateError) handleSupabaseError(climateError, "Falha ao carregar clima");
+  }, [climateError]);
   const [priorityFilters, setPriorityFilters] = useState<Set<PriorityFilter>>(new Set());
   const togglePriority = (p: PriorityFilter) =>
     setPriorityFilters((prev) => {
@@ -217,7 +225,7 @@ export default function RHDashboard() {
             icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}
             onClick={() => {
               const rows = visibleSignals.map((s) => ({
-                prioridade: PRIORITY_LABEL[s.priority],
+                prioridade: PRIORITY_LABEL[s.priority] ?? s.priority,
                 titulo: s.title,
                 contexto: s.subtitle,
                 acao: s.action,

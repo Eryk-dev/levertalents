@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { EmptyState } from "@/components/EmptyState";
 import { useClimateSurveys, useClimateQuestions, useUserResponseIds } from "@/hooks/useClimateSurveys";
+import { handleSupabaseError } from "@/lib/supabaseError";
 
 interface Props {
   open: boolean;
@@ -55,22 +57,31 @@ export function ClimateAnswerDialog({ open, onOpenChange, surveyId, surveyTitle 
     }));
   };
 
+  const payload = Object.entries(answers)
+    .filter(([, a]) => a.score >= 1 && a.score <= 5)
+    .map(([question_id, a]) => ({
+      survey_id: surveyId ?? "",
+      question_id,
+      score: a.score,
+      comment: a.comment || undefined,
+    }));
+
   const handleSubmit = async () => {
     if (!surveyId) return;
-    const payload = Object.entries(answers)
-      .filter(([, a]) => a.score >= 1 && a.score <= 5)
-      .map(([question_id, a]) => ({
-        survey_id: surveyId,
-        question_id,
-        score: a.score,
-        comment: a.comment || undefined,
-      }));
-    if (payload.length === 0) return;
-    await submitResponses(payload);
-    onOpenChange(false);
+    if (payload.length === 0) {
+      toast.error("Responda ao menos uma pergunta para enviar");
+      return;
+    }
+    try {
+      await submitResponses(payload);
+      onOpenChange(false);
+    } catch (err) {
+      handleSupabaseError(err as Error, "Erro ao enviar respostas", { silent: true });
+    }
   };
 
   const missingScore = unanswered.some((q) => !answers[q.id]?.score);
+  const hasAnyAnswer = payload.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,7 +142,7 @@ export function ClimateAnswerDialog({ open, onOpenChange, surveyId, surveyTitle 
         {questions.length > 0 && !allAnswered && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={missingScore || isSubmitting}>
+            <Button onClick={handleSubmit} disabled={missingScore || !hasAnyAnswer || isSubmitting}>
               {isSubmitting ? "Enviando..." : "Enviar respostas"}
             </Button>
           </DialogFooter>

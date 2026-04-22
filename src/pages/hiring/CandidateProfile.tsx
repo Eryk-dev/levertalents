@@ -58,6 +58,7 @@ import {
   useIssueFitLink,
 } from "@/hooks/hiring/useCulturalFit";
 import { useInterviewsByApplication } from "@/hooks/hiring/useInterviews";
+import { CandidateConversationsSection } from "@/components/hiring/CandidateConversationsSection";
 import { CulturalFitResponseViewer } from "@/components/hiring/CulturalFitResponseViewer";
 import { BackgroundCheckUploader } from "@/components/hiring/BackgroundCheckUploader";
 import { DiscardReasonDialog } from "@/components/hiring/DiscardReasonDialog";
@@ -369,6 +370,13 @@ export default function CandidateProfile() {
                   description="Sem uma aplicação, não é possível enviar ou ver o Fit Cultural."
                 />
               )}
+            </section>
+
+            <section id="conversas" className="scroll-mt-5 space-y-3">
+              <SectionTitle icon={<MessageCircle className="h-3.5 w-3.5" />}>
+                Conversas & Transcrições
+              </SectionTitle>
+              <CandidateConversationsSection candidateId={candidate.id} />
             </section>
 
             <section id="entrevistas" className="scroll-mt-5 space-y-3">

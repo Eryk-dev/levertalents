@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { handleSupabaseError } from '@/lib/supabaseError';
 
 interface Alert {
   type: 'gap' | 'score' | 'pending';
@@ -17,7 +18,7 @@ export function useLeaderAlerts(leaderId: string | undefined) {
       const alerts: Alert[] = [];
 
       // Buscar scores baixos (avaliações com overall_score < 3.5)
-      const { data: lowScores } = await supabase
+      const { data: lowScores, error: lowScoresError } = await supabase
         .from('evaluations')
         .select(`
           id,
@@ -31,6 +32,7 @@ export function useLeaderAlerts(leaderId: string | undefined) {
         .lt('overall_score', 3.5)
         .order('created_at', { ascending: false })
         .limit(3);
+      if (lowScoresError) throw handleSupabaseError(lowScoresError, 'Falha ao carregar scores baixos', { silent: true });
 
       if (lowScores) {
         lowScores.forEach(evaluation => {
@@ -45,12 +47,13 @@ export function useLeaderAlerts(leaderId: string | undefined) {
       }
 
       // Buscar 1:1s pendentes (scheduled mas não realizados)
-      const { data: pendingOneOnOnes } = await supabase
+      const { data: pendingOneOnOnes, error: pendingOneOnOnesError } = await supabase
         .from('one_on_ones')
         .select('id, scheduled_date')
         .eq('leader_id', leaderId)
         .eq('status', 'scheduled')
         .lt('scheduled_date', new Date().toISOString());
+      if (pendingOneOnOnesError) throw handleSupabaseError(pendingOneOnOnesError, 'Falha ao carregar 1:1s pendentes', { silent: true });
 
       if (pendingOneOnOnes && pendingOneOnOnes.length > 0) {
         alerts.push({
@@ -61,15 +64,16 @@ export function useLeaderAlerts(leaderId: string | undefined) {
       }
 
       // Buscar PDIs sem aprovação
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers, error: teamMembersError } = await supabase
         .from('team_members')
         .select('user_id')
         .eq('leader_id', leaderId);
+      if (teamMembersError) throw handleSupabaseError(teamMembersError, 'Falha ao carregar time', { silent: true });
 
       const teamUserIds = teamMembers?.map(tm => tm.user_id) || [];
 
       if (teamUserIds.length > 0) {
-        const { data: pendingPDIs } = await supabase
+        const { data: pendingPDIs, error: pendingPDIsError } = await supabase
           .from('development_plans')
           .select(`
             id,
@@ -81,6 +85,7 @@ export function useLeaderAlerts(leaderId: string | undefined) {
           .eq('status', 'pending_approval')
           .in('user_id', teamUserIds)
           .limit(5);
+        if (pendingPDIsError) throw handleSupabaseError(pendingPDIsError, 'Falha ao carregar PDIs pendentes', { silent: true });
 
         if (pendingPDIs && pendingPDIs.length > 0) {
           alerts.push({

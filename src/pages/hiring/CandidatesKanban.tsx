@@ -100,10 +100,13 @@ export default function CandidatesKanbanPage() {
 
       {/* Drawer mobile (overlay) */}
       {candidateDrawer ? (
-        <div className="lg:hidden fixed inset-0 z-50 flex bg-black/30" onClick={() => setCandidateDrawer(null)}>
+        <div
+          className="lg:hidden fixed inset-0 z-50 flex bg-black/30"
+          onPointerDown={() => setCandidateDrawer(null)}
+        >
           <div
             className="ml-auto h-full w-full max-w-[420px] bg-surface shadow-2xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <CandidateDrawer
               candidateId={candidateDrawer.candidateId}

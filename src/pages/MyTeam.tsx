@@ -32,6 +32,7 @@ export default function MyTeam() {
       return data || [];
     },
     refetchOnMount: true,
+    staleTime: 60_000,
   });
 
   const userIds = rawTeamMembers.map((m: any) => m.user_id);
@@ -46,6 +47,7 @@ export default function MyTeam() {
         .in("id", userIds);
       return data || [];
     },
+    staleTime: 60_000,
   });
 
   const teamIds = [...new Set(rawTeamMembers.map((m: any) => m.team_id))];
@@ -57,6 +59,7 @@ export default function MyTeam() {
       const { data } = await supabase.from("teams").select("id, name").in("id", teamIds);
       return data || [];
     },
+    staleTime: 60_000,
   });
 
   // Fetch PDI progress + last 1:1 + next 1:1 + climate score for each member
@@ -65,6 +68,7 @@ export default function MyTeam() {
   >({
     queryKey: ["my-team-metrics", userIds],
     enabled: userIds.length > 0,
+    staleTime: 60_000,
     queryFn: async () => {
       if (userIds.length === 0) return {};
       const [pdiRes, oneOnOnes, evals, climate] = await Promise.all([

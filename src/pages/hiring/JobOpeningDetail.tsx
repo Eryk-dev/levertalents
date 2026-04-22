@@ -41,27 +41,21 @@ import { CandidateForm } from "@/components/hiring/CandidateForm";
 import { useReuseCandidateForJob } from "@/hooks/hiring/useApplications";
 import type { KanbanApplication } from "@/components/hiring/CandidateCard";
 import type { ApplicationStage, JobCloseReason } from "@/integrations/supabase/hiring-types";
+import { STAGE_GROUP_BY_STAGE } from "@/lib/hiring/stageGroups";
 import { cn } from "@/lib/utils";
 
-const STAGE_TO_GROUP: Partial<Record<ApplicationStage, "ativos" | "contratados" | "descartados">> = {
-  recebido: "ativos",
-  em_interesse: "ativos",
-  aguardando_fit_cultural: "ativos",
-  sem_retorno: "ativos",
-  fit_recebido: "ativos",
-  antecedentes_ok: "ativos",
-  apto_entrevista_rh: "ativos",
-  entrevista_rh_agendada: "ativos",
-  entrevista_rh_feita: "ativos",
-  apto_entrevista_final: "ativos",
-  entrevista_final_agendada: "ativos",
-  aguardando_decisao_dos_gestores: "ativos",
-  aprovado: "contratados",
-  em_admissao: "contratados",
-  admitido: "contratados",
-  reprovado_pelo_gestor: "descartados",
-  recusado: "descartados",
-};
+type StatsGroup = "ativos" | "contratados" | "descartados";
+
+function stageToStatsGroup(stage: ApplicationStage): StatsGroup {
+  const groupKey = STAGE_GROUP_BY_STAGE[stage];
+  if (groupKey === "decisao") {
+    if (stage === "aprovado" || stage === "em_admissao" || stage === "admitido") {
+      return "contratados";
+    }
+  }
+  if (groupKey === "descartados") return "descartados";
+  return "ativos";
+}
 
 function formatContractType(value: string | null | undefined): string {
   if (!value) return "—";
@@ -142,7 +136,7 @@ export default function JobOpeningDetail() {
     let descartados = 0;
     let triagem = 0;
     for (const a of applications) {
-      const group = STAGE_TO_GROUP[a.stage];
+      const group = stageToStatsGroup(a.stage);
       if (group === "ativos") ativos += 1;
       else if (group === "contratados") contratados += 1;
       else if (group === "descartados") descartados += 1;

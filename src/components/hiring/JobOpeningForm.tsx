@@ -129,7 +129,7 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
   const [participants, setParticipants] = useState<string[]>([]);
   const [peoplePickerOpen, setPeoplePickerOpen] = useState(false);
 
-  const { register, handleSubmit, formState, watch, setValue } = useForm<FormValues>({
+  const { register, handleSubmit, formState, watch, setValue, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { num_openings: 1 },
   });
@@ -257,7 +257,19 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
         const hasSeed =
           requirements.length > 0 || benefits_list.length > 0 || !!work_schedule;
 
+        const resetForm = () => {
+          reset({ num_openings: 1 });
+          setSkills([]);
+          setSkillInput("");
+          setBenefits([]);
+          setBenefitInput("");
+          setConfidential(false);
+          setOverrideAddress(false);
+          setParticipants([]);
+        };
+
         if (!hasSeed) {
+          resetForm();
           onSuccess(row.id);
           return;
         }
@@ -269,7 +281,10 @@ export function JobOpeningForm({ onSuccess, onCancel }: JobOpeningFormProps) {
             fields: { requirements, benefits_list, work_schedule },
           },
           {
-            onSettled: () => onSuccess(row.id),
+            onSettled: () => {
+              resetForm();
+              onSuccess(row.id);
+            },
           },
         );
       },

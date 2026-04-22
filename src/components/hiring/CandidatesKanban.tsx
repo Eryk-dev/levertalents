@@ -13,12 +13,14 @@ import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/primitives";
 import { OptimisticMutationToast } from "./OptimisticMutationToast";
 import { CandidateCard, type KanbanApplication } from "./CandidateCard";
-import { useApplicationsByJob, useMoveApplicationStage } from "@/hooks/hiring/useApplications";
-import { useQuery } from "@tanstack/react-query";
+import { applicationsKeys, useApplicationsByJob, useMoveApplicationStage } from "@/hooks/hiring/useApplications";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { toast } from "sonner";
 import type { ApplicationStage } from "@/integrations/supabase/hiring-types";
 import { STAGE_GROUPS, STAGE_GROUP_DOT_COLORS, type StageGroup } from "@/lib/hiring/stageGroups";
+import { handleSupabaseError } from "@/lib/supabaseError";
 
 interface CandidatesKanbanProps {
   jobId: string;
@@ -134,6 +136,7 @@ export function CandidatesKanban({
 }: CandidatesKanbanProps) {
   const { data: applications = [], isLoading } = useApplicationsByJob(jobId);
   const move = useMoveApplicationStage();
+  const queryClient = useQueryClient();
   const [conflict, setConflict] = useState(false);
   const [activeApp, setActiveApp] = useState<KanbanApplication | null>(null);
   const [descartadosOpen, setDescartadosOpen] = useState(false);
@@ -246,14 +249,24 @@ export function CandidatesKanban({
     const currentGroup = STAGE_GROUPS.find((g) => g.stages.includes(app.stage));
     if (currentGroup?.key === targetGroup.key) return;
 
+    const toStage = targetGroup.defaultStage;
+    if (!toStage) {
+      toast.error("Destino inválido");
+      return;
+    }
+
     if (targetGroup.key === DESCARTADOS_KEY) setDescartadosOpen(true);
 
-    await performMove({
-      id: app.id,
-      fromStage: app.stage,
-      toStage: targetGroup.defaultStage,
-      expectedUpdatedAt: app.updated_at,
-    });
+    try {
+      await performMove({
+        id: app.id,
+        fromStage: app.stage,
+        toStage,
+        expectedUpdatedAt: app.updated_at,
+      });
+    } catch (err) {
+      handleSupabaseError(err as Error, "Não foi possível mover o candidato");
+    }
   };
 
   if (isLoading) {
@@ -266,7 +279,7 @@ export function CandidatesKanban({
         visible={conflict}
         onReload={() => {
           setConflict(false);
-          window.location.reload();
+          queryClient.invalidateQueries({ queryKey: applicationsKeys.byJob(jobId) });
         }}
         onDismiss={() => setConflict(false)}
       />

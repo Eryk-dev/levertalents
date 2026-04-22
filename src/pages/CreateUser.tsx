@@ -74,6 +74,13 @@ export default function CreateUser() {
     try {
       setIsLoading(true);
 
+      // Defensive client-side email check before hitting the edge function.
+      const emailCheck = z.string().email().safeParse(data.email);
+      if (!emailCheck.success) {
+        toast.error("Email inválido");
+        return;
+      }
+
       const { data: result, error } = await supabase.functions.invoke("create-user", {
         body: {
           email: data.email,

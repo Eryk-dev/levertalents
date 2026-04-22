@@ -83,12 +83,13 @@ export default function DevelopmentPlans() {
   }, [plans]);
 
   // Handler da fonte única (wizard PDIFormIntegrated).
-  // Mapeia PDIFormData (novo schema) para os campos legacy também,
-  // mantendo compat com listagens/cards antigos.
+  // Cada campo do wizard mapeia para UMA coluna do schema novo.
+  // Colunas legacy (description/goals/action_items) ficam nulas para evitar
+  // inconsistências em updates posteriores — os cards lêem preferencialmente
+  // do bloco `main_objective` quando presente.
   const handleSubmitNew = (data: PDIFormData) => {
     createPlan({
       title: `PDI - ${data.main_objective.substring(0, 60)}`,
-      description: data.main_objective,
       main_objective: data.main_objective,
       committed_actions: data.committed_actions,
       required_support: data.required_support,
@@ -96,8 +97,10 @@ export default function DevelopmentPlans() {
       anticipated_challenges: data.anticipated_challenges,
       deadline: data.deadline || null,
       development_area: "Objetivo",
-      goals: data.main_objective,
-      action_items: data.committed_actions,
+      // Legacy columns intentionally left null — preserved only for retro imports (ManualPDIForm).
+      description: null,
+      goals: null,
+      action_items: null,
       timeline: data.deadline || "",
       status: "in_progress",
       progress_percentage: 0,

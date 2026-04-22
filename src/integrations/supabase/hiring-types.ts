@@ -61,6 +61,12 @@ export type DiscardReason =
   | "avaliacao_rh_negativa"
   | "posicao_preenchida"
   | "outro";
+export type CandidateConversationKind =
+  | "discovery"
+  | "followup"
+  | "referencia"
+  | "alinhamento"
+  | "outro";
 
 // --- Table rows -----------------------------------------------------------
 
@@ -468,6 +474,46 @@ export type CandidateAccessLogRow = {
   at: string;
 };
 
+export type CandidateConversationRow = {
+  id: string;
+  candidate_id: string;
+  kind: CandidateConversationKind;
+  title: string | null;
+  occurred_at: string;
+  transcript_text: string | null;
+  transcript_path: string | null;
+  summary: string | null;
+  created_by: string;
+  anonymized_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type CandidateConversationInsert = Omit<
+  CandidateConversationRow,
+  | "id"
+  | "created_at"
+  | "updated_at"
+  | "kind"
+  | "occurred_at"
+  | "title"
+  | "transcript_text"
+  | "transcript_path"
+  | "summary"
+  | "anonymized_at"
+> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  kind?: CandidateConversationKind;
+  occurred_at?: string;
+  title?: string | null;
+  transcript_text?: string | null;
+  transcript_path?: string | null;
+  summary?: string | null;
+  anonymized_at?: string | null;
+};
+export type CandidateConversationUpdate = Partial<CandidateConversationRow>;
+
 // --- Company expandida (migration 20260420120000) --------------------------
 
 export type CompanyRow = {
@@ -678,6 +724,12 @@ declare module "./types" {
           Update: Partial<CandidateAccessLogRow>;
           Relationships: [];
         };
+        candidate_conversations: {
+          Row: CandidateConversationRow;
+          Insert: CandidateConversationInsert;
+          Update: CandidateConversationUpdate;
+          Relationships: [];
+        };
         companies: {
           Row: CompanyRow;
           Insert: CompanyInsert;
@@ -774,6 +826,7 @@ declare module "./types" {
         standard_message_kind_enum: StandardMessageKind;
         log_action_enum: LogAction;
         discard_reason_enum: DiscardReason;
+        candidate_conversation_kind_enum: CandidateConversationKind;
       };
       CompositeTypes: Database["public"]["CompositeTypes"];
     };

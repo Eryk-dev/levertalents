@@ -35,6 +35,7 @@ export default function JobOpenings() {
   const [companyId, setCompanyId] = useState<string>("all");
   const [confidentialScope, setConfidentialScope] = useState<"any" | "confidential" | "public">("any");
   const [view, setView] = useState<ViewMode>("board");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,13 +44,14 @@ export default function JobOpenings() {
       const tag = t.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || t.isContentEditable) return;
       if (e.key === "n" || e.key === "N") {
+        if (createOpen) return;
         e.preventDefault();
         setCreateOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [createOpen]);
 
   const { companyIds, canSeeAll } = useVisibleCompanies();
   const { data: companies = [] } = useQuery({
@@ -72,14 +74,20 @@ export default function JobOpenings() {
     return map;
   }, [companies]);
 
-  const jobIds = useMemo(() => jobs.map((j) => j.id), [jobs]);
+  const filteredJobs = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return jobs;
+    return jobs.filter((j) => j.title.toLowerCase().includes(term));
+  }, [jobs, search]);
+
+  const jobIds = useMemo(() => filteredJobs.map((j) => j.id), [filteredJobs]);
   const { data: countsMap = {} } = useApplicationCountsByJobs(jobIds);
 
   const handleOpenJob = (id: string) => {
     navigate(`/hiring/jobs/${id}`);
   };
 
-  const activeCount = jobs.length;
+  const activeCount = filteredJobs.length;
   const totalCandidates = Object.values(countsMap).reduce((s, v: any) => s + (v?.total || 0), 0);
   const newToday = Object.values(countsMap).reduce((s, v: any) => s + (v?.today || 0), 0);
 
@@ -125,9 +133,15 @@ export default function JobOpenings() {
 
         {/* Filter bar */}
         <Row gap={6} wrap className="pb-2.5 border-b border-border">
-          <div className="inline-flex items-center gap-1.5 px-2 h-[26px] border border-border rounded-md bg-surface text-[12px]">
+          <div className="inline-flex items-center gap-1.5 px-2 h-[26px] border border-border rounded-md bg-surface text-[12px] focus-within:ring-1 focus-within:ring-accent/40">
             <Search className="w-3 h-3 text-text-subtle" />
-            <span className="text-text-subtle">Buscar vaga...</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar vaga…"
+              className="bg-transparent border-0 outline-none text-[12px] w-[160px] placeholder:text-text-subtle"
+            />
             <Kbd>⌘F</Kbd>
           </div>
           <Chip color="neutral" size="md" icon={<Filter className="w-3 h-3" />}>Filtro</Chip>
@@ -179,7 +193,7 @@ export default function JobOpenings() {
       <div className="flex-1 overflow-auto scrollbar-linear px-5 lg:px-7 py-3.5 min-h-0">
         {isLoading ? (
           <LoadingState layout="cards" count={4} />
-        ) : jobs.length === 0 ? (
+        ) : filteredJobs.length === 0 ? (
           <LinearEmpty
             icon={<Briefcase className="w-[18px] h-[18px]" strokeWidth={1.75} />}
             title="Nenhuma vaga ainda"
@@ -197,7 +211,7 @@ export default function JobOpenings() {
           />
         ) : view === "board" ? (
           <JobsKanban
-            jobs={jobs}
+            jobs={filteredJobs}
             companyById={companyById}
             onOpenJob={handleOpenJob}
             onCreateJob={() => setCreateOpen(true)}
@@ -211,7 +225,7 @@ export default function JobOpenings() {
               <div className="text-right">Candidatos</div>
               <div className="text-right">Aberta há</div>
             </div>
-            {jobs.map((job, i) => {
+            {filteredJobs.map((job, i) => {
               const daysOpen = Math.max(
                 0,
                 Math.floor((Date.now() - new Date(job.opened_at).getTime()) / 86_400_000),
@@ -223,7 +237,7 @@ export default function JobOpenings() {
                   onClick={() => handleOpenJob(job.id)}
                   className={cn(
                     "grid grid-cols-[3fr_1.5fr_1.2fr_0.8fr_0.8fr] gap-4 px-3.5 py-2.5 items-center text-[13px] cursor-pointer hover:bg-bg-subtle transition-colors",
-                    i < jobs.length - 1 && "border-b border-border",
+                    i < filteredJobs.length - 1 && "border-b border-border",
                   )}
                 >
                   <div className="flex items-center gap-2 min-w-0">

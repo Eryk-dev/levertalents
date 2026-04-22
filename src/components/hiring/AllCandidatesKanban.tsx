@@ -9,7 +9,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/primitives";
 import { CandidateCard, type KanbanApplication } from "./CandidateCard";
@@ -154,6 +154,7 @@ export function AllCandidatesKanban({
   onAddCandidate,
 }: AllCandidatesKanbanProps) {
   const move = useMoveApplicationStage();
+  const queryClient = useQueryClient();
   const [conflict, setConflict] = useState(false);
   const [activeApp, setActiveApp] = useState<KanbanApplication | null>(null);
   const [descartadosOpen, setDescartadosOpen] = useState(false);
@@ -261,7 +262,7 @@ export function AllCandidatesKanban({
         visible={conflict}
         onReload={() => {
           setConflict(false);
-          window.location.reload();
+          queryClient.invalidateQueries({ queryKey: ["hiring", "applications", "all-active"] });
         }}
         onDismiss={() => setConflict(false)}
       />

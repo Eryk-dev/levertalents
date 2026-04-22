@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTeams, type TeamMember, type UserProfile } from "@/hooks/useTeams";
 import { Search, Plus, X, Users, Building2, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import { LoadingState } from "@/components/primitives/LoadingState";
 import {
   Btn,
@@ -106,16 +108,21 @@ export default function TeamManagement() {
   const handleAddMember = async () => {
     if (!newMemberUserId || !detailTeamId) return;
     const cost = newMemberCost ? Number(newMemberCost) : undefined;
-    await addMemberToTeam(
-      newMemberUserId,
-      detailTeamId,
-      newMemberPosition || undefined,
-      Number.isFinite(cost) ? cost : undefined,
-    );
-    setAddMemberOpen(false);
-    setNewMemberUserId("");
-    setNewMemberPosition("");
-    setNewMemberCost("");
+    try {
+      await addMemberToTeam(
+        newMemberUserId,
+        detailTeamId,
+        newMemberPosition || undefined,
+        Number.isFinite(cost) ? cost : undefined,
+      );
+      toast.success("Membro adicionado ao time");
+      setAddMemberOpen(false);
+      setNewMemberUserId("");
+      setNewMemberPosition("");
+      setNewMemberCost("");
+    } catch (err) {
+      handleSupabaseError(err as Error, "Erro ao adicionar membro");
+    }
   };
 
   const closeDetail = () => {

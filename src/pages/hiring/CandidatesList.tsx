@@ -11,6 +11,7 @@ import {
 } from "@/components/hiring/CandidateQuickFilters";
 import type { KanbanApplication } from "@/components/hiring/CandidateCard";
 import { APPLICATION_STAGE_LABELS } from "@/lib/hiring/statusMachine";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const EMPTY_QUICK_FILTERS: QuickFiltersState = {
@@ -22,6 +23,7 @@ const EMPTY_QUICK_FILTERS: QuickFiltersState = {
 
 export default function CandidatesList() {
   const navigate = useNavigate();
+  const { user, userRole } = useAuth();
   const [filters, setFilters] = useState<QuickFiltersState>(EMPTY_QUICK_FILTERS);
   const [view, setView] = useState<"board" | "list">("board");
   const { data: candidates = [], isLoading } = useCandidatesListWithApplications(filters.search);
@@ -35,6 +37,10 @@ export default function CandidatesList() {
     if (view !== "list") return candidates;
     return candidates.filter((c) => {
       const latest = c.latest_application;
+      // Lider: só vê candidatos cujas vagas ele lidera (owner_id = user.id).
+      if (userRole === "lider") {
+        if (!latest?.owner_id || latest.owner_id !== user?.id) return false;
+      }
       if (filters.stages.length > 0) {
         if (!latest || !filters.stages.includes(latest.stage)) return false;
       }
@@ -46,7 +52,7 @@ export default function CandidatesList() {
       }
       return true;
     });
-  }, [candidates, view, filters]);
+  }, [candidates, view, filters, userRole, user?.id]);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden font-sans text-text animate-fade-in">

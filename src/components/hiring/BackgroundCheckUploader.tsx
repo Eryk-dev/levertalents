@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   FileText,
   Paperclip,
@@ -31,6 +32,15 @@ interface BackgroundCheckUploaderProps {
   companyId: string;
   jobOpeningId: string;
 }
+
+const MAX_BG_BYTES = 20 * 1024 * 1024;
+const ALLOWED_BG_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 
 const STATUS_META: Record<
   BackgroundStatus,
@@ -245,6 +255,16 @@ function BackgroundCheckDialog({
   }, [open, initial]);
 
   const handleSave = () => {
+    if (file) {
+      if (file.size > MAX_BG_BYTES) {
+        toast.error("Arquivo maior que 20 MB.");
+        return;
+      }
+      if (!ALLOWED_BG_TYPES.includes(file.type)) {
+        toast.error("Formato inválido. Use PDF, PNG, JPEG, DOC ou DOCX.");
+        return;
+      }
+    }
     upload.mutate(
       {
         applicationId,
@@ -331,9 +351,24 @@ function BackgroundCheckDialog({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                const picked = e.target.files?.[0] ?? null;
+                if (picked) {
+                  if (picked.size > MAX_BG_BYTES) {
+                    toast.error("Arquivo maior que 20 MB.");
+                    e.target.value = "";
+                    return;
+                  }
+                  if (!ALLOWED_BG_TYPES.includes(picked.type)) {
+                    toast.error("Formato inválido. Use PDF, PNG, JPEG, DOC ou DOCX.");
+                    e.target.value = "";
+                    return;
+                  }
+                }
+                setFile(picked);
+              }}
             />
             {file ? (
               <Row gap={8} align="center" className="rounded-md border border-border bg-bg-subtle px-2.5 py-1.5">

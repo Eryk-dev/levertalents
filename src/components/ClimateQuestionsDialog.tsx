@@ -23,9 +23,15 @@ export function ClimateQuestionsDialog({ open, onOpenChange, surveyId, surveyTit
 
   const handleAdd = () => {
     if (!surveyId || !text.trim() || !category.trim()) return;
-    createQuestion({ survey_id: surveyId, question_text: text.trim(), category: category.trim() });
-    setText("");
-    setCategory("");
+    createQuestion(
+      { survey_id: surveyId, question_text: text.trim(), category: category.trim() },
+      {
+        onSuccess: () => {
+          setText("");
+          setCategory("");
+        },
+      },
+    );
   };
 
   return (

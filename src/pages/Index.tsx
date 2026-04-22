@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calendar,
   Target,
@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { handleSupabaseError } from "@/lib/supabaseError";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -70,7 +71,8 @@ const Index = () => {
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      if (error) throw handleSupabaseError(error, "Falha ao carregar perfil", { silent: true });
       return data;
     },
     enabled: !!user?.id,
@@ -80,7 +82,7 @@ const Index = () => {
     queryKey: ["nextOneOnOne", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("one_on_ones")
         .select("*, leader:leader_id(full_name)")
         .eq("collaborator_id", user.id)
@@ -89,6 +91,7 @@ const Index = () => {
         .order("scheduled_date", { ascending: true })
         .limit(1)
         .maybeSingle();
+      if (error) throw handleSupabaseError(error, "Falha ao carregar próxima 1:1", { silent: true });
       return data;
     },
     enabled: !!user?.id,
@@ -98,18 +101,24 @@ const Index = () => {
     queryKey: ["activePDIs", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("development_plans")
         .select("*")
         .eq("user_id", user.id)
         .in("status", ["in_progress", "approved", "pending_approval"])
         .order("created_at", { ascending: false });
-      return data || [];
+      if (error) throw handleSupabaseError(error, "Falha ao carregar PDIs ativos", { silent: true });
+      return data ?? [];
     },
     enabled: !!user?.id,
   });
 
-  const { data: pendingTasks = [] } = usePendingTasks();
+  const { data: pendingTasks = [], error: pendingTasksError } = usePendingTasks();
+  useEffect(() => {
+    if (pendingTasksError) {
+      handleSupabaseError(pendingTasksError, "Falha ao carregar pendências");
+    }
+  }, [pendingTasksError]);
   const [priorityFilters, setPriorityFilters] = useState<Set<PriorityFilter>>(new Set());
   const togglePriority = (p: PriorityFilter) =>
     setPriorityFilters((prev) => {
