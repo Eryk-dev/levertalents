@@ -15,6 +15,7 @@ import {
   Filter,
   Briefcase,
   UserCog,
+  UserX,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -33,6 +34,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUsers } from "@/hooks/useUsers";
+import { useDeleteUser } from "@/hooks/useDeleteUser";
+import { useAuth } from "@/hooks/useAuth";
 import { useOrgIndicators } from "@/hooks/useOrgIndicators";
 import { useClimateOverview } from "@/hooks/useClimateOverview";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -58,9 +61,12 @@ export default function AdminDashboard() {
   const { data: climate } = useClimateOverview();
   const { data: profile } = useUserProfile();
 
+  const { user: currentAuthUser } = useAuth();
+  const deleteUser = useDeleteUser();
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [confirmRemoveUserId, setConfirmRemoveUserId] = useState<string | null>(null);
+  const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const ROLE_OPTIONS = ["socio", "lider", "rh", "colaborador", "sem-papel"] as const;
   type RoleFilter = (typeof ROLE_OPTIONS)[number];
   const [roleFilters, setRoleFilters] = useState<Set<RoleFilter>>(new Set());
@@ -132,6 +138,14 @@ export default function AdminDashboard() {
       setConfirmRemoveUserId(null);
     }
   };
+
+  const handleDeleteUser = (userId: string) => {
+    deleteUser.mutate(userId, {
+      onSettled: () => setConfirmDeleteUserId(null),
+    });
+  };
+
+  const userBeingDeleted = users.find((u) => u.id === confirmDeleteUserId);
 
   const firstName = (profile?.full_name || "").split(" ")[0] || "Admin";
   const hour = new Date().getHours();
@@ -367,7 +381,7 @@ export default function AdminDashboard() {
             />
           ) : (
             <div className="surface-paper">
-              <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_80px] gap-5">
+              <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5">
                 <div>Pessoa</div>
                 <div>Email</div>
                 <div>Papel</div>
@@ -376,7 +390,7 @@ export default function AdminDashboard() {
               {recentUsers.map((user, idx) => (
                 <div
                   key={user.id}
-                  className={`grid grid-cols-[2fr_1.4fr_1fr_80px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
+                  className={`grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
                     idx < recentUsers.length - 1 ? "border-b border-border" : ""
                   }`}
                 >
@@ -392,17 +406,31 @@ export default function AdminDashboard() {
                       <span className="text-[11.5px] text-text-subtle">—</span>
                     )}
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center justify-end gap-1">
                     {user.role && (
                       <Btn
                         variant="ghost"
                         size="xs"
                         onClick={() => setConfirmRemoveUserId(user.id)}
-                        className="text-status-red hover:bg-status-red-soft"
-                        icon={<Trash2 className="w-3 h-3" strokeWidth={1.75} />}
+                        className="text-text-muted hover:bg-bg-subtle"
+                        icon={<Shield className="w-3 h-3" strokeWidth={1.75} />}
                         aria-label="Remover papel do usuário"
+                        title="Remover papel"
                       >
                         <span className="sr-only">Remover papel do usuário</span>
+                      </Btn>
+                    )}
+                    {user.id !== currentAuthUser?.id && (
+                      <Btn
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setConfirmDeleteUserId(user.id)}
+                        className="text-status-red hover:bg-status-red-soft"
+                        icon={<UserX className="w-3 h-3" strokeWidth={1.75} />}
+                        aria-label="Excluir usuário"
+                        title="Excluir usuário"
+                      >
+                        <span className="sr-only">Excluir usuário</span>
                       </Btn>
                     )}
                   </div>
@@ -552,7 +580,7 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div>
-            <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_80px] gap-5">
+            <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5">
               <div>Pessoa</div>
               <div>Email</div>
               <div>Papel</div>
@@ -561,7 +589,7 @@ export default function AdminDashboard() {
             {filteredUsers.map((user, idx) => (
               <div
                 key={user.id}
-                className={`grid grid-cols-[2fr_1.4fr_1fr_80px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
+                className={`grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
                   idx < filteredUsers.length - 1 ? "border-b border-border" : ""
                 }`}
               >
@@ -577,14 +605,27 @@ export default function AdminDashboard() {
                     <span className="text-[11.5px] text-text-subtle">—</span>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="flex items-center justify-end gap-1">
                   {user.role && (
                     <Btn
                       variant="ghost"
                       size="xs"
                       onClick={() => setConfirmRemoveUserId(user.id)}
+                      className="text-text-muted hover:bg-bg-subtle"
+                      icon={<Shield className="w-3 h-3" strokeWidth={1.75} />}
+                      title="Remover papel"
+                    >
+                      {""}
+                    </Btn>
+                  )}
+                  {user.id !== currentAuthUser?.id && (
+                    <Btn
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setConfirmDeleteUserId(user.id)}
                       className="text-status-red hover:bg-status-red-soft"
-                      icon={<Trash2 className="w-3 h-3" strokeWidth={1.75} />}
+                      icon={<UserX className="w-3 h-3" strokeWidth={1.75} />}
+                      title="Excluir usuário"
                     >
                       {""}
                     </Btn>
@@ -611,6 +652,40 @@ export default function AdminDashboard() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmDeleteUserId}
+        onOpenChange={(open) => !open && setConfirmDeleteUserId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário do sistema?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="block">
+                <strong className="text-text">
+                  {userBeingDeleted?.full_name || userBeingDeleted?.email || "Este usuário"}
+                </strong>{" "}
+                será removido definitivamente — conta de acesso, perfil, papel, vínculos
+                com times e histórico. Essa ação é irreversível.
+              </span>
+              <span className="block mt-2 text-status-amber">
+                Se o usuário tiver criado vagas, entrevistas ou outros registros, a exclusão
+                será bloqueada — nesse caso, anonimize ou reatribua antes.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUser.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteUser.isPending}
+              onClick={() => confirmDeleteUserId && handleDeleteUser(confirmDeleteUserId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteUser.isPending ? "Excluindo…" : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
