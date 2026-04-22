@@ -22,10 +22,20 @@ export function useDeleteUser() {
         body: { userId },
       });
 
-      // Supabase retorna error quando status != 2xx. O corpo tem `error` friendly.
+      // Quando a edge function retorna non-2xx, o supabase-js seta `error` mas
+      // o body JSON não vem em `data`. É preciso extrair via error.context.
       if (error) {
-        const fnError = (data as DeleteResponse | null)?.error;
-        throw new Error(fnError || error.message || "Erro ao excluir usuário");
+        let serverMessage: string | undefined;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.clone().json();
+            serverMessage = body?.error || body?.message;
+          } catch {
+            /* noop — body não é JSON, usa error.message */
+          }
+        }
+        throw new Error(serverMessage || error.message || "Erro ao excluir usuário");
       }
       if (!data?.success) {
         throw new Error(data?.error || "Erro desconhecido ao excluir");

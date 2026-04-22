@@ -81,17 +81,18 @@ serve(async (req) => {
       }
     }
 
-    // Auth Admin API: deleta de auth.users → cascade em profiles, user_roles,
-    // team_members (todos têm FK com ON DELETE CASCADE para auth.users).
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
-    if (deleteError) {
-      console.error('auth.admin.deleteUser error:', deleteError)
-      // Erros comuns: FK RESTRICT em tabelas de histórico (ex.: job_openings.requested_by)
-      const message = deleteError.message || 'Erro ao excluir usuário'
-      const friendly = message.includes('foreign key')
-        ? 'Esse usuário tem registros históricos (vagas criadas, entrevistas, etc.) que impedem a exclusão. Reatribua ou anonimize antes.'
+    // Usa RPC admin_hard_delete_user (SQL direto) em vez de auth.admin.deleteUser
+    // (que trava em usuários degenerados). FKs CASCADE fazem a limpeza igual.
+    const { error: rpcError } = await supabaseAdmin.rpc('admin_hard_delete_user', {
+      _user_id: userId,
+    })
+    if (rpcError) {
+      console.error('admin_hard_delete_user RPC error:', rpcError)
+      const message = rpcError.message || 'Erro ao excluir usuário'
+      const friendly = message.includes('foreign key') || rpcError.code === '23503'
+        ? 'Esse usuário tem registros históricos (vagas, entrevistas, etc.) que impedem a exclusão. Reatribua ou anonimize antes.'
         : message
-      return jsonResponse({ error: friendly, raw: message }, 400)
+      return jsonResponse({ error: friendly, raw: message, code: rpcError.code }, 400)
     }
 
     return jsonResponse({ success: true, deletedUserId: userId })
