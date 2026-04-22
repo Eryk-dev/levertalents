@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Clock, Plus, FileText, AlertCircle, Trash2, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -131,16 +133,45 @@ export default function OneOnOnes() {
     setDeleteDialog(null);
   };
 
-  const upcoming = oneOnOnes.filter(
+  const [bucketFilter, setBucketFilter] = useState<string[]>([]);
+  const [collaboratorFilter, setCollaboratorFilter] = useState<string[]>([]);
+
+  const collaboratorOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    oneOnOnes.forEach((o) => {
+      if (o.collaborator?.id && o.collaborator?.full_name) {
+        map.set(o.collaborator.id, o.collaborator.full_name);
+      }
+    });
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [oneOnOnes]);
+
+  const filteredOneOnOnes = oneOnOnes.filter((o) => {
+    if (collaboratorFilter.length && (!o.collaborator?.id || !collaboratorFilter.includes(o.collaborator.id))) {
+      return false;
+    }
+    return true;
+  });
+
+  const upcoming = filteredOneOnOnes.filter(
     (o) => o.status === "scheduled" && new Date(o.scheduled_date) >= new Date(),
   );
-  const completed = oneOnOnes.filter((o) => o.status === "completed");
-  const pending = oneOnOnes.filter(
+  const completed = filteredOneOnOnes.filter((o) => o.status === "completed");
+  const pending = filteredOneOnOnes.filter(
     (o) =>
       o.status === "scheduled" &&
       new Date(o.scheduled_date) < new Date() &&
       !o.meeting_structure,
   );
+
+  const showPending = !bucketFilter.length || bucketFilter.includes("pending");
+  const showUpcoming = !bucketFilter.length || bucketFilter.includes("upcoming");
+  const showCompleted = !bucketFilter.length || bucketFilter.includes("completed");
+  const activeFilterCount = bucketFilter.length + collaboratorFilter.length;
+  const toggleIn = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   return (
     <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
@@ -153,9 +184,67 @@ export default function OneOnOnes() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
-            Filtros
-          </Btn>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
+                Filtros{activeFilterCount > 0 && ` · ${activeFilterCount}`}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-3">
+              <div className="space-y-3">
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                    Situação
+                  </div>
+                  <div className="space-y-1.5">
+                    {[
+                      { value: "pending", label: "A preencher" },
+                      { value: "upcoming", label: "Próximas" },
+                      { value: "completed", label: "Concluídas" },
+                    ].map((b) => (
+                      <label key={b.value} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                        <Checkbox
+                          checked={bucketFilter.includes(b.value)}
+                          onCheckedChange={() => setBucketFilter((cur) => toggleIn(cur, b.value))}
+                        />
+                        {b.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {collaboratorOptions.length > 0 && (
+                  <div className="border-t border-border pt-3">
+                    <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                      Colaborador
+                    </div>
+                    <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                      {collaboratorOptions.map((c) => (
+                        <label key={c.id} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                          <Checkbox
+                            checked={collaboratorFilter.includes(c.id)}
+                            onCheckedChange={() => setCollaboratorFilter((cur) => toggleIn(cur, c.id))}
+                          />
+                          <span className="truncate">{c.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11.5px] text-text-muted hover:text-text underline"
+                    onClick={() => {
+                      setBucketFilter([]);
+                      setCollaboratorFilter([]);
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Btn
             variant="primary"
             size="sm"
@@ -187,7 +276,7 @@ export default function OneOnOnes() {
         </div>
       ) : (
         <>
-          {pending.length > 0 && (
+          {showPending && pending.length > 0 && (
             <>
               <SectionHeader
                 title="Para preencher"
@@ -212,7 +301,7 @@ export default function OneOnOnes() {
             </>
           )}
 
-          {upcoming.length > 0 && (
+          {showUpcoming && upcoming.length > 0 && (
             <>
               <SectionHeader title="Próximas" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -233,7 +322,7 @@ export default function OneOnOnes() {
             </>
           )}
 
-          {completed.length > 0 && (
+          {showCompleted && completed.length > 0 && (
             <>
               <SectionHeader title="Histórico" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

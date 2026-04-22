@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useEvaluations, Evaluation } from "@/hooks/useEvaluations";
 import { EvaluationForm } from "@/components/EvaluationForm";
 import { EvaluationCard } from "@/components/EvaluationCard";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, FileText, TrendingUp, CheckCircle2, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +14,12 @@ import { LoadingState } from "@/components/primitives/LoadingState";
 import { ScoreDisplay } from "@/components/primitives/ScoreDisplay";
 import { Btn, Chip, Row, Col, SectionHeader, LinearEmpty } from "@/components/primitives/LinearKit";
 import { cn } from "@/lib/utils";
+
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "draft", label: "Rascunho" },
+  { value: "completed", label: "Concluída" },
+  { value: "reviewed", label: "Revisada" },
+];
 
 export default function Evaluations() {
   const [showForm, setShowForm] = useState(false);
@@ -45,9 +53,28 @@ export default function Evaluations() {
   const isRHorSocio = userRole === "rh" || userRole === "socio";
   const isCollaborator = userRole === "colaborador";
 
-  const filteredEvaluations = isCollaborator
+  const baseEvaluations = isCollaborator
     ? evaluations.filter((e) => e.evaluated_user_id === currentUser?.id)
     : evaluations;
+
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [periodFilter, setPeriodFilter] = useState<string[]>([]);
+
+  const periodOptions = useMemo(() => {
+    const set = new Set<string>();
+    baseEvaluations.forEach((e) => e.period && set.add(e.period));
+    return Array.from(set).sort();
+  }, [baseEvaluations]);
+
+  const filteredEvaluations = baseEvaluations.filter((e) => {
+    if (statusFilter.length && !statusFilter.includes(e.status)) return false;
+    if (periodFilter.length && (!e.period || !periodFilter.includes(e.period))) return false;
+    return true;
+  });
+
+  const activeFilterCount = statusFilter.length + periodFilter.length;
+  const toggleIn = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   const averageScore =
     filteredEvaluations.length > 0
@@ -73,9 +100,63 @@ export default function Evaluations() {
           <div className="text-[13px] text-text-muted mt-0.5">{description}</div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
-            Filtros
-          </Btn>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
+                Filtros{activeFilterCount > 0 && ` · ${activeFilterCount}`}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-3">
+              <div className="space-y-3">
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                    Status
+                  </div>
+                  <div className="space-y-1.5">
+                    {STATUS_OPTIONS.map((s) => (
+                      <label key={s.value} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                        <Checkbox
+                          checked={statusFilter.includes(s.value)}
+                          onCheckedChange={() => setStatusFilter((cur) => toggleIn(cur, s.value))}
+                        />
+                        {s.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {periodOptions.length > 0 && (
+                  <div className="border-t border-border pt-3">
+                    <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                      Período
+                    </div>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {periodOptions.map((p) => (
+                        <label key={p} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                          <Checkbox
+                            checked={periodFilter.includes(p)}
+                            onCheckedChange={() => setPeriodFilter((cur) => toggleIn(cur, p))}
+                          />
+                          {p}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11.5px] text-text-muted hover:text-text underline"
+                    onClick={() => {
+                      setStatusFilter([]);
+                      setPeriodFilter([]);
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           {isLeader && (
             <Btn
               variant="primary"

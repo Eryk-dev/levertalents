@@ -23,9 +23,9 @@ serve(async (req) => {
       }
     )
 
-    const { email, password, fullName, department, hireDate, role } = await req.json()
+    const { email, password, fullName, department, hireDate, role, teamId, leaderId } = await req.json()
 
-    console.log('Creating user:', { email, fullName, role })
+    console.log('Creating user:', { email, fullName, role, teamId, leaderId })
 
     // Create user using Admin API. Role é passado via user_metadata para que
     // o trigger handle_new_user insira direto em user_roles com o role
@@ -65,6 +65,31 @@ serve(async (req) => {
     }
 
     console.log('Profile updated successfully, role assigned via trigger:', role)
+
+    if (teamId) {
+      // Se um leader explícito não foi informado, herda do time (fonte de verdade).
+      let resolvedLeaderId: string | null = leaderId ?? null
+      if (!resolvedLeaderId) {
+        const { data: team } = await supabaseAdmin
+          .from('teams')
+          .select('leader_id')
+          .eq('id', teamId)
+          .maybeSingle()
+        resolvedLeaderId = team?.leader_id ?? null
+      }
+
+      const { error: memberError } = await supabaseAdmin
+        .from('team_members')
+        .insert({
+          user_id: userId,
+          team_id: teamId,
+          leader_id: resolvedLeaderId,
+        })
+      if (memberError) {
+        console.error('Error adding to team_members:', memberError)
+        // Don't throw — user was created. Just log + return warning.
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, userId }),

@@ -2,7 +2,9 @@ import { useState, useMemo } from "react";
 import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Target, TrendingUp, Trash2, History, MoreVertical, ExternalLink, CheckCircle2, Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Target, TrendingUp, Trash2, History, MoreVertical, ExternalLink, CheckCircle2, Filter, Archive, CheckCheck } from "lucide-react";
 import { format } from "date-fns";
 import { PDIFormIntegrated } from "@/components/PDIFormIntegrated";
 import type { PDIFormData } from "@/hooks/usePDIIntegrated";
@@ -57,9 +59,28 @@ export default function DevelopmentPlans() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlanTabValue>("active");
-  const { plans, isLoading, createPlan, deletePlan } = useDevelopmentPlans();
+  const { plans, isLoading, createPlan, updatePlan, deletePlan } = useDevelopmentPlans();
   const { userRole } = useAuth();
   const isLeaderOrRHSocio = userRole === "lider" || userRole === "rh" || userRole === "socio";
+
+  const [areaFilter, setAreaFilter] = useState<string[]>([]);
+  const [collaboratorFilter, setCollaboratorFilter] = useState<string[]>([]);
+
+  const areaOptions = useMemo(() => {
+    const set = new Set<string>();
+    plans.forEach((p) => p.development_area && set.add(p.development_area));
+    return Array.from(set).sort();
+  }, [plans]);
+
+  const collaboratorOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    plans.forEach((p) => {
+      if (p.user?.id && p.user?.full_name) map.set(p.user.id, p.user.full_name);
+    });
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [plans]);
 
   // Handler da fonte única (wizard PDIFormIntegrated).
   // Mapeia PDIFormData (novo schema) para os campos legacy também,
@@ -100,7 +121,17 @@ export default function DevelopmentPlans() {
     [plans],
   );
 
-  const filtered = plans.filter((p) => TAB_FILTER[activeTab](p.status));
+  const filtered = plans
+    .filter((p) => TAB_FILTER[activeTab](p.status))
+    .filter((p) => {
+      if (areaFilter.length && (!p.development_area || !areaFilter.includes(p.development_area))) return false;
+      if (collaboratorFilter.length && (!p.user?.id || !collaboratorFilter.includes(p.user.id))) return false;
+      return true;
+    });
+
+  const activeFilterCount = areaFilter.length + collaboratorFilter.length;
+  const toggleIn = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   const tabs: Array<{ k: PlanTabValue; label: string; count: number }> = [
     { k: "active", label: "Ativos", count: counts.active },
@@ -122,9 +153,68 @@ export default function DevelopmentPlans() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
-            Filtros
-          </Btn>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
+                Filtros{activeFilterCount > 0 && ` · ${activeFilterCount}`}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-3">
+              <div className="space-y-3">
+                {areaOptions.length > 0 && (
+                  <div>
+                    <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                      Área
+                    </div>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {areaOptions.map((a) => (
+                        <label key={a} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                          <Checkbox
+                            checked={areaFilter.includes(a)}
+                            onCheckedChange={() => setAreaFilter((cur) => toggleIn(cur, a))}
+                          />
+                          <span className="truncate">{a}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {collaboratorOptions.length > 0 && (
+                  <div className={areaOptions.length ? "border-t border-border pt-3" : ""}>
+                    <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                      Colaborador
+                    </div>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {collaboratorOptions.map((c) => (
+                        <label key={c.id} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                          <Checkbox
+                            checked={collaboratorFilter.includes(c.id)}
+                            onCheckedChange={() => setCollaboratorFilter((cur) => toggleIn(cur, c.id))}
+                          />
+                          <span className="truncate">{c.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {areaOptions.length === 0 && collaboratorOptions.length === 0 && (
+                  <div className="text-[12px] text-text-muted">Nada para filtrar ainda.</div>
+                )}
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11.5px] text-text-muted hover:text-text underline"
+                    onClick={() => {
+                      setAreaFilter([]);
+                      setCollaboratorFilter([]);
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           {isLeaderOrRHSocio && (
             <Btn
               variant="secondary"
@@ -265,6 +355,31 @@ export default function DevelopmentPlans() {
                   </Btn>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {selectedPlan && selectedPlan.status !== "completed" && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        updatePlan({
+                          id: selectedPlan.id,
+                          input: { status: "completed", progress_percentage: 100 },
+                        });
+                        setSelectedPlan(null);
+                      }}
+                    >
+                      <CheckCheck className="h-4 w-4 mr-2" />
+                      Marcar como concluído
+                    </DropdownMenuItem>
+                  )}
+                  {selectedPlan && selectedPlan.status !== "cancelled" && selectedPlan.status !== "completed" && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        updatePlan({ id: selectedPlan.id, input: { status: "cancelled" } });
+                        setSelectedPlan(null);
+                      }}
+                    >
+                      <Archive className="h-4 w-4 mr-2" />
+                      Cancelar PDI
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={() => setDeleteDialog(selectedPlan?.id)}

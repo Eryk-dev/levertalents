@@ -1,9 +1,12 @@
+import { useState, useMemo } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Users, Calendar, Filter, ChevronRight, Zap } from "lucide-react";
 import { LoadingState } from "@/components/primitives/LoadingState";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Btn,
   Row,
@@ -129,18 +132,45 @@ export default function MyTeam() {
     },
   });
 
-  const teamMembers = rawTeamMembers.map((tm: any) => ({
+  const allTeamMembers = rawTeamMembers.map((tm: any) => ({
     ...tm,
     user: memberProfiles.find((p: any) => p.id === tm.user_id),
     team: teams.find((t: any) => t.id === tm.team_id),
     metrics: memberMetrics[tm.user_id] || { pdi: 0 },
   }));
 
-  const attn = teamMembers.filter((m) => {
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [teamFilter, setTeamFilter] = useState<string[]>([]);
+
+  const teamOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    allTeamMembers.forEach((m) => {
+      if (m.team?.id && m.team?.name) map.set(m.team.id, m.team.name);
+    });
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allTeamMembers]);
+
+  const memberAttn = (m: any) => {
     const last = m.metrics.last11 ? new Date(m.metrics.last11) : null;
     const daysSince = last ? Math.floor((Date.now() - last.getTime()) / 86_400_000) : 999;
     return daysSince > 14 || m.metrics.pdi < 30 || (m.metrics.perf && m.metrics.perf < 3.5);
+  };
+
+  const teamMembers = allTeamMembers.filter((m) => {
+    if (teamFilter.length && (!m.team_id || !teamFilter.includes(m.team_id))) return false;
+    if (statusFilter.length) {
+      const isAttn = memberAttn(m);
+      if (statusFilter.includes("attention") && !isAttn) return false;
+      if (statusFilter.includes("ok") && isAttn) return false;
+    }
+    return true;
   });
+
+  const activeFilterCount = statusFilter.length + teamFilter.length;
+  const toggleIn = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+
+  const attn = teamMembers.filter((m) => memberAttn(m));
 
   const daysAgo = (iso?: string) => {
     if (!iso) return "—";
@@ -182,9 +212,66 @@ export default function MyTeam() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
-            Filtros
-          </Btn>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>
+                Filtros{activeFilterCount > 0 && ` · ${activeFilterCount}`}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-3">
+              <div className="space-y-3">
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                    Situação
+                  </div>
+                  <div className="space-y-1.5">
+                    {[
+                      { value: "attention", label: "Pedem atenção" },
+                      { value: "ok", label: "Em dia" },
+                    ].map((s) => (
+                      <label key={s.value} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                        <Checkbox
+                          checked={statusFilter.includes(s.value)}
+                          onCheckedChange={() => setStatusFilter((cur) => toggleIn(cur, s.value))}
+                        />
+                        {s.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {teamOptions.length > 1 && (
+                  <div className="border-t border-border pt-3">
+                    <div className="text-[10.5px] uppercase tracking-[0.05em] text-text-subtle font-semibold mb-1.5">
+                      Time
+                    </div>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {teamOptions.map((t) => (
+                        <label key={t.id} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                          <Checkbox
+                            checked={teamFilter.includes(t.id)}
+                            onCheckedChange={() => setTeamFilter((cur) => toggleIn(cur, t.id))}
+                          />
+                          <span className="truncate">{t.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    className="text-[11.5px] text-text-muted hover:text-text underline"
+                    onClick={() => {
+                      setStatusFilter([]);
+                      setTeamFilter([]);
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Btn
             variant="secondary"
             size="sm"

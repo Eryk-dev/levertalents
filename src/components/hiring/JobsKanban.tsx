@@ -37,6 +37,7 @@ interface JobsKanbanProps {
   jobs: JobOpeningRow[];
   companyById: Map<string, string>;
   onOpenJob: (jobId: string) => void;
+  onCreateJob?: () => void;
 }
 
 function Column({
@@ -45,6 +46,7 @@ function Column({
   companyById,
   countsMap,
   onOpenJob,
+  onCreateJob,
   collapsible,
 }: {
   status: JobStatus;
@@ -52,6 +54,7 @@ function Column({
   companyById: Map<string, string>;
   countsMap: Record<string, JobApplicationCounts | undefined>;
   onOpenJob: (id: string) => void;
+  onCreateJob?: () => void;
   collapsible?: boolean;
 }) {
   const [open, setOpen] = useState(!collapsible);
@@ -77,9 +80,16 @@ function Column({
           </h3>
           <span className="text-[11px] text-text-subtle tabular">{jobs.length}</span>
         </div>
-        <button className="text-text-subtle hover:text-text" aria-label="Nova">
-          <Plus className="w-3 h-3" />
-        </button>
+        {onCreateJob ? (
+          <button
+            type="button"
+            onClick={onCreateJob}
+            className="text-text-subtle hover:text-text"
+            aria-label="Nova vaga"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        ) : null}
       </header>
       <div
         ref={setNodeRef}
@@ -112,7 +122,7 @@ function Column({
   );
 }
 
-export function JobsKanban({ jobs, companyById, onOpenJob }: JobsKanbanProps) {
+export function JobsKanban({ jobs, companyById, onOpenJob, onCreateJob }: JobsKanbanProps) {
   const update = useUpdateJobOpeningStatus();
   const jobIds = useMemo(() => jobs.map((j) => j.id), [jobs]);
   const { data: countsMap = {} } = useApplicationCountsByJobs(jobIds);
@@ -171,6 +181,7 @@ export function JobsKanban({ jobs, companyById, onOpenJob }: JobsKanbanProps) {
             companyById={companyById}
             countsMap={countsMap as Record<string, JobApplicationCounts | undefined>}
             onOpenJob={onOpenJob}
+            onCreateJob={onCreateJob}
             collapsible={status === "fechada"}
           />
         ))}

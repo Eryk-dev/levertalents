@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,11 +16,9 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 import { Btn, Row } from "@/components/primitives/LinearKit";
+import { useTeams } from "@/hooks/useTeams";
 
-// TODO: Os campos Time/Empresa/Gestor precisam que a edge function
-// `create-user` aceite esses parâmetros e faça o insert correspondente
-// em `team_members` após criar o usuário. Manter no formulário só geraria
-// divergência com o backend; melhor adicionar em uma passada de backend.
+const LEADER_ROLES = new Set(["lider", "socio", "admin"]);
 
 const createUserSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -31,6 +29,9 @@ const createUserSchema = z.object({
   role: z.enum(["admin", "socio", "lider", "rh", "colaborador"], {
     required_error: "Selecione um papel",
   }),
+  companyId: z.string().optional(),
+  teamId: z.string().optional(),
+  leaderId: z.string().optional(),
 });
 
 type CreateUserForm = z.infer<typeof createUserSchema>;
@@ -38,6 +39,11 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 export default function CreateUser() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { companies, teams, users, loading: teamsLoading } = useTeams();
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string>("");
 
   const {
     register,
@@ -47,6 +53,22 @@ export default function CreateUser() {
   } = useForm<CreateUserForm>({
     resolver: zodResolver(createUserSchema),
   });
+
+  const teamsForCompany = useMemo(
+    () => (selectedCompanyId ? teams.filter((t) => t.company_id === selectedCompanyId) : []),
+    [teams, selectedCompanyId],
+  );
+
+  const leadersForTeam = useMemo(() => {
+    const eligible = users.filter((u) => u.role && LEADER_ROLES.has(u.role));
+    if (!selectedTeamId) return eligible;
+    const team = teams.find((t) => t.id === selectedTeamId);
+    if (team?.leader_id) {
+      const leader = eligible.find((u) => u.id === team.leader_id);
+      if (leader) return [leader, ...eligible.filter((u) => u.id !== leader.id)];
+    }
+    return eligible;
+  }, [users, teams, selectedTeamId]);
 
   const onSubmit = async (data: CreateUserForm) => {
     try {
@@ -60,6 +82,8 @@ export default function CreateUser() {
           department: data.department || null,
           hireDate: data.hireDate || null,
           role: data.role,
+          teamId: selectedTeamId || null,
+          leaderId: selectedLeaderId || null,
         },
       });
 
@@ -158,6 +182,111 @@ export default function CreateUser() {
         <CreateField label="Data de contratação" htmlFor="hireDate">
           <Input id="hireDate" type="date" {...register("hireDate")} />
         </CreateField>
+
+        <div className="pt-1">
+          <div className="text-[10.5px] uppercase tracking-[0.06em] text-text-subtle font-semibold mb-3">
+            Vínculo (opcional)
+          </div>
+
+          <div className="space-y-4">
+            <CreateField label="Empresa" htmlFor="companyId">
+              <Select
+                value={selectedCompanyId}
+                onValueChange={(value) => {
+                  setSelectedCompanyId(value);
+                  setSelectedTeamId("");
+                  setSelectedLeaderId("");
+                  setValue("companyId", value);
+                  setValue("teamId", undefined);
+                  setValue("leaderId", undefined);
+                }}
+                disabled={teamsLoading || companies.length === 0}
+              >
+                <SelectTrigger id="companyId">
+                  <SelectValue
+                    placeholder={
+                      teamsLoading
+                        ? "Carregando empresas..."
+                        : companies.length === 0
+                        ? "Nenhuma empresa cadastrada"
+                        : "Selecione uma empresa"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CreateField>
+
+            <CreateField label="Time" htmlFor="teamId">
+              <Select
+                value={selectedTeamId}
+                onValueChange={(value) => {
+                  setSelectedTeamId(value);
+                  setValue("teamId", value);
+                  const team = teams.find((t) => t.id === value);
+                  if (team?.leader_id) {
+                    setSelectedLeaderId(team.leader_id);
+                    setValue("leaderId", team.leader_id);
+                  }
+                }}
+                disabled={!selectedCompanyId || teamsForCompany.length === 0}
+              >
+                <SelectTrigger id="teamId">
+                  <SelectValue
+                    placeholder={
+                      !selectedCompanyId
+                        ? "Selecione uma empresa primeiro"
+                        : teamsForCompany.length === 0
+                        ? "Nenhum time nessa empresa"
+                        : "Selecione um time"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamsForCompany.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CreateField>
+
+            <CreateField label="Gestor" htmlFor="leaderId">
+              <Select
+                value={selectedLeaderId}
+                onValueChange={(value) => {
+                  setSelectedLeaderId(value);
+                  setValue("leaderId", value);
+                }}
+                disabled={leadersForTeam.length === 0}
+              >
+                <SelectTrigger id="leaderId">
+                  <SelectValue
+                    placeholder={
+                      leadersForTeam.length === 0
+                        ? "Nenhum gestor disponível"
+                        : "Selecione um gestor"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {leadersForTeam.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CreateField>
+          </div>
+        </div>
 
         <Row gap={12} className="pt-3">
           <Btn

@@ -505,11 +505,6 @@ export default function Profile() {
             icon={<FileText className="w-[18px] h-[18px]" strokeWidth={1.75} />}
             title="Sem documentos"
             description="Contratos, certificados e documentos relacionados ao seu vínculo aparecem aqui."
-            actions={
-              <Btn variant="ghost" size="sm">
-                Adicionar
-              </Btn>
-            }
           />
         </div>
       )}

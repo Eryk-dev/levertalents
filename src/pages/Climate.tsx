@@ -5,7 +5,7 @@ import { ClimateAnswerDialog } from "@/components/ClimateAnswerDialog";
 import { useClimateSurveys, ClimateSurvey } from "@/hooks/useClimateSurveys";
 import { useClimateOverview } from "@/hooks/useClimateOverview";
 import { useAuth } from "@/hooks/useAuth";
-import { Calendar, Plus, ListChecks, MessageSquare, Users, TrendingUp, Download, Bell, Filter } from "lucide-react";
+import { Calendar, Plus, ListChecks, MessageSquare, Users, TrendingUp, Download, Bell } from "lucide-react";
 import { StatusBadge } from "@/components/primitives/StatusBadge";
 import { ScoreDisplay } from "@/components/primitives/ScoreDisplay";
 import {
@@ -17,8 +17,28 @@ import {
 } from "@/components/primitives/LinearKit";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type DialogTarget = { survey: ClimateSurvey } | null;
+
+// CSV helper — inlined here per file (do not extract to shared util).
+const downloadCSV = (rows: Record<string, unknown>[], filename: string) => {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 export default function Climate() {
   const { surveys } = useClimateSurveys();
@@ -30,8 +50,87 @@ export default function Climate() {
   const [createOpen, setCreateOpen] = useState(false);
   const [manageTarget, setManageTarget] = useState<DialogTarget>(null);
   const [answerTarget, setAnswerTarget] = useState<DialogTarget>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isReminding, setIsReminding] = useState(false);
 
   const activeSurveys = surveys.filter((s) => s.status === "active");
+
+  const handleExport = async () => {
+    if (!overview?.survey?.id) {
+      toast.error("Sem pesquisa ativa para exportar");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const { data: responses, error } = await supabase
+        .from("climate_responses")
+        .select(
+          "score, comment, created_at, user:profiles!climate_responses_user_id_fkey(full_name, department), question:climate_questions(question_text, category)",
+        )
+        .eq("survey_id", overview.survey.id);
+      if (error) throw error;
+      const rows = (responses || []).map((r: any) => ({
+        respondente: r.user?.full_name || "—",
+        departamento: r.user?.department || "—",
+        categoria: r.question?.category || "—",
+        pergunta: r.question?.question_text || "—",
+        score: r.score ?? "",
+        comentario: r.comment || "",
+        respondido_em: r.created_at ? format(new Date(r.created_at), "dd/MM/yyyy HH:mm") : "",
+      }));
+      if (!rows.length) {
+        toast.info("Nenhuma resposta para exportar");
+        return;
+      }
+      const slug = (overview.survey.title || "clima").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      downloadCSV(rows, `clima-${slug}-${format(new Date(), "yyyy-MM-dd")}.csv`);
+      toast.success(`Exportadas ${rows.length} respostas`);
+    } catch (e: any) {
+      toast.error(`Erro ao exportar: ${e.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleRemind = async () => {
+    if (!overview?.survey?.id) {
+      toast.error("Sem pesquisa ativa para enviar lembretes");
+      return;
+    }
+    setIsReminding(true);
+    try {
+      // Identify pending respondents: team members who have not submitted any
+      // response for the current survey.
+      const [{ data: members }, { data: responses }] = await Promise.all([
+        supabase.from("team_members").select("user_id"),
+        supabase.from("climate_responses").select("user_id").eq("survey_id", overview.survey.id),
+      ]);
+      const respondedIds = new Set((responses || []).map((r: any) => r.user_id));
+      const pendingIds = Array.from(
+        new Set((members || []).map((m: any) => m.user_id).filter((id: string) => id && !respondedIds.has(id))),
+      );
+      if (!pendingIds.length) {
+        toast.info("Todos os respondentes já responderam");
+        return;
+      }
+      const surveyTitle = overview.survey.title || "Pesquisa de clima";
+      const tasks = pendingIds.map((user_id) => ({
+        user_id,
+        title: `Responder pesquisa: ${surveyTitle}`,
+        description: "Você ainda não respondeu a pesquisa de clima ativa. Sua resposta é anônima e leva poucos minutos.",
+        task_type: "climate_survey" as const,
+        related_id: overview.survey!.id,
+        priority: "medium" as const,
+      }));
+      const { error } = await supabase.from("pending_tasks").insert(tasks);
+      if (error) throw error;
+      toast.success(`Lembrete enviado para ${pendingIds.length} ${pendingIds.length === 1 ? "pessoa" : "pessoas"}`);
+    } catch (e: any) {
+      toast.error(`Erro ao enviar lembretes: ${e.message}`);
+    } finally {
+      setIsReminding(false);
+    }
+  };
 
   return (
     <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
@@ -50,11 +149,23 @@ export default function Climate() {
         <Row gap={6}>
           {canManage && (
             <>
-              <Btn variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>
-                Exportar
+              <Btn
+                variant="secondary"
+                size="sm"
+                icon={<Download className="w-3.5 h-3.5" />}
+                onClick={handleExport}
+                disabled={isExporting || !overview?.survey?.id}
+              >
+                {isExporting ? "Exportando…" : "Exportar"}
               </Btn>
-              <Btn variant="secondary" size="sm" icon={<Bell className="w-3.5 h-3.5" />}>
-                Lembrar pendentes
+              <Btn
+                variant="secondary"
+                size="sm"
+                icon={<Bell className="w-3.5 h-3.5" />}
+                onClick={handleRemind}
+                disabled={isReminding || !overview?.survey?.id}
+              >
+                {isReminding ? "Enviando…" : "Lembrar pendentes"}
               </Btn>
               <Btn
                 variant="primary"

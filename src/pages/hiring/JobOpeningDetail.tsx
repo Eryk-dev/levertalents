@@ -37,6 +37,8 @@ import { useApplicationsByJob } from "@/hooks/hiring/useApplications";
 import { JobDescriptionEditor } from "@/components/hiring/JobDescriptionEditor";
 import { JobExternalPublicationsList } from "@/components/hiring/JobExternalPublicationsList";
 import { CandidatesKanban } from "@/components/hiring/CandidatesKanban";
+import { CandidateForm } from "@/components/hiring/CandidateForm";
+import { useReuseCandidateForJob } from "@/hooks/hiring/useApplications";
 import type { KanbanApplication } from "@/components/hiring/CandidateCard";
 import type { ApplicationStage, JobCloseReason } from "@/integrations/supabase/hiring-types";
 import { cn } from "@/lib/utils";
@@ -97,8 +99,10 @@ export default function JobOpeningDetail() {
   const { data: job, isLoading } = useJobOpening(id);
   const closeJob = useCloseJobOpening();
   const setStatus = useSetJobStatus();
+  const reuseCandidate = useReuseCandidateForJob();
   const [closeOpen, setCloseOpen] = useState(false);
   const [closeReason, setCloseReason] = useState<JobCloseReason>("contratado");
+  const [addCandidateOpen, setAddCandidateOpen] = useState(false);
 
   const { data: company } = useQuery({
     queryKey: ["hiring", "company", job?.company_id ?? "none"],
@@ -425,6 +429,7 @@ export default function JobOpeningDetail() {
               jobId={job.id}
               onOpenCandidate={handleOpenCandidate}
               selectedApplicationId={null}
+              onAddCandidate={() => setAddCandidateOpen(true)}
             />
           </section>
         </div>
@@ -523,6 +528,24 @@ export default function JobOpeningDetail() {
           </div>
         </aside>
       </div>
+
+      {/* Novo candidato */}
+      <Dialog open={addCandidateOpen} onOpenChange={setAddCandidateOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Novo candidato</DialogTitle>
+          </DialogHeader>
+          <CandidateForm
+            jobOpeningId={job.id}
+            companyId={job.company_id}
+            onCancel={() => setAddCandidateOpen(false)}
+            onCreated={async (candidateId) => {
+              reuseCandidate.mutate({ candidateId, jobId: job.id });
+              setAddCandidateOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

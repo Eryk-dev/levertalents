@@ -24,6 +24,7 @@ interface CandidatesKanbanProps {
   jobId: string;
   onOpenCandidate?: (application: KanbanApplication) => void;
   selectedApplicationId?: string | null;
+  onAddCandidate?: (group: StageGroup) => void;
 }
 
 interface ColumnProps {
@@ -35,6 +36,7 @@ interface ColumnProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   selectedApplicationId?: string | null;
+  onAddCandidate?: (group: StageGroup) => void;
 }
 
 function Column({
@@ -46,6 +48,7 @@ function Column({
   open: openProp,
   onOpenChange,
   selectedApplicationId,
+  onAddCandidate,
 }: ColumnProps) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const isControlled = openProp !== undefined;
@@ -88,14 +91,16 @@ function Column({
             {apps.length}
           </span>
         </div>
-        <button
-          type="button"
-          className="inline-flex h-4 w-4 items-center justify-center rounded text-text-subtle hover:bg-bg-subtle"
-          aria-label="Adicionar candidato"
-          tabIndex={-1}
-        >
-          <Plus className="h-3 w-3" />
-        </button>
+        {onAddCandidate ? (
+          <button
+            type="button"
+            onClick={() => onAddCandidate(group)}
+            className="inline-flex h-4 w-4 items-center justify-center rounded text-text-subtle hover:bg-bg-subtle"
+            aria-label="Adicionar candidato"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        ) : null}
       </header>
       {open ? (
         <div className="flex-1 space-y-1 overflow-y-auto p-1.5 min-h-[60px]">
@@ -125,6 +130,7 @@ export function CandidatesKanban({
   jobId,
   onOpenCandidate,
   selectedApplicationId,
+  onAddCandidate,
 }: CandidatesKanbanProps) {
   const { data: applications = [], isLoading } = useApplicationsByJob(jobId);
   const move = useMoveApplicationStage();
@@ -282,6 +288,9 @@ export function CandidatesKanban({
               open={g.key === DESCARTADOS_KEY ? descartadosOpen : undefined}
               onOpenChange={g.key === DESCARTADOS_KEY ? setDescartadosOpen : undefined}
               selectedApplicationId={selectedApplicationId ?? null}
+              onAddCandidate={
+                onAddCandidate && g.key !== DESCARTADOS_KEY ? onAddCandidate : undefined
+              }
             />
           ))}
         </div>

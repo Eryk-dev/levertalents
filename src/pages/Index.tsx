@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Calendar,
   Target,
@@ -30,7 +31,17 @@ import {
   LinearAvatar,
   LinearEmpty,
 } from "@/components/primitives/LinearKit";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+
+type PriorityFilter = "urgent" | "high" | "med" | "low";
+const PRIORITY_LABEL: Record<PriorityFilter, string> = {
+  urgent: "Urgente",
+  high: "Alta",
+  med: "Média",
+  low: "Sem prazo",
+};
 
 function taskTypeToRoute(type: string) {
   switch (type) {
@@ -99,6 +110,14 @@ const Index = () => {
   });
 
   const { data: pendingTasks = [] } = usePendingTasks();
+  const [priorityFilters, setPriorityFilters] = useState<Set<PriorityFilter>>(new Set());
+  const togglePriority = (p: PriorityFilter) =>
+    setPriorityFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
 
   const displayName =
     profile?.full_name ||
@@ -112,9 +131,24 @@ const Index = () => {
   const hour = today.getHours();
   const greeting = hour < 6 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  const nextTask = pendingTasks[0];
-  const restTasks = pendingTasks.slice(1, 6);
+  const getDuePriorityLocal = (due: string | null | undefined): PriorityFilter => {
+    if (!due) return "low";
+    const diff = new Date(due).getTime() - Date.now();
+    if (diff < 0) return "urgent";
+    if (diff < 24 * 3600 * 1000) return "urgent";
+    if (diff < 3 * 24 * 3600 * 1000) return "high";
+    return "med";
+  };
+
+  const filteredPendingTasks =
+    priorityFilters.size === 0
+      ? pendingTasks
+      : pendingTasks.filter((t) => priorityFilters.has(getDuePriorityLocal(t.due_date)));
+
+  const nextTask = filteredPendingTasks[0];
+  const restTasks = filteredPendingTasks.slice(1, 6);
   const totalPending = pendingTasks.length;
+  const visiblePending = filteredPendingTasks.length;
 
   const averageProgress = activePDIs.length
     ? Math.round(activePDIs.reduce((acc, pdi) => acc + (pdi.progress_percentage || 0), 0) / activePDIs.length)
@@ -147,15 +181,52 @@ const Index = () => {
           <div className="text-[13px] text-text-muted mt-0.5">
             {totalPending === 0
               ? "Tudo em dia."
+              : priorityFilters.size > 0
+              ? `${visiblePending} de ${totalPending} pendentes · filtro ativo`
               : totalPending === 1
               ? "Você tem 1 coisa para hoje."
               : `${totalPending} itens pendentes · próxima ação já abaixo`}
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="secondary" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
-            Filtros
-          </Btn>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn
+                variant="secondary"
+                size="sm"
+                icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}
+              >
+                Filtros{priorityFilters.size > 0 ? ` · ${priorityFilters.size}` : ""}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-3">
+              <div className="text-[10.5px] uppercase tracking-[0.08em] text-text-subtle font-semibold mb-2">
+                Filtrar por prazo
+              </div>
+              <div className="space-y-1.5">
+                {(Object.keys(PRIORITY_LABEL) as PriorityFilter[]).map((p) => (
+                  <label
+                    key={p}
+                    className="flex items-center gap-2 text-[12.5px] cursor-pointer py-1"
+                  >
+                    <Checkbox
+                      checked={priorityFilters.has(p)}
+                      onCheckedChange={() => togglePriority(p)}
+                    />
+                    <span>{PRIORITY_LABEL[p]}</span>
+                  </label>
+                ))}
+              </div>
+              {priorityFilters.size > 0 && (
+                <button
+                  onClick={() => setPriorityFilters(new Set())}
+                  className="text-[11.5px] text-accent-text mt-2 hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
           <Btn variant="primary" size="sm" icon={<Plus className="w-3.5 h-3.5" strokeWidth={2} />} onClick={() => navigate("/pdi")}>
             Nova ação
           </Btn>
@@ -184,9 +255,6 @@ const Index = () => {
             )}
           </div>
           <Row gap={6}>
-            <Btn variant="secondary" size="sm">
-              Adiar
-            </Btn>
             <Btn
               variant="accent"
               size="sm"
@@ -204,7 +272,8 @@ const Index = () => {
         title="Sua caixa de ações"
         right={
           <span className="text-[11.5px] text-text-subtle tabular">
-            {totalPending} {totalPending === 1 ? "item" : "itens"}
+            {visiblePending} {visiblePending === 1 ? "item" : "itens"}
+            {priorityFilters.size > 0 ? ` · de ${totalPending}` : ""}
           </span>
         }
       />

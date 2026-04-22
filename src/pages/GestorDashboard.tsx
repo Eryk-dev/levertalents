@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertTriangle,
@@ -31,6 +32,8 @@ import {
   LinearEmpty,
   PriorityDot,
 } from "@/components/primitives/LinearKit";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type LeaderAlert = {
   type: "gap" | "score" | "pending";
@@ -57,10 +60,25 @@ function alertPriority(alert: LeaderAlert): "urgent" | "high" | "med" {
   return "med";
 }
 
+type AlertTypeFilter = "score" | "pending" | "gap";
+const ALERT_TYPE_LABEL: Record<AlertTypeFilter, string> = {
+  score: "Score baixo",
+  pending: "Pendências",
+  gap: "Acompanhamento",
+};
+
 export default function GestorDashboard() {
   const { data: profile } = useUserProfile();
   const navigate = useNavigate();
   const leaderId = profile?.id;
+  const [alertTypeFilters, setAlertTypeFilters] = useState<Set<AlertTypeFilter>>(new Set());
+  const toggleAlertType = (t: AlertTypeFilter) =>
+    setAlertTypeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
 
   const { data: alerts = [], isLoading: isLoadingAlerts } = useLeaderAlerts(leaderId);
   const { data: indicators, isLoading: isLoadingIndicators } = useTeamIndicators(leaderId);
@@ -103,8 +121,12 @@ export default function GestorDashboard() {
   const greeting = hour < 6 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   const typedAlerts = (alerts as LeaderAlert[]) || [];
-  const topAlert = typedAlerts[0];
-  const restAlerts = typedAlerts.slice(1);
+  const visibleAlerts =
+    alertTypeFilters.size === 0
+      ? typedAlerts
+      : typedAlerts.filter((a) => alertTypeFilters.has(a.type as AlertTypeFilter));
+  const topAlert = visibleAlerts[0];
+  const restAlerts = visibleAlerts.slice(1);
   const criticalCount = typedAlerts.filter((a) => a.type === "score").length;
   const pendingCount = typedAlerts.filter((a) => a.type === "pending").length;
 
@@ -137,9 +159,44 @@ export default function GestorDashboard() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
-            Filtros
-          </Btn>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn
+                variant="ghost"
+                size="sm"
+                icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}
+              >
+                Filtros{alertTypeFilters.size > 0 ? ` · ${alertTypeFilters.size}` : ""}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-3">
+              <div className="text-[10.5px] uppercase tracking-[0.08em] text-text-subtle font-semibold mb-2">
+                Filtrar alertas
+              </div>
+              <div className="space-y-1.5">
+                {(Object.keys(ALERT_TYPE_LABEL) as AlertTypeFilter[]).map((t) => (
+                  <label
+                    key={t}
+                    className="flex items-center gap-2 text-[12.5px] cursor-pointer py-1"
+                  >
+                    <Checkbox
+                      checked={alertTypeFilters.has(t)}
+                      onCheckedChange={() => toggleAlertType(t)}
+                    />
+                    <span>{ALERT_TYPE_LABEL[t]}</span>
+                  </label>
+                ))}
+              </div>
+              {alertTypeFilters.size > 0 && (
+                <button
+                  onClick={() => setAlertTypeFilters(new Set())}
+                  className="text-[11.5px] text-accent-text mt-2 hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
           <Btn
             variant="secondary"
             size="sm"
@@ -242,20 +299,25 @@ export default function GestorDashboard() {
           <SectionHeader
             title="Alertas críticos"
             right={
-              typedAlerts.length > 0 ? (
+              visibleAlerts.length > 0 ? (
                 <span className="text-[11.5px] text-text-subtle tabular">
-                  {typedAlerts.length} {typedAlerts.length === 1 ? "sinal" : "sinais"}
+                  {visibleAlerts.length} {visibleAlerts.length === 1 ? "sinal" : "sinais"}
+                  {alertTypeFilters.size > 0 ? ` · de ${typedAlerts.length}` : ""}
                 </span>
               ) : null
             }
           />
           {isLoadingAlerts ? (
             <LoadingState variant="inline" message="Analisando pendências…" />
-          ) : typedAlerts.length === 0 ? (
+          ) : visibleAlerts.length === 0 ? (
             <LinearEmpty
               icon={<CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
-              title="Nada crítico agora"
-              description="Scores baixos, 1:1s atrasadas ou PDIs pendentes aparecem aqui."
+              title={typedAlerts.length === 0 ? "Nada crítico agora" : "Nenhum alerta com esses filtros"}
+              description={
+                typedAlerts.length === 0
+                  ? "Scores baixos, 1:1s atrasadas ou PDIs pendentes aparecem aqui."
+                  : "Ajuste o filtro para ver outros alertas."
+              }
             />
           ) : restAlerts.length > 0 ? (
             <div className="surface-paper">

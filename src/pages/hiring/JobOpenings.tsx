@@ -196,7 +196,12 @@ export default function JobOpenings() {
             }
           />
         ) : view === "board" ? (
-          <JobsKanban jobs={jobs} companyById={companyById} onOpenJob={handleOpenJob} />
+          <JobsKanban
+            jobs={jobs}
+            companyById={companyById}
+            onOpenJob={handleOpenJob}
+            onCreateJob={() => setCreateOpen(true)}
+          />
         ) : (
           <div className="surface-paper overflow-hidden">
             <div className="cell-header grid grid-cols-[3fr_1.5fr_1.2fr_0.8fr_0.8fr] gap-4">

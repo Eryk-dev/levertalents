@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AlertTriangle,
   TrendingUp,
@@ -28,6 +29,9 @@ import {
   LinearEmpty,
   PriorityDot,
 } from "@/components/primitives/LinearKit";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import {
   BarChart,
   Bar,
@@ -51,12 +55,47 @@ type Signal = {
   route: string;
 };
 
+type PriorityFilter = "urgent" | "high" | "med";
+const PRIORITY_LABEL: Record<PriorityFilter, string> = {
+  urgent: "Urgente",
+  high: "Alta",
+  med: "Média",
+};
+
+function downloadCSV(rows: Record<string, unknown>[], filename: string) {
+  if (!rows.length) {
+    toast.error("Nada para exportar.");
+    return;
+  }
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function RHDashboard() {
   const navigate = useNavigate();
   const { data: profile } = useUserProfile();
   const { data: org, isLoading: isLoadingOrg } = useOrgIndicators();
   const { data: climate, isLoading: isLoadingClimate } = useClimateOverview();
   const { data: nineBox, isLoading: isLoadingNineBox } = useNineBoxDistribution("org");
+  const [priorityFilters, setPriorityFilters] = useState<Set<PriorityFilter>>(new Set());
+  const togglePriority = (p: PriorityFilter) =>
+    setPriorityFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
 
   const firstName = (profile?.full_name || "").split(" ")[0] || "RH";
   const hour = new Date().getHours();
@@ -107,8 +146,12 @@ export default function RHDashboard() {
     });
   }
 
-  const topSignal = signals[0];
-  const restSignals = signals.slice(1);
+  const visibleSignals =
+    priorityFilters.size === 0
+      ? signals
+      : signals.filter((s) => priorityFilters.has(s.priority));
+  const topSignal = visibleSignals[0];
+  const restSignals = visibleSignals.slice(1);
 
   return (
     <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
@@ -130,10 +173,60 @@ export default function RHDashboard() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
-            Filtros
-          </Btn>
-          <Btn variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn
+                variant="ghost"
+                size="sm"
+                icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}
+              >
+                Filtros{priorityFilters.size > 0 ? ` · ${priorityFilters.size}` : ""}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-3">
+              <div className="text-[10.5px] uppercase tracking-[0.08em] text-text-subtle font-semibold mb-2">
+                Filtrar sinais por prioridade
+              </div>
+              <div className="space-y-1.5">
+                {(Object.keys(PRIORITY_LABEL) as PriorityFilter[]).map((p) => (
+                  <label
+                    key={p}
+                    className="flex items-center gap-2 text-[12.5px] cursor-pointer py-1"
+                  >
+                    <Checkbox
+                      checked={priorityFilters.has(p)}
+                      onCheckedChange={() => togglePriority(p)}
+                    />
+                    <span>{PRIORITY_LABEL[p]}</span>
+                  </label>
+                ))}
+              </div>
+              {priorityFilters.size > 0 && (
+                <button
+                  onClick={() => setPriorityFilters(new Set())}
+                  className="text-[11.5px] text-accent-text mt-2 hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+          <Btn
+            variant="secondary"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            onClick={() => {
+              const rows = visibleSignals.map((s) => ({
+                prioridade: PRIORITY_LABEL[s.priority],
+                titulo: s.title,
+                contexto: s.subtitle,
+                acao: s.action,
+                rota: s.route,
+              }));
+              const date = new Date().toISOString().slice(0, 10);
+              downloadCSV(rows, `sinais-rh-${date}.csv`);
+            }}
+          >
             Relatório
           </Btn>
         </Row>
@@ -234,20 +327,25 @@ export default function RHDashboard() {
           <SectionHeader
             title="Sinais críticos"
             right={
-              signals.length > 0 ? (
+              visibleSignals.length > 0 ? (
                 <span className="text-[11.5px] text-text-subtle tabular">
-                  {signals.length} {signals.length === 1 ? "sinal" : "sinais"}
+                  {visibleSignals.length} {visibleSignals.length === 1 ? "sinal" : "sinais"}
+                  {priorityFilters.size > 0 ? ` · de ${signals.length}` : ""}
                 </span>
               ) : null
             }
           />
           {isLoadingOrg ? (
             <LoadingState variant="inline" message="Consolidando alertas…" />
-          ) : signals.length === 0 ? (
+          ) : visibleSignals.length === 0 ? (
             <LinearEmpty
               icon={<CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
-              title="Nenhum sinal crítico"
-              description="Os indicadores estão saudáveis no momento."
+              title={signals.length === 0 ? "Nenhum sinal crítico" : "Nenhum sinal com esses filtros"}
+              description={
+                signals.length === 0
+                  ? "Os indicadores estão saudáveis no momento."
+                  : "Ajuste a prioridade no filtro para ver outros sinais."
+              }
             />
           ) : restSignals.length > 0 ? (
             <div className="surface-paper">

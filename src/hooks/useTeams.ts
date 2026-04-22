@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const TEAM_QUERY_KEYS = [["my-team-members"], ["teams"], ["team_members"]] as const;
 
 export type Company = {
   id: string;
@@ -42,6 +45,13 @@ export function useTeams() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const invalidateTeamQueries = () => {
+    TEAM_QUERY_KEYS.forEach((key) => {
+      queryClient.invalidateQueries({ queryKey: key });
+    });
+  };
 
   useEffect(() => {
     loadData();
@@ -143,6 +153,7 @@ export function useTeams() {
 
     toast.success("Time criado com sucesso!");
     await loadTeams();
+    invalidateTeamQueries();
   };
 
   const updateTeam = async (id: string, name: string, companyId: string) => {
@@ -158,6 +169,7 @@ export function useTeams() {
 
     toast.success("Time atualizado com sucesso!");
     await loadTeams();
+    invalidateTeamQueries();
   };
 
   const deleteTeam = async (id: string) => {
@@ -170,6 +182,7 @@ export function useTeams() {
 
     toast.success("Time excluído com sucesso!");
     await loadTeams();
+    invalidateTeamQueries();
   };
 
   const assignLeaderToTeam = async (leaderId: string, teamId: string) => {
@@ -193,6 +206,7 @@ export function useTeams() {
 
       toast.success("Líder atribuído ao time com sucesso!");
       await loadData();
+      invalidateTeamQueries();
     } catch (error) {
       console.error("Erro ao atribuir líder:", error);
       toast.error("Erro ao atribuir líder");
@@ -231,6 +245,7 @@ export function useTeams() {
 
       toast.success("Colaborador adicionado ao time com sucesso!");
       await loadTeamMembers();
+      invalidateTeamQueries();
     } catch (error) {
       console.error("Erro ao adicionar membro:", error);
       throw error;
@@ -250,6 +265,7 @@ export function useTeams() {
 
     toast.success("Colaborador removido do time com sucesso!");
     await loadTeamMembers();
+    invalidateTeamQueries();
   };
 
   const updateMemberCost = async (memberId: string, cost: number | null) => {
@@ -265,6 +281,23 @@ export function useTeams() {
 
     toast.success("Custo atualizado");
     await loadTeamMembers();
+    invalidateTeamQueries();
+  };
+
+  const updateMemberPosition = async (memberId: string, position: string | null) => {
+    const { error } = await supabase
+      .from("team_members")
+      .update({ position })
+      .eq("id", memberId);
+
+    if (error) {
+      toast.error("Erro ao atualizar posição");
+      throw error;
+    }
+
+    toast.success("Posição atualizada");
+    await loadTeamMembers();
+    invalidateTeamQueries();
   };
 
   return {
@@ -280,6 +313,7 @@ export function useTeams() {
     addMemberToTeam,
     removeMemberFromTeam,
     updateMemberCost,
+    updateMemberPosition,
     refresh: loadData,
   };
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,6 +16,8 @@ import {
   UserCog,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +57,38 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [confirmRemoveUserId, setConfirmRemoveUserId] = useState<string | null>(null);
+  const ROLE_OPTIONS = ["socio", "lider", "rh", "colaborador", "sem-papel"] as const;
+  type RoleFilter = (typeof ROLE_OPTIONS)[number];
+  const [roleFilters, setRoleFilters] = useState<Set<RoleFilter>>(new Set());
+
+  const toggleRoleFilter = (role: RoleFilter) => {
+    setRoleFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  };
+
+  const downloadCSV = (rows: Record<string, unknown>[], filename: string) => {
+    if (!rows.length) {
+      toast.error("Nada para exportar.");
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleAssignRole = async () => {
     if (!selectedUser || !selectedRole) {
@@ -97,7 +131,16 @@ export default function AdminDashboard() {
   const withRole = users.filter((u) => u.role).length;
   const withoutRole = totalUsers - withRole;
   const usersWithoutRole = users.filter((u) => !u.role);
-  const recentUsers = users.slice(0, 5);
+
+  const filteredUsers = useMemo(() => {
+    if (roleFilters.size === 0) return users;
+    return users.filter((u) => {
+      const key: RoleFilter = u.role ? (u.role as RoleFilter) : "sem-papel";
+      return roleFilters.has(key);
+    });
+  }, [users, roleFilters]);
+  const recentUsers = filteredUsers.slice(0, 5);
+  const filteredCount = filteredUsers.length;
 
   return (
     <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
@@ -119,10 +162,70 @@ export default function AdminDashboard() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
-            Filtros
-          </Btn>
-          <Btn variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Btn
+                variant="ghost"
+                size="sm"
+                icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}
+              >
+                Filtros{roleFilters.size > 0 ? ` · ${roleFilters.size}` : ""}
+              </Btn>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-3">
+              <div className="text-[10.5px] uppercase tracking-[0.08em] text-text-subtle font-semibold mb-2">
+                Filtrar por papel
+              </div>
+              <div className="space-y-1.5">
+                {ROLE_OPTIONS.map((role) => {
+                  const label =
+                    role === "socio"
+                      ? "Sócio"
+                      : role === "lider"
+                      ? "Líder"
+                      : role === "rh"
+                      ? "RH"
+                      : role === "colaborador"
+                      ? "Colaborador"
+                      : "Sem papel";
+                  return (
+                    <label
+                      key={role}
+                      className="flex items-center gap-2 text-[12.5px] cursor-pointer py-1"
+                    >
+                      <Checkbox
+                        checked={roleFilters.has(role)}
+                        onCheckedChange={() => toggleRoleFilter(role)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {roleFilters.size > 0 && (
+                <button
+                  onClick={() => setRoleFilters(new Set())}
+                  className="text-[11.5px] text-accent-text mt-2 hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+          <Btn
+            variant="secondary"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            onClick={() => {
+              const rows = filteredUsers.map((u) => ({
+                nome: u.full_name || "",
+                email: u.email || "",
+                papel: u.role || "sem-papel",
+              }));
+              const date = new Date().toISOString().slice(0, 10);
+              downloadCSV(rows, `usuarios-${date}.csv`);
+            }}
+          >
             Relatório
           </Btn>
           <Btn
@@ -226,9 +329,10 @@ export default function AdminDashboard() {
           <SectionHeader
             title="Pessoas recentes"
             right={
-              totalUsers > 0 ? (
+              filteredCount > 0 ? (
                 <span className="text-[11.5px] text-text-subtle tabular">
-                  {totalUsers} {totalUsers === 1 ? "pessoa" : "pessoas"}
+                  {filteredCount} {filteredCount === 1 ? "pessoa" : "pessoas"}
+                  {roleFilters.size > 0 ? ` · de ${totalUsers}` : ""}
                 </span>
               ) : null
             }
@@ -293,7 +397,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
-              {totalUsers > recentUsers.length && (
+              {filteredCount > recentUsers.length && (
                 <button
                   onClick={() =>
                     document
@@ -302,7 +406,7 @@ export default function AdminDashboard() {
                   }
                   className="w-full flex items-center justify-center gap-1 px-3.5 py-2.5 text-[12px] text-accent-text hover:bg-bg-subtle transition-colors border-t border-border"
                 >
-                  Ver todos os {totalUsers}
+                  Ver todos os {filteredCount}
                   <ArrowRight className="w-3 h-3" strokeWidth={2} />
                 </button>
               )}
@@ -410,7 +514,12 @@ export default function AdminDashboard() {
       <div id="todos-usuarios">
         <SectionHeader
           title="Todos os usuários"
-          right={<span className="text-[11.5px] text-text-subtle tabular">{totalUsers} resultados</span>}
+          right={
+            <span className="text-[11.5px] text-text-subtle tabular">
+              {filteredCount}
+              {roleFilters.size > 0 ? ` de ${totalUsers}` : ""} resultados
+            </span>
+          }
         />
       </div>
       <Card contentClassName="p-0">
@@ -418,12 +527,16 @@ export default function AdminDashboard() {
           <div className="p-5">
             <LoadingState variant="skeleton" layout="table" count={5} />
           </div>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <div className="p-5">
             <LinearEmpty
               icon={<UsersIcon className="w-[18px] h-[18px]" strokeWidth={1.75} />}
-              title="Nenhum usuário cadastrado"
-              description="Clique em Criar usuário para adicionar o primeiro."
+              title={users.length === 0 ? "Nenhum usuário cadastrado" : "Nenhum resultado"}
+              description={
+                users.length === 0
+                  ? "Clique em Criar usuário para adicionar o primeiro."
+                  : "Ajuste os filtros para ver outros usuários."
+              }
             />
           </div>
         ) : (
@@ -434,11 +547,11 @@ export default function AdminDashboard() {
               <div>Papel</div>
               <div className="text-right">Ações</div>
             </div>
-            {users.map((user, idx) => (
+            {filteredUsers.map((user, idx) => (
               <div
                 key={user.id}
                 className={`grid grid-cols-[2fr_1.4fr_1fr_80px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
-                  idx < users.length - 1 ? "border-b border-border" : ""
+                  idx < filteredUsers.length - 1 ? "border-b border-border" : ""
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">

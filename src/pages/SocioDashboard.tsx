@@ -11,8 +11,8 @@ import {
   Briefcase,
   LineChart,
   ChevronRight,
-  Filter,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { LoadingState } from "@/components/primitives/LoadingState";
 import { useCostBreakdown } from "@/hooks/useCostBreakdown";
@@ -35,6 +35,26 @@ function formatBRL(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+}
+
+function downloadCSV(rows: Record<string, unknown>[], filename: string) {
+  if (!rows.length) {
+    toast.error("Nada para exportar.");
+    return;
+  }
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function SocioDashboard() {
@@ -111,10 +131,23 @@ export default function SocioDashboard() {
           </div>
         </div>
         <Row gap={6}>
-          <Btn variant="ghost" size="sm" icon={<Filter className="w-3.5 h-3.5" strokeWidth={1.75} />}>
-            Filtros
-          </Btn>
-          <Btn variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}>
+          <Btn
+            variant="secondary"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            onClick={() => {
+              const teams = cost?.teams || [];
+              const rows = teams.map((t) => ({
+                time: t.teamName,
+                empresa: t.companyName || "",
+                pessoas: t.memberCount,
+                custo_total_brl: t.totalCost,
+                custo_medio_brl: t.avgCost,
+              }));
+              const date = new Date().toISOString().slice(0, 10);
+              downloadCSV(rows, `custo-por-time-${date}.csv`);
+            }}
+          >
             Relatório
           </Btn>
         </Row>
