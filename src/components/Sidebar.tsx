@@ -2,10 +2,13 @@ import {
   ChevronsUpDown,
   User as UserIcon,
   LogOut,
+  Eye,
+  RotateCcw,
 } from "lucide-react";
 import { NavLink as RouterNavLink, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,7 +17,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/primitives/LinearKit";
@@ -28,6 +36,24 @@ interface NavItemProps {
   end?: boolean;
   badge?: string | number;
 }
+
+const ROLE_LABEL: Record<AppRole, string> = {
+  admin: "Administrador",
+  socio: "Sócio",
+  rh: "RH · Business Partner",
+  lider: "Líder",
+  colaborador: "Colaboradora(o)",
+};
+
+const ROLE_HOME: Record<AppRole, string> = {
+  admin: "/admin",
+  socio: "/socio",
+  lider: "/gestor",
+  rh: "/rh",
+  colaborador: "/colaborador",
+};
+
+const VIEW_AS_ORDER: AppRole[] = ["admin", "socio", "lider", "rh", "colaborador"];
 
 function NavItem({ to, icon, label, end = true, badge }: NavItemProps) {
   return (
@@ -85,16 +111,7 @@ export function useSidebarGroups(): NavSection[] {
   const canManage = isAdmin || isRH || isSocio;
   const hasTeamView = canManage || isLeader;
 
-  const homeRoute =
-    userRole === "admin"
-      ? "/admin"
-      : userRole === "socio"
-      ? "/socio"
-      : userRole === "lider"
-      ? "/gestor"
-      : userRole === "rh"
-      ? "/rh"
-      : "/colaborador";
+  const homeRoute = ROLE_HOME[(userRole as AppRole) ?? "colaborador"] ?? "/colaborador";
 
   const sections: NavSection[] = [];
 
@@ -180,13 +197,36 @@ export function useSidebarGroups(): NavSection[] {
 
 function SidebarFooterUser({ onNavigate }: { onNavigate?: () => void }) {
   const { data: profile } = useUserProfile();
-  const { userRole } = useAuth();
+  const { userRole, realRole, viewAsRole, setViewAsRole, isViewingAs } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    setViewAsRole(null);
     await supabase.auth.signOut();
     onNavigate?.();
     navigate("/auth");
+  };
+
+  const canSwitchRole = realRole === "admin";
+
+  const handleViewAs = (next: AppRole) => {
+    if (next === realRole) {
+      // Selecting own role just clears the override.
+      setViewAsRole(null);
+      toast.success("Voltou à visualização de Administrador");
+    } else {
+      setViewAsRole(next);
+      toast.success(`Visualizando como ${ROLE_LABEL[next]}`);
+    }
+    onNavigate?.();
+    navigate(ROLE_HOME[next]);
+  };
+
+  const handleResetView = () => {
+    setViewAsRole(null);
+    toast.success("Voltou à visualização de Administrador");
+    onNavigate?.();
+    navigate(ROLE_HOME.admin);
   };
 
   const name = profile?.full_name || "Usuário";
@@ -198,16 +238,7 @@ function SidebarFooterUser({ onNavigate }: { onNavigate?: () => void }) {
     .join("")
     .toUpperCase();
 
-  const roleLabel =
-    userRole === "admin"
-      ? "Administrador"
-      : userRole === "socio"
-      ? "Sócio"
-      : userRole === "rh"
-      ? "RH · Business Partner"
-      : userRole === "lider"
-      ? "Líder"
-      : "Colaboradora(o)";
+  const roleLabel = ROLE_LABEL[(userRole as AppRole) ?? "colaborador"] ?? "Colaboradora(o)";
 
   return (
     <DropdownMenu>
@@ -250,6 +281,49 @@ function SidebarFooterUser({ onNavigate }: { onNavigate?: () => void }) {
           <UserIcon className="mr-2 h-4 w-4" />
           Meu Perfil
         </DropdownMenuItem>
+        {canSwitchRole && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="px-2 py-1.5 text-sm">
+                <Eye className="mr-2 h-4 w-4" />
+                <span>Ver como</span>
+                {isViewingAs && (
+                  <span className="ml-auto text-[10px] text-text-subtle">
+                    {ROLE_LABEL[viewAsRole as AppRole]}
+                  </span>
+                )}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-52">
+                <DropdownMenuLabel className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-text-subtle">
+                  Visualizar como
+                </DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={(viewAsRole ?? realRole) as string}
+                  onValueChange={(v) => handleViewAs(v as AppRole)}
+                >
+                  {VIEW_AS_ORDER.map((role) => (
+                    <DropdownMenuRadioItem key={role} value={role}>
+                      {ROLE_LABEL[role]}
+                      {role === realRole && (
+                        <span className="ml-auto text-[10px] text-text-subtle">você</span>
+                      )}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                {isViewingAs && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleResetView}>
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Voltar para Administrador
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
