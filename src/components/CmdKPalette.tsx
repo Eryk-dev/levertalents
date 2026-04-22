@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Command,
   CommandEmpty,
@@ -23,12 +24,25 @@ import {
   UserSearch,
   LineChart,
   Sparkles,
-  Plus,
   Kanban,
   ArrowRight,
+  FileText,
+  User,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Kbd } from "@/components/primitives/LinearKit";
+import { supabase } from "@/integrations/supabase/client";
+
+type RemoteKind = "candidate" | "job" | "pdi" | "person";
+
+interface SearchRow {
+  kind: RemoteKind;
+  id: string;
+  title: string;
+  subtitle: string | null;
+  url: string;
+}
 
 interface Entry {
   id: string;
@@ -40,8 +54,26 @@ interface Entry {
   action: () => void;
 }
 
+const REMOTE_META: Record<RemoteKind, { label: string; icon: React.ElementType }> = {
+  candidate: { label: "Candidatos", icon: UserSearch },
+  job: { label: "Vagas", icon: Briefcase },
+  pdi: { label: "PDIs", icon: FileText },
+  person: { label: "Pessoas", icon: User },
+};
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function CmdKPalette() {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 180);
   const navigate = useNavigate();
   const { userRole } = useAuth();
 
@@ -62,6 +94,39 @@ export function CmdKPalette() {
       window.removeEventListener("open-cmdk", onOpenEvent);
     };
   }, []);
+
+  // Clear search when palette closes so next open is fresh.
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  const { data: remoteResults = [], isFetching: remoteLoading } = useQuery({
+    queryKey: ["global-search", debouncedQuery],
+    enabled: open && debouncedQuery.length >= 2,
+    staleTime: 30_000,
+    queryFn: async (): Promise<SearchRow[]> => {
+      const { data, error } = await supabase.rpc(
+        "global_search" as never,
+        { q: debouncedQuery, max_per_kind: 6 } as never,
+      );
+      if (error) throw error;
+      return (data ?? []) as SearchRow[];
+    },
+  });
+
+  const remoteGroups = useMemo(() => {
+    const order: RemoteKind[] = ["candidate", "job", "pdi", "person"];
+    const grouped: Record<RemoteKind, SearchRow[]> = {
+      candidate: [],
+      job: [],
+      pdi: [],
+      person: [],
+    };
+    for (const row of remoteResults) grouped[row.kind].push(row);
+    return order
+      .filter((k) => grouped[k].length > 0)
+      .map((k) => ({ kind: k, rows: grouped[k] }));
+  }, [remoteResults]);
 
   const entries = useMemo<Entry[]>(() => {
     const isAdmin = userRole === "admin";
@@ -136,6 +201,13 @@ export function CmdKPalette() {
     return g;
   }, [entries]);
 
+  const selectRemote = (row: SearchRow) => {
+    setOpen(false);
+    navigate(row.url);
+  };
+
+  const showEmptyHint = debouncedQuery.length > 0 && debouncedQuery.length < 2;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
@@ -144,48 +216,86 @@ export function CmdKPalette() {
         <DialogTitle className="sr-only">Paleta de comandos</DialogTitle>
         <Command
           className="bg-surface"
-          filter={(value, search) => {
-            if (!search) return 1;
-            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-          }}
+          shouldFilter={false}
         >
           <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border">
             <CommandInput
-              placeholder="Buscar ou executar ação…"
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Buscar candidatos, vagas, PDIs, pessoas…"
               className="h-auto border-0 text-[14px] placeholder:text-text-subtle px-0"
             />
-            <Kbd>Esc</Kbd>
+            {remoteLoading ? (
+              <Loader2 className="w-3.5 h-3.5 text-text-subtle animate-spin" strokeWidth={1.75} />
+            ) : (
+              <Kbd>Esc</Kbd>
+            )}
           </div>
-          <CommandList className="max-h-[360px] p-1.5">
+          <CommandList className="max-h-[420px] p-1.5">
             <CommandEmpty className="py-5 text-center text-[13px] text-text-subtle">
-              Nada encontrado.
+              {showEmptyHint ? "Digite ao menos 2 caracteres." : "Nada encontrado."}
             </CommandEmpty>
-            {Object.entries(groups).map(([group, list]) => (
-              <CommandGroup key={group} heading={group}>
-                {list.map((e) => {
-                  const Icon = e.icon;
-                  return (
+
+            {remoteGroups.map(({ kind, rows }) => {
+              const meta = REMOTE_META[kind];
+              const Icon = meta.icon;
+              return (
+                <CommandGroup key={`remote-${kind}`} heading={meta.label}>
+                  {rows.map((row) => (
                     <CommandItem
-                      key={e.id}
-                      value={`${e.label} ${e.group}`}
-                      onSelect={e.action}
+                      key={`${kind}-${row.id}`}
+                      value={`remote-${kind}-${row.id}`}
+                      onSelect={() => selectRemote(row)}
                       className="gap-2.5 py-2 px-2.5 text-[13px] data-[selected=true]:bg-bg-subtle data-[selected=true]:text-text cursor-pointer"
                     >
                       <Icon className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.75} />
                       <div className="flex-1 min-w-0">
-                        <div>{e.label}</div>
-                        {e.sub && <div className="text-[11.5px] text-text-subtle">{e.sub}</div>}
+                        <div className="truncate">{row.title}</div>
+                        {row.subtitle && (
+                          <div className="text-[11.5px] text-text-subtle truncate">{row.subtitle}</div>
+                        )}
                       </div>
-                      {e.shortcut ? (
-                        <Kbd>{e.shortcut}</Kbd>
-                      ) : (
-                        <ArrowRight className="w-3 h-3 text-text-subtle" strokeWidth={1.75} />
-                      )}
+                      <ArrowRight className="w-3 h-3 text-text-subtle" strokeWidth={1.75} />
                     </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            ))}
+                  ))}
+                </CommandGroup>
+              );
+            })}
+
+            {Object.entries(groups).map(([group, list]) => {
+              const filtered = debouncedQuery
+                ? list.filter((e) =>
+                    e.label.toLowerCase().includes(debouncedQuery.toLowerCase()),
+                  )
+                : list;
+              if (filtered.length === 0) return null;
+              return (
+                <CommandGroup key={group} heading={group}>
+                  {filtered.map((e) => {
+                    const Icon = e.icon;
+                    return (
+                      <CommandItem
+                        key={e.id}
+                        value={e.id}
+                        onSelect={e.action}
+                        className="gap-2.5 py-2 px-2.5 text-[13px] data-[selected=true]:bg-bg-subtle data-[selected=true]:text-text cursor-pointer"
+                      >
+                        <Icon className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.75} />
+                        <div className="flex-1 min-w-0">
+                          <div>{e.label}</div>
+                          {e.sub && <div className="text-[11.5px] text-text-subtle">{e.sub}</div>}
+                        </div>
+                        {e.shortcut ? (
+                          <Kbd>{e.shortcut}</Kbd>
+                        ) : (
+                          <ArrowRight className="w-3 h-3 text-text-subtle" strokeWidth={1.75} />
+                        )}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              );
+            })}
           </CommandList>
           <div className="border-t border-border px-3.5 py-2 flex gap-3.5 text-[11px] text-text-subtle">
             <span className="flex items-center gap-1"><Kbd>↵</Kbd> selecionar</span>
