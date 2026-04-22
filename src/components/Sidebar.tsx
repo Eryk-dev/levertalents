@@ -9,6 +9,7 @@ import { NavLink as RouterNavLink, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
+import { useSidebarHiringCounts } from "@/hooks/hiring/useSidebarCounts";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -110,6 +111,10 @@ export function useSidebarGroups(): NavSection[] {
   const isLeader = userRole === "lider";
   const canManage = isAdmin || isRH || isSocio;
   const hasTeamView = canManage || isLeader;
+  const { data: hiringCounts } = useSidebarHiringCounts();
+  const jobsBadge = hiringCounts?.jobs && hiringCounts.jobs > 0 ? hiringCounts.jobs : undefined;
+  const candidatesBadge =
+    hiringCounts?.candidates && hiringCounts.candidates > 0 ? hiringCounts.candidates : undefined;
 
   const homeRoute = ROLE_HOME[(userRole as AppRole) ?? "colaborador"] ?? "/colaborador";
 
@@ -165,9 +170,9 @@ export function useSidebarGroups(): NavSection[] {
   // ─── Recrutamento ──────────────────────────────────────────
   const hiringItems: NavItemProps[] = [];
   if (canManage || isLeader)
-    hiringItems.push({ to: "/hiring/jobs", icon: "briefcase", label: "Vagas", end: false, badge: 12 });
+    hiringItems.push({ to: "/hiring/jobs", icon: "briefcase", label: "Vagas", end: false, badge: jobsBadge });
   if (canManage)
-    hiringItems.push({ to: "/hiring/candidates", icon: "userPlus", label: "Candidatos", end: false, badge: 47 });
+    hiringItems.push({ to: "/hiring/candidates", icon: "userPlus", label: "Candidatos", end: false, badge: candidatesBadge });
   if (canManage)
     hiringItems.push({ to: "/hiring/talent-pool", icon: "book", label: "Banco de Talentos", end: false });
   if (canManage || isLeader)
