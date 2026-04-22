@@ -185,9 +185,7 @@ export function useSidebarGroups(): NavSection[] {
       // `/meu-time` (the closest people-list view available).
       { to: "/meu-time", icon: "userPlus", label: "Pessoas" },
     ];
-    if (isAdmin) {
-      adminItems.push({ to: "/admin", icon: "grid", label: "9-Box", end: false });
-    }
+    adminItems.push({ to: "/nine-box", icon: "grid", label: "9-Box" });
     sections.push({ label: "Administração", items: adminItems });
   }
 

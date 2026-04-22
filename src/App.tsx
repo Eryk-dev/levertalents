@@ -23,6 +23,7 @@ import CollaboratorProfile from "./pages/CollaboratorProfile";
 import DevelopmentKanban from "./pages/DevelopmentKanban";
 import NotFound from "./pages/NotFound";
 
+const NineBoxPage = lazy(() => import("./pages/NineBoxPage"));
 const JobOpenings = lazy(() => import("./pages/hiring/JobOpenings"));
 const JobOpeningDetail = lazy(() => import("./pages/hiring/JobOpeningDetail"));
 const CandidatesList = lazy(() => import("./pages/hiring/CandidatesList"));
@@ -151,6 +152,16 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRoles={["lider", "socio", "admin", "rh"]}>
                     <DevelopmentKanban />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/nine-box"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "socio", "rh"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <NineBoxPage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
