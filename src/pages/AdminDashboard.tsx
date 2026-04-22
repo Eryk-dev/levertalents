@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { handleSupabaseError } from "@/lib/supabaseError";
-import { Label } from "@/components/ui/label";
 import {
-  Trash2,
   Users as UsersIcon,
   Shield,
   Plus,
   Download,
-  Calendar,
   TrendingUp,
   Target,
   ArrowRight,
@@ -17,7 +14,13 @@ import {
   UserCog,
   UserX,
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -63,11 +66,10 @@ export default function AdminDashboard() {
 
   const { user: currentAuthUser } = useAuth();
   const deleteUser = useDeleteUser();
-  const [selectedUser, setSelectedUser] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<string>("");
   const [confirmRemoveUserId, setConfirmRemoveUserId] = useState<string | null>(null);
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const ROLE_OPTIONS = ["socio", "lider", "rh", "colaborador", "sem-papel"] as const;
+  type AssignableRole = Exclude<(typeof ROLE_OPTIONS)[number], "sem-papel">;
   type RoleFilter = (typeof ROLE_OPTIONS)[number];
   const [roleFilters, setRoleFilters] = useState<Set<RoleFilter>>(new Set());
 
@@ -100,30 +102,24 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const handleAssignRole = async () => {
-    if (!selectedUser || !selectedRole) {
-      toast.error("Selecione um usuário e uma role.");
-      return;
-    }
+  const handleChangeRole = async (userId: string, role: AssignableRole) => {
     const { error: deleteError } = await supabase
       .from("user_roles")
       .delete()
-      .eq("user_id", selectedUser);
+      .eq("user_id", userId);
     if (deleteError) {
       handleSupabaseError(deleteError, "Erro ao atribuir papel");
       return;
     }
     const { error: insertError } = await supabase
       .from("user_roles")
-      .insert({ user_id: selectedUser, role: selectedRole as any });
+      .insert({ user_id: userId, role: role as any });
     if (insertError) {
       handleSupabaseError(insertError, "Erro ao atribuir papel");
       return;
     }
     toast.success("Papel atribuído");
     queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-    setSelectedUser("");
-    setSelectedRole("");
   };
 
   const handleRemoveRole = async (userId: string) => {
@@ -292,7 +288,7 @@ export default function AdminDashboard() {
               size="sm"
               iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
               onClick={() => {
-                document.getElementById("atribuir-papel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                document.getElementById("todos-usuarios")?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
             >
               Atribuir
@@ -381,7 +377,7 @@ export default function AdminDashboard() {
             />
           ) : (
             <div className="surface-paper">
-              <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5">
+              <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5">
                 <div>Pessoa</div>
                 <div>Email</div>
                 <div>Papel</div>
@@ -390,7 +386,7 @@ export default function AdminDashboard() {
               {recentUsers.map((user, idx) => (
                 <div
                   key={user.id}
-                  className={`grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
+                  className={`grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5 items-center px-3.5 py-2 text-[13px] ${
                     idx < recentUsers.length - 1 ? "border-b border-border" : ""
                   }`}
                 >
@@ -400,26 +396,13 @@ export default function AdminDashboard() {
                   </div>
                   <div className="text-text-muted truncate">{user.email}</div>
                   <div>
-                    {user.role ? (
-                      <StatusBadge kind="role" status={user.role} size="sm" />
-                    ) : (
-                      <span className="text-[11.5px] text-text-subtle">—</span>
-                    )}
+                    <RoleCell
+                      user={user}
+                      onChangeRole={handleChangeRole}
+                      onRequestRemoveRole={setConfirmRemoveUserId}
+                    />
                   </div>
-                  <div className="flex items-center justify-end gap-1">
-                    {user.role && (
-                      <Btn
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setConfirmRemoveUserId(user.id)}
-                        className="text-text-muted hover:bg-bg-subtle"
-                        icon={<Shield className="w-3 h-3" strokeWidth={1.75} />}
-                        aria-label="Remover papel do usuário"
-                        title="Remover papel"
-                      >
-                        <span className="sr-only">Remover papel do usuário</span>
-                      </Btn>
-                    )}
+                  <div className="flex items-center justify-end">
                     {user.id !== currentAuthUser?.id && (
                       <Btn
                         variant="ghost"
@@ -474,15 +457,9 @@ export default function AdminDashboard() {
               {usersWithoutRole.slice(0, 6).map((user, idx) => {
                 const visible = usersWithoutRole.slice(0, 6);
                 return (
-                  <button
+                  <div
                     key={user.id}
-                    onClick={() => {
-                      setSelectedUser(user.id);
-                      document
-                        .getElementById("atribuir-papel")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-bg-subtle transition-colors ${
+                    className={`flex items-center gap-2.5 px-3 py-2.5 ${
                       idx < visible.length - 1 ? "border-b border-border" : ""
                     }`}
                   >
@@ -493,61 +470,18 @@ export default function AdminDashboard() {
                       </div>
                       <div className="text-[11px] text-text-subtle truncate">{user.email}</div>
                     </div>
-                    <ArrowRight className="w-3 h-3 text-text-subtle" strokeWidth={1.75} />
-                  </button>
+                    <RoleCell
+                      user={user}
+                      onChangeRole={handleChangeRole}
+                      onRequestRemoveRole={setConfirmRemoveUserId}
+                    />
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
       </div>
-
-      {/* Atribuir papel */}
-      <div id="atribuir-papel">
-        <SectionHeader title="Atribuir papel" />
-      </div>
-      <Card contentClassName="p-3.5">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px_auto] gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-[11px] uppercase tracking-[0.05em] text-text-subtle font-semibold">
-              Usuário
-            </Label>
-            <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger className="h-[30px] text-[13px]">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.full_name} · {user.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px] uppercase tracking-[0.05em] text-text-subtle font-semibold">
-              Papel
-            </Label>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="h-[30px] text-[13px]">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="socio">Sócio</SelectItem>
-                <SelectItem value="lider">Líder</SelectItem>
-                <SelectItem value="rh">RH</SelectItem>
-                <SelectItem value="colaborador">Colaborador</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end">
-            <Btn variant="primary" size="md" onClick={handleAssignRole} className="w-full md:w-auto">
-              Atribuir
-            </Btn>
-          </div>
-        </div>
-      </Card>
 
       {/* Tabela completa */}
       <div id="todos-usuarios">
@@ -580,7 +514,7 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div>
-            <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5">
+            <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5">
               <div>Pessoa</div>
               <div>Email</div>
               <div>Papel</div>
@@ -589,7 +523,7 @@ export default function AdminDashboard() {
             {filteredUsers.map((user, idx) => (
               <div
                 key={user.id}
-                className={`grid grid-cols-[2fr_1.4fr_1fr_100px] gap-5 items-center px-3.5 py-2.5 text-[13px] ${
+                className={`grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5 items-center px-3.5 py-2 text-[13px] ${
                   idx < filteredUsers.length - 1 ? "border-b border-border" : ""
                 }`}
               >
@@ -599,25 +533,13 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-text-muted truncate">{user.email}</div>
                 <div>
-                  {user.role ? (
-                    <StatusBadge kind="role" status={user.role} size="sm" />
-                  ) : (
-                    <span className="text-[11.5px] text-text-subtle">—</span>
-                  )}
+                  <RoleCell
+                    user={user}
+                    onChangeRole={handleChangeRole}
+                    onRequestRemoveRole={setConfirmRemoveUserId}
+                  />
                 </div>
-                <div className="flex items-center justify-end gap-1">
-                  {user.role && (
-                    <Btn
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setConfirmRemoveUserId(user.id)}
-                      className="text-text-muted hover:bg-bg-subtle"
-                      icon={<Shield className="w-3 h-3" strokeWidth={1.75} />}
-                      title="Remover papel"
-                    >
-                      {""}
-                    </Btn>
-                  )}
+                <div className="flex items-center justify-end">
                   {user.id !== currentAuthUser?.id && (
                     <Btn
                       variant="ghost"
@@ -691,6 +613,49 @@ export default function AdminDashboard() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function RoleCell({
+  user,
+  onChangeRole,
+  onRequestRemoveRole,
+}: {
+  user: { id: string; role: string | null };
+  onChangeRole: (userId: string, role: "socio" | "lider" | "rh" | "colaborador") => void;
+  onRequestRemoveRole: (userId: string) => void;
+}) {
+  return (
+    <Select
+      value={user.role ?? ""}
+      onValueChange={(value) => {
+        if (value === "sem-papel") onRequestRemoveRole(user.id);
+        else onChangeRole(user.id, value as "socio" | "lider" | "rh" | "colaborador");
+      }}
+    >
+      <SelectTrigger
+        aria-label="Alterar papel do usuário"
+        className="h-[26px] w-auto gap-1 px-1.5 text-[12px] rounded-[6px] border-transparent bg-transparent hover:bg-bg-subtle data-[state=open]:bg-bg-subtle focus:ring-0 focus:ring-offset-0 focus:outline-none"
+      >
+        {user.role ? (
+          <StatusBadge kind="role" status={user.role} size="sm" />
+        ) : (
+          <span className="text-[11.5px] text-text-subtle px-0.5">Definir papel</span>
+        )}
+      </SelectTrigger>
+      <SelectContent align="start">
+        <SelectItem value="socio">Sócio</SelectItem>
+        <SelectItem value="lider">Líder</SelectItem>
+        <SelectItem value="rh">RH</SelectItem>
+        <SelectItem value="colaborador">Colaborador</SelectItem>
+        {user.role && (
+          <>
+            <SelectSeparator />
+            <SelectItem value="sem-papel">Remover papel</SelectItem>
+          </>
+        )}
+      </SelectContent>
+    </Select>
   );
 }
 
