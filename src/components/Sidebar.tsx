@@ -121,7 +121,6 @@ export function useSidebarGroups(): NavSection[] {
       label: "Visão geral",
       items: [
         { to: homeRoute, icon: "home", label: "Início" },
-        { to: homeRoute, icon: "trending", label: "Dashboard", end: false },
       ],
     });
   } else {
