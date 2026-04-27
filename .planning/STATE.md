@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Wave 1 complete; ready to execute Wave 2"
+status: ready_to_plan
 last_updated: "2026-04-27T22:30:00Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 7
-  completed_plans: 4
-  percent: 57
+  completed_plans: 7
+  percent: 25
 ---
 
 # Lever Talents Hub — STATE
@@ -33,9 +33,9 @@ Project memory. Updated automatically at each transition.
 
 Phase: 01 (tenancy-backbone) — EXECUTING
 Plan: 5 of 7
-**Phase:** 1 — Tenancy Backbone (Wave 1 complete, ready for Wave 2)
-**Plan:** 7 plans in 3 waves (Wave 0: test infra; Wave 1: migrations A→B→C; Wave 2: chokepoint → UI → quality gates)
-**Status:** Wave 1 done — 4/7 plans. Ready for Wave 2 (frontend chokepoint + scope UI + quality gates).
+**Phase:** 2
+**Plan:** Not started
+**Status:** Ready to plan
 **Progress:** [████████████░░░░░░░░] 57% (4/7 plans within Phase 1)
 
 ---
