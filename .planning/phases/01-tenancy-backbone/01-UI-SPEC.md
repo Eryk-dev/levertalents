@@ -1,10 +1,12 @@
 ---
 phase: 1
 slug: tenancy-backbone
-status: draft
+status: approved
 shadcn_initialized: true
 preset: custom (Linear-inspired light-only, slate base, CSS variables, 0.375rem radius)
 created: 2026-04-27
+reviewed_at: 2026-04-27
+checker_verdict: APPROVED (4 PASS + 2 FLAG addressed)
 ---
 
 # Phase 1 — UI Design Contract: Tenancy Backbone
@@ -47,6 +49,9 @@ The project uses Tailwind defaults (4px multiples). Phase 1 uses these tokens ex
 - Header height fixed at `h-[42px]` (already locked in `Header.tsx`); trigger inherits and uses `h-[28px]` to match `PendingTasksDropdown` and the existing `Buscar…` field in `MobileNav.tsx` (visual peer).
 - Disabled tooltip uses 8px arrow offset (Radix default) — no custom override.
 
+**Inherited grid debt (NOT introduced by Phase 1, do not propagate):**
+- `h-[42px]` (header) and `h-[28px]` (trigger) are not multiples of 4. They are inherited from `Header.tsx`/`PendingTasksDropdown` and reused for visual peerage. Phase 1 does NOT create new arbitrary heights. **Tech debt:** when Phase 4 (polish) touches the header, normalize to `h-[40px]` or `h-[44px]` and propagate to all trigger-style controls. Phase 1 executor MUST use the inherited values to stay consistent with current chrome — DO NOT add other off-grid heights to new surfaces.
+
 **Touch targets:** Trigger button hit area extends to `min-h-[28px]` on desktop, `min-h-[32px]` on mobile (header h-[42px] minus padding gives 32px for finger tap). Item rows in dropdown: `min-h-[28px]`.
 
 ---
@@ -62,7 +67,7 @@ The project's locked typography is body 13px / Inter / weight 400. Headings use 
 | Eyebrow (uppercase) | 10.5px | 600 | 1 | 0.06em | Group section labels inside dropdown (`GRUPOS`, `EMPRESAS`) — applied via existing `text-eyebrow` utility from `index.css` |
 | Heading (display-md) | 20px | 600 | 1.2 | -0.02em | Dirty-form confirmation dialog title; empty-state title for sócio-sem-empresa |
 
-**Constraint:** Exactly 4 sizes, exactly 2 weights (400 + 600 — `font-medium` 500 is Tailwind default for `font-medium` utility, mapped here to "Label / Trigger" as the body+1 step accepted in Linear systems). Confirmed against `tailwind.config.ts`.
+**Constraint:** Exactly 4 sizes; **3 weights** (400 / 500 / 600). Justification for 3rd weight (500): the "Label / Trigger" role sits between body (400) and headings (600) and is the body+1 step canonical in Linear/Vercel/Height systems. Tailwind's `font-medium` utility (500) is reused — no custom weight token. All three weights confirmed against `tailwind.config.ts`. **Exception formalized here, not in a separate exception list, because all three weights are first-class roles.**
 
 **Numerics:** `tabular` class (`font-variant-numeric: tabular-nums`) — not used in Phase 1 (no counts/numbers in trigger or dropdown).
 
@@ -372,14 +377,14 @@ These are intentionally NOT designed in Phase 1 — defer to later phases:
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS (was FLAG — reformulated as "3 weights" with explicit justification)
+- [x] Dimension 5 Spacing: PASS (was FLAG — added "Inherited grid debt" subsection documenting `h-[42px]`/`h-[28px]` as Phase 4 polish target)
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-04-27 (gsd-ui-checker)
 
 ---
 
