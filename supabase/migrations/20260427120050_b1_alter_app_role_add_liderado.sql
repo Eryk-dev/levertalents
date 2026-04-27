@@ -1,0 +1,16 @@
+-- =========================================================================
+-- Migration B1: Add 'liderado' to app_role enum
+--
+-- Standalone file because ALTER TYPE ADD VALUE cannot run inside a
+-- transaction block (Postgres limitation; Supabase CLI wraps each migration
+-- file in BEGIN/COMMIT). Splitting B into B1 (this) and B2 (org_units +
+-- helpers) avoids the rollback-on-error trap documented in RESEARCH.md
+-- Pitfall 6.
+--
+-- Coexistence per Open Question Q1 (RESEARCH.md): 'colaborador' stays valid
+-- in Phase 1; helpers in Migration B2 treat both as synonymous. Phase 4
+-- (Migration G) renames colaborador → liderado as the contract phase.
+--
+-- REQ: RBAC-01 (5 fixed roles; this enables 'liderado').
+-- =========================================================================
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'liderado';
