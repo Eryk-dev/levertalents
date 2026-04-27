@@ -9,6 +9,7 @@ const ROLE_LABEL: Record<AppRole, string> = {
   rh: "RH · Business Partner",
   lider: "Líder",
   colaborador: "Colaboradora(o)",
+  liderado: "Liderada(o)",
 };
 
 export function ViewAsBanner() {

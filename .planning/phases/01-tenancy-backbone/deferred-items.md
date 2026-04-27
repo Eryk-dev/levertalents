@@ -2,6 +2,24 @@
 
 Issues discovered during execution that are **out of scope** for the current plan but tracked for future cleanup.
 
+## Pre-existing `@tanstack/query/exhaustive-deps` violations — Plan 01-07
+
+**Discovered:** 2026-04-27 during Task 07-05 (`npm run lint` after enabling `@tanstack/eslint-plugin-query` flat/recommended).
+
+**Status:** Pre-existing query keys that don't capture all dependencies. Surfaced because Plan 07-01 enabled the plugin. NOT caused by Plan 01-07 code (the new chokepoint `useScopedQuery` has an explicit inline disable because it intentionally builds the key from `scope.id` + caller-supplied key).
+
+**Sites:**
+- `src/components/ManualPDIForm.tsx:39` — missing `isLeader` in queryKey
+- `src/components/hiring/CandidatesKanban.tsx:144,163` — missing `applications` in queryKey
+- `src/hooks/hiring/useJobOpenings.ts:30` — missing `canSeeAll, companyIds` in queryKey
+- `src/lib/hiring/rlsScope.ts:20` — missing `canSeeAll` in queryKey
+
+**Resolution path:** Phase 2 R&S refactor (rewrites these hooks to flow through `useScopedQuery`, which by construction encodes `companyIds`/`canSeeAll` via `scope.id`). For sites not migrated to `useScopedQuery`, add the missing deps to the queryKey or migrate the dependency into the hook's input.
+
+**Pre-existing legacy `supabase.from()` allowlist (31 files):** see `eslint-rules/no-supabase-from-outside-hooks.cjs` `PHASE_1_LEGACY_ALLOWLIST`. Each entry has a TODO marker. Phase 2-3 plans must move each call into a hook in `src/hooks/` or `src/features/X/hooks/`, then consume via `useScopedQuery`.
+
+---
+
 ## Pre-existing TypeScript errors (48 errors) — Plan 01-01
 
 **Discovered:** 2026-04-27 during Task 01-02 (`npx tsc --noEmit -p tsconfig.app.json`)
