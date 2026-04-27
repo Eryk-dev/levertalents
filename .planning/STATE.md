@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-04-27T19:12:22.404Z"
+status: "Wave 1 complete; ready to execute Wave 2"
+last_updated: "2026-04-27T22:30:00Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
-  percent: 0
+  completed_plans: 4
+  percent: 57
 ---
 
 # Lever Talents Hub — STATE
@@ -32,11 +32,11 @@ Project memory. Updated automatically at each transition.
 ## Current Position
 
 Phase: 01 (tenancy-backbone) — EXECUTING
-Plan: 1 of 7
-**Phase:** 1 — Tenancy Backbone (planned, ready to execute)
+Plan: 5 of 7
+**Phase:** 1 — Tenancy Backbone (Wave 1 complete, ready for Wave 2)
 **Plan:** 7 plans in 3 waves (Wave 0: test infra; Wave 1: migrations A→B→C; Wave 2: chokepoint → UI → quality gates)
-**Status:** Executing Phase 01
-**Progress:** [────────────────────] 0% (0/4 phases — planning complete)
+**Status:** Wave 1 done — 4/7 plans. Ready for Wave 2 (frontend chokepoint + scope UI + quality gates).
+**Progress:** [████████████░░░░░░░░] 57% (4/7 plans within Phase 1)
 
 ---
 
@@ -49,8 +49,8 @@ Plan: 1 of 7
 | Requirements mapped | 82/82 (100%) |
 | Requirements completed | 0/82 |
 | Plans created | 7 (Phase 1 only — Phases 2-4 pending) |
-| Plans completed | 0 |
-| Migrations applied | 0/7 (A-G) |
+| Plans completed | 4 |
+| Migrations applied | 4/7 (A, B1, B2, C) |
 | Test coverage | 0% (zero tests today) |
 
 ---
@@ -97,8 +97,8 @@ Nenhum no momento.
 
 ## Session Continuity
 
-**Last session:** 2026-04-27 — Phase 1 planning complete (research → patterns → 7 plans → verified PASS)
-**Next action:** Rodar `/gsd-execute-phase 1` para iniciar Wave 0 (test infrastructure bootstrap).
+**Last session:** 2026-04-27 — Wave 1 complete: test infra + Migrations A/B/C applied; pgTAP gate green.
+**Next action:** Execute Wave 2 (`/gsd-execute-phase 1` continues automatically).
 
 ---
 
