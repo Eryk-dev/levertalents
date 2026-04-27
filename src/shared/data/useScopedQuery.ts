@@ -32,6 +32,10 @@ export function useScopedQuery<TData = unknown, TError = Error>(
   >,
 ) {
   const { scope, isResolving } = useScope();
+  // The exhaustive-deps plugin doesn't understand that `scope.id`, `scope.kind`,
+  // and the user-supplied `key` already encode the full data dependency.
+  // The hook IS the chokepoint, not a regular call site — disable inline.
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   return useQuery<TData, TError>({
     queryKey: ['scope', scope?.id ?? '__none__', scope?.kind ?? '__none__', ...(key as unknown[])],
     queryFn: () => {
