@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute Phase 1 (`/gsd-execute-phase 1`)
-last_updated: "2026-04-27T18:01:25.035Z"
+status: executing
+last_updated: "2026-04-27T19:12:22.404Z"
 progress:
   total_phases: 4
   completed_phases: 0
@@ -23,7 +23,7 @@ Project memory. Updated automatically at each transition.
 **Name:** Lever Talents Hub
 **Core value:** Fluxos principais funcionam sem erro, com dados sempre escopados corretamente por empresa (ou grupo de empresas).
 **Current milestone:** Refactor + redesenho de fluxos (v1)
-**Current focus:** Roadmap aprovado; aguardando início de Phase 1 (Tenancy Backbone).
+**Current focus:** Phase 01 — tenancy-backbone
 **Project root:** `/Users/eryk/Documents/APP LEVER TALETS/leverup-talent-hub`
 **Planning root:** `/Users/eryk/Documents/APP LEVER TALETS/leverup-talent-hub/.planning`
 
@@ -31,9 +31,11 @@ Project memory. Updated automatically at each transition.
 
 ## Current Position
 
+Phase: 01 (tenancy-backbone) — EXECUTING
+Plan: 1 of 7
 **Phase:** 1 — Tenancy Backbone (planned, ready to execute)
 **Plan:** 7 plans in 3 waves (Wave 0: test infra; Wave 1: migrations A→B→C; Wave 2: chokepoint → UI → quality gates)
-**Status:** Ready to execute (`/gsd-execute-phase 1`)
+**Status:** Executing Phase 01
 **Progress:** [────────────────────] 0% (0/4 phases — planning complete)
 
 ---
