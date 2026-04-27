@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 
-export type AppRole = 'admin' | 'socio' | 'lider' | 'rh' | 'colaborador';
+export type AppRole = 'admin' | 'socio' | 'lider' | 'rh' | 'colaborador' | 'liderado';
 
 const VIEW_AS_STORAGE_KEY = 'lt:viewAsRole';
 const VIEW_AS_EVENT = 'lt:view-as-role-changed';
-const VALID_ROLES: AppRole[] = ['admin', 'socio', 'lider', 'rh', 'colaborador'];
+const VALID_ROLES: AppRole[] = ['admin', 'socio', 'lider', 'rh', 'colaborador', 'liderado'];
 
 function readStoredViewAs(): AppRole | null {
   if (typeof window === 'undefined') return null;

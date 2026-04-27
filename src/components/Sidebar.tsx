@@ -44,6 +44,7 @@ const ROLE_LABEL: Record<AppRole, string> = {
   rh: "RH · Business Partner",
   lider: "Líder",
   colaborador: "Colaboradora(o)",
+  liderado: "Liderada(o)",
 };
 
 const ROLE_HOME: Record<AppRole, string> = {
@@ -52,9 +53,10 @@ const ROLE_HOME: Record<AppRole, string> = {
   lider: "/gestor",
   rh: "/rh",
   colaborador: "/colaborador",
+  liderado: "/colaborador",
 };
 
-const VIEW_AS_ORDER: AppRole[] = ["admin", "socio", "lider", "rh", "colaborador"];
+const VIEW_AS_ORDER: AppRole[] = ["admin", "socio", "lider", "rh", "colaborador", "liderado"];
 
 function NavItem({ to, icon, label, end = true, badge }: NavItemProps) {
   return (
