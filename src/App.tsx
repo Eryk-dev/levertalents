@@ -37,6 +37,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Layout } from "@/components/Layout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
+import { AppProviders } from "@/app/providers";
 
 const queryClient = new QueryClient();
 
@@ -81,8 +82,10 @@ const App = () => {
             <Route path="/auth" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
             <Route path="/" element={!isAuthenticated ? <Auth /> : <Navigate to={getDefaultRoute()} replace />} />
 
-            {/* Authenticated routes share a persistent Layout (sidebar + header) */}
-            <Route element={isAuthenticated ? <Layout /> : <Navigate to="/auth" replace />}>
+            {/* Authenticated routes share a persistent Layout (sidebar + header).
+                AppProviders mounts INSIDE BrowserRouter (Pitfall #1) and AFTER
+                auth resolves. Public routes below stay outside the providers. */}
+            <Route element={isAuthenticated ? <AppProviders><Layout /></AppProviders> : <Navigate to="/auth" replace />}>
               <Route path="/colaborador" element={<Index />} />
               <Route
                 path="/gestor"
