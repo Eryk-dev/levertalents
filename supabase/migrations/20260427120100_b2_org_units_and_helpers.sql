@@ -16,7 +16,29 @@
 --
 -- REQs: ORG-01..07, RBAC-09.
 -- Threats: T-1-01 (cross-tenant), T-1-02 (RLS recursion), T-1-07 (cycle).
+--
+-- DEVIATION (2026-04-27, continuation push) — Rule 1 bug fix:
+-- The visible_org_units(_uid) helper below references
+-- public.socio_company_memberships, which is fully created/RLS'd by Migration C
+-- (20260427120200). LANGUAGE sql functions resolve table refs at CREATE time
+-- (not at execution), so the original B2 failed with "relation
+-- public.socio_company_memberships does not exist (SQLSTATE 42P01)" during
+-- db push. Fix: create a minimal placeholder for the table here (DDL only —
+-- columns + PK + FKs). Migration C uses CREATE TABLE IF NOT EXISTS / CREATE
+-- INDEX IF NOT EXISTS / DROP POLICY IF EXISTS so it remains idempotent and
+-- adds RLS + indexes + policies on top.
 -- =========================================================================
+
+-- =========================================================================
+-- 0) socio_company_memberships placeholder (forward-reference for the helper)
+--    Full RLS + indexes + policies live in Migration C (20260427120200).
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.socio_company_memberships (
+  user_id    uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  company_id uuid NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, company_id)
+);
 
 -- =========================================================================
 -- 1) org_units table (ORG-01, ORG-02)
