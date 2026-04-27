@@ -33,6 +33,7 @@ const HiringDashboard = lazy(() => import("./pages/hiring/HiringDashboard"));
 const CulturalFitTemplates = lazy(() => import("./pages/hiring/CulturalFitTemplates"));
 const PublicCulturalFit = lazy(() => import("./pages/hiring/PublicCulturalFit"));
 const PublicJobOpening = lazy(() => import("./pages/hiring/PublicJobOpening"));
+const CompanyOrgStructure = lazy(() => import("./pages/CompanyOrgStructure"));
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Layout } from "@/components/Layout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -180,6 +181,16 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
                     <CompanyManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresas/:id/estrutura"
+                element={
+                  <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
+                    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Carregando…</div>}>
+                      <CompanyOrgStructure />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
