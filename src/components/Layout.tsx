@@ -5,6 +5,21 @@ import { Header } from "@/components/Header";
 import { PageTransition } from "@/components/primitives/PageTransition";
 import { CmdKPalette } from "@/components/CmdKPalette";
 import { ViewAsBanner } from "@/components/ViewAsBanner";
+import { useScope } from "@/app/providers/ScopeProvider";
+import { EmptyScopeState } from "@/components/scope";
+
+/**
+ * Guards the routed <Outlet /> with the D-09 empty state.
+ *   - while resolving: render nothing (chrome stays mounted)
+ *   - no scope: render <EmptyScopeState /> in place of routed content
+ *   - otherwise: render the route as usual
+ */
+function ScopedOutlet() {
+  const { scope, isResolving } = useScope();
+  if (isResolving) return null;
+  if (!scope) return <EmptyScopeState />;
+  return <Outlet />;
+}
 
 export function Layout() {
   // Desktop sidebar visibility. State is local (visual-only) — persistence
@@ -19,7 +34,7 @@ export function Layout() {
         <Header onToggleSidebar={() => setSidebarHidden((v) => !v)} />
         <main className="flex-1 min-h-0 overflow-y-auto scrollbar-linear">
           <PageTransition>
-            <Outlet />
+            <ScopedOutlet />
           </PageTransition>
         </main>
       </div>

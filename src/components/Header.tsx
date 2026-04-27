@@ -6,6 +6,7 @@ import { getBreadcrumbs } from "@/lib/routes";
 import { Fragment } from "react";
 import { Btn } from "@/components/primitives/LinearKit";
 import { Icon } from "@/components/primitives/Icon";
+import { ScopeDropdown } from "@/components/scope";
 
 interface HeaderProps {
   /**
@@ -72,6 +73,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          <ScopeDropdown />
           <PendingTasksDropdown />
           <Btn
             variant="secondary"
