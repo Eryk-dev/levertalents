@@ -44,10 +44,10 @@ QUAL-05, QUAL-07, QUAL-08, QUAL-10
   5. UI esconde botões/ações que CASL bloqueia (defesa-em-profundidade); ESLint regra customizada bloqueia `supabase.from()` fora de `hooks/` e `integrations/`; lockfile único (`package-lock.json`); `console.log` não emite PII em produção.
 
 **Plans**: 7 plans across 3 waves
-- [ ] 01-01-PLAN.md — Test infrastructure bootstrap (Vitest + RTL + MSW + pgTAP) + drop bun.lockb (Wave 0)
-- [ ] 01-02-PLAN.md — Migration A: company_groups + feature flags + supabase config_id fix (Wave 1)
-- [ ] 01-03-PLAN.md — Migration B: org_units tree + helpers + anti-cycle trigger + 'liderado' enum (Wave 1)
-- [ ] 01-04-PLAN.md — Migration C: socio_company_memberships + visible_companies + RLS rewrite + backfill + RPC + DB push (Wave 1)
+- [x] 01-01-PLAN.md — Test infrastructure bootstrap (Vitest + RTL + MSW + pgTAP) + drop bun.lockb (Wave 0)
+- [x] 01-02-PLAN.md — Migration A: company_groups + feature flags + supabase config_id fix (Wave 1)
+- [x] 01-03-PLAN.md — Migration B: org_units tree + helpers + anti-cycle trigger + 'liderado' enum (Wave 1)
+- [ ] 01-04-PLAN.md — Migration C: socio_company_memberships + visible_companies + RLS rewrite + backfill + RPC + DB push (Wave 1) — *SQL authored; awaiting human-action checkpoint to run `supabase db push`*
 - [ ] 01-05-PLAN.md — Frontend chokepoint: ScopeProvider + Zustand + URL sync + useScopedQuery + CASL abilities (Wave 2)
 - [ ] 01-06-PLAN.md — Scope selector UI: trigger + dropdown + empty state + dirty-form dialog + Header mount (Wave 2)
 - [ ] 01-07-PLAN.md — Quality gates: ESLint custom rule + plugin-query + logger.ts + formatBR.ts + ORG-08 structure UI (Wave 2)
@@ -140,7 +140,7 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tenancy Backbone | 0/7 | Not started | - |
+| 1. Tenancy Backbone | 3/7 | In progress (Wave 1, awaiting db-push checkpoint) | - |
 | 2. R&S Refactor | 0/? | Not started | - |
 | 3. Performance Refactor | 0/? | Not started | - |
 | 4. Dashboards + Quality Polish | 0/? | Not started | - |
