@@ -1,10 +1,11 @@
 ---
 phase: 2
 slug: r-s-refactor
-status: draft
+status: approved
 shadcn_initialized: true
 preset: linear-inspired-light-only (custom, locked Phase 0)
 created: 2026-04-27
+approved: 2026-04-27
 ---
 
 # Phase 2 — UI Design Contract
@@ -238,7 +239,7 @@ Phase 2 has **3 destructive actions**. Each uses an AlertDialog (shadcn) with co
 |------|---------|-------|-------------|---------------|--------------|
 | Revogar consentimento (RH) | Botão "Revogar consent" no drawer footer | "Revogar consentimento de {nome}?" | "Esse candidato deixa de aparecer no Banco de Talentos a partir de agora. O histórico de auditoria continua preservado (LGPD §37). Não dá pra desfazer — só registrando novo consent." | "Revogar agora" (destructive) | "Cancelar" |
 | Anonimizar candidato (LGPD direito de exclusão) | Botão "Anonimizar perfil" no drawer footer (RH/admin only) | "Anonimizar {nome} permanentemente?" | "Apaga PII (nome, email, CPF, telefone) de todas as tabelas. Histórico de etapas vira `Anônimo`. Esse fluxo é IRREVERSÍVEL e atende ao direito de exclusão LGPD §18 V." | "Anonimizar agora" (destructive) | "Cancelar" |
-| Descartar candidato | Botão "Descartar" na coluna ou no drawer | "Descartar {nome}?" | "Move pra coluna de descartados com motivo. Não anonimiza — só marca como fora do processo. Pode ser reabilitado depois mudando de etapa." | "Descartar" (destructive) | "Cancelar" |
+| Descartar candidato | Botão "Descartar" na coluna ou no drawer | "Descartar {nome}?" | "Move pra coluna de descartados com motivo. Não anonimiza — só marca como fora do processo. Pode ser reabilitado depois mudando de etapa." | "Descartar candidato" (destructive) | "Cancelar" |
 
 ### LGPD opt-in copy (TAL-04 — não pré-marcado, finalidade granular)
 
@@ -379,7 +380,7 @@ Footer do form: "Ao enviar, você confirma que leu nossa [Política de Privacida
 | 1.4.4 Resize text | All sizes in px + line-height ratios — zoom 200% works without layout break (Linear-density tested at 200%). |
 | 2.1.1 Keyboard | Drag works via keyboard via `@dnd-kit` keyboard sensor. Arrow keys move card between columns; Space picks up; Enter drops; ESC cancels. Drawer fully keyboard-navigable. |
 | 2.4.7 Focus visible | All focusable elements have `focus-visible:ring-2 focus-visible:ring-accent/40` — confirmed via existing CandidateCard at line 80. |
-| 4.1.2 Name/role/value | Drawer uses Radix Sheet (proper `role="dialog"` + `aria-labelledby`). Filter chips are `<button role="checkbox" aria-pressed>`. Sparkbar has `role="img"` + `aria-label` summarizing distribution. SLA badge has `aria-label="Parado há {N} dias"`. |
+| 4.1.2 Name/role/value | Drawer uses Radix Sheet (proper `role="dialog"` + `aria-labelledby`). Filter chips are `<button role="checkbox" aria-pressed>`. Sparkbar has `role="img"` + `aria-label` summarizing distribution. SLA badge has `aria-label="Parado há {N} dias"`. Overflow trigger "···" (column header + card hover + drawer footer) uses `aria-label="Mais opções"` — copy LOCKED. |
 | 2.4.3 Focus order | Within drawer: header → tabs → content → footer CTA. Within board: filter bar → board → drawer (when open). |
 | 3.3.1 Error identification | Toast error includes the specific reason (RLS / network / conflict / canTransition); not generic "error occurred". |
 | 1.4.13 Content on hover | Sparkbar tooltip dismissible via ESC; persistent until pointer leaves. SLA badge tooltip same. |
@@ -451,14 +452,14 @@ Therefore the registry vetting gate is **not applicable** — no `npx shadcn vie
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS — pt-BR, ToV "O Sábio", 7 empty states + 7 toast variants + 3 destructive confirmations + 3 LGPD opt-in microcopy explícitos
-- [ ] Dimension 2 Visuals: PASS — Linear primitives reuse, 4 status semantic tones, sparkbar SVG inline (no chart lib), drawer split per QUAL-04
-- [ ] Dimension 3 Color: PASS — 60/30/10 (`#FCFCFD` / surface+subtle+muted / `#5E6AD2` indigo); accent reserved-for list explícito (7 elementos); brand legacy isolado (wordmark only)
-- [ ] Dimension 4 Typography: PASS — Inter 13px body locked, 4 display sizes, 1 eyebrow, 1 mono, 1 KPI; 2 weights primários (400/500/600) — alinha com escala existente; ZERO sizes novos em Phase 2
-- [ ] Dimension 5 Spacing: PASS — Tailwind 4-base + 4 density exceptions documented (card-py 6, card-gap 4-6, chip-px 6, drawer-section-gap 20)
-- [ ] Dimension 6 Registry Safety: PASS — shadcn official only; nenhum third-party; vetting gate not applicable
+- [x] Dimension 1 Copywriting: PASS (with applied fix — "Descartar candidato" now explicit) — pt-BR, ToV "O Sábio", 7 empty states + 7 toast variants + 3 destructive confirmations + 3 LGPD opt-in microcopy explícitos
+- [x] Dimension 2 Visuals: PASS (with applied fix — `aria-label="Mais opções"` LOCKED for "···" overflow trigger) — Linear primitives reuse, 4 status semantic tones, sparkbar SVG inline (no chart lib), drawer split per QUAL-04
+- [x] Dimension 3 Color: PASS — 60/30/10 (`#FCFCFD` / surface+subtle+muted / `#5E6AD2` indigo); accent reserved-for list explícito (7 elementos); brand legacy isolado (wordmark only)
+- [x] Dimension 4 Typography: PASS (with applied fix — sign-off corrigido: 3 weights inheritados de Phase 0) — Inter 13px body locked, 4 display sizes, 1 eyebrow, 1 mono, 1 KPI; 3 weights (400/500/600) — escala lockada na fase anterior; ZERO sizes ou weights novos em Phase 2
+- [x] Dimension 5 Spacing: PASS — Tailwind 4-base + 4 density exceptions documented (card-py 6, card-gap 4-6, chip-px 6, drawer-section-gap 20)
+- [x] Dimension 6 Registry Safety: PASS — shadcn official only; nenhum third-party; vetting gate not applicable
 
-**Approval:** pending (gsd-ui-checker validates next)
+**Approval:** approved 2026-04-27 — gsd-ui-checker verified all 6 dimensions; 3 FLAG-level recommendations applied inline before sign-off.
 
 ---
 
