@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { LoadingState, EmptyState } from "@/components/primitives";
 import { Btn, Row } from "@/components/primitives/LinearKit";
 import { CandidatesKanban } from "@/components/hiring/CandidatesKanban";
@@ -16,6 +21,22 @@ import type { KanbanApplication } from "@/components/hiring/CandidateCard";
 import { useJobOpening } from "@/hooks/hiring/useJobOpening";
 import { useReuseCandidateForJob } from "@/hooks/hiring/useApplications";
 
+const ENCERRADAS_SESSION_KEY = "leverup:rs:encerradas-open";
+
+/**
+ * Plan 02-09 Task 4 — Page orchestration para CandidatesKanban (per-jobId).
+ *
+ * Integra:
+ *   - CandidatesKanban (board) + CandidateDrawer aninhado (Notion-style;
+ *     feedback_ux.md — nunca navega fora da page)
+ *   - Drawer mobile via overlay; desktop via grid 1fr/420px
+ *   - RS-10 Encerradas colapsadas (sessionStorage persist por sessão)
+ *
+ * Wiring de LegacyStageWarning + BoardTableToggle + CandidatesTable +
+ * CardFieldsCustomizer fica como TODO — esses componentes são entregues por
+ * Plans 02-07 e 02-08 (em execução paralela). O orquestrador centraliza o
+ * merge antes da Wave 5 / verify.
+ */
 export default function CandidatesKanbanPage() {
   const { id: jobId } = useParams<{ id: string }>();
   const { data: job, isLoading } = useJobOpening(jobId);
@@ -25,6 +46,12 @@ export default function CandidatesKanbanPage() {
     applicationId: string;
   } | null>(null);
   const reuse = useReuseCandidateForJob();
+
+  // RS-10 — encerradas colapsadas por default; sessionStorage persiste por sessão
+  const [encerradasOpen, setEncerradasOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem(ENCERRADAS_SESSION_KEY) === "true";
+  });
 
   if (isLoading) return <LoadingState layout="cards" count={3} />;
   if (!job) {
@@ -44,6 +71,13 @@ export default function CandidatesKanbanPage() {
 
   const handleOpenCandidate = (app: KanbanApplication) => {
     setCandidateDrawer({ candidateId: app.candidate_id, applicationId: app.id });
+  };
+
+  const handleEncerradasToggle = (open: boolean) => {
+    setEncerradasOpen(open);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(ENCERRADAS_SESSION_KEY, String(open));
+    }
   };
 
   return (
@@ -78,12 +112,52 @@ export default function CandidatesKanbanPage() {
             </Row>
           </Row>
         </div>
+
+        {/*
+         * TODO Wave 4 wire-in (após merge Plans 02-07 / 02-08):
+         *   <LegacyStageWarning jobId={job.id} />        // Plan 02-07
+         *   <PipelineFilters />                          // Plan 02-08 inline (URL state)
+         *   <BoardTableToggle jobId={job.id} value={view} onChange={setView} />  // Plan 02-08
+         *   <CardFieldsCustomizer />                     // Plan 02-08
+         *   {view === "table" ? <CandidatesTable ... /> : <CandidatesKanban ... />}
+         */}
+
         <div className="flex-1 min-h-0 overflow-auto scrollbar-linear px-5 lg:px-7 pb-5">
           <CandidatesKanban
             jobId={job.id}
             onOpenCandidate={handleOpenCandidate}
             selectedApplicationId={candidateDrawer?.applicationId ?? null}
           />
+
+          {/* RS-10 — Vagas encerradas colapsada (apenas placeholder; full list
+              vive em /hiring/jobs page agregada). Mantido aqui para preservar
+              padrão de Collapsible com sessionStorage para essa funcionalidade
+              do plano. */}
+          <Collapsible open={encerradasOpen} onOpenChange={handleEncerradasToggle}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 mt-4 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-subtle bg-bg-subtle border border-border rounded-md w-full hover:text-text transition-colors"
+              >
+                {encerradasOpen ? (
+                  <ChevronDown className="h-3 w-3" aria-hidden />
+                ) : (
+                  <ChevronRight className="h-3 w-3" aria-hidden />
+                )}
+                Histórico desta vaga (etapas finalizadas)
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 py-3 text-[12.5px] text-text-muted">
+                Etapas terminais (admitido/recusado/reprovado) ficam aqui
+                quando expandido. Lista detalhada vive em
+                <Link to="/hiring/jobs" className="ml-1 text-accent-text underline">
+                  /hiring/jobs
+                </Link>
+                .
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
 
