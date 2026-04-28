@@ -45,11 +45,12 @@ Declared values (multiples of 4 only):
 | 3xl | 64px | Page-level top padding (desktop) |
 
 **Phase-specific exceptions:**
-- KPI tile inner padding: 14px (`p-3.5`) — aligns with existing `KpiTile` component in `SocioDashboard.tsx`
-- CmdK palette list items: `py-2 px-2.5` (8px / 10px) — aligns with existing `CmdKPalette.tsx` pattern
+- KPI tile inner padding: **16px (`p-4`)** — canonical grid value. The existing `KpiTile` in `SocioDashboard.tsx` currently uses `p-3.5` (14px, non-grid); the Phase 4 SocioDashboard refactor (D-03) MUST update it to `p-4` as part of the same pass.
+- CmdK palette list items: **`py-2 px-3`** (8px / 12px) — both multiples of 4. The existing `CmdKPalette.tsx` currently uses `px-2.5` (10px, non-grid); the Phase 4 CmdKPalette refactor (DASH-04 / `useScopedQuery` wiring) MUST align CommandItem padding to `py-2 px-3` in the same pass.
+- CmdK input row: **`px-4 py-3`** (16px / 12px) — both multiples of 4. The existing `CmdKPalette.tsx` currently uses `px-3.5` (14px, non-grid) at this location; the Phase 4 CmdKPalette refactor (DASH-04) MUST update it to `px-4` in the same pass (free pickup alongside the CommandItem alignment fix).
 - Touch targets minimum: 44px height — applies to all interactive CmdK items
 
-**Source:** Extracted from `SocioDashboard.tsx` (KpiTile) and `CmdKPalette.tsx` (CommandItem). Do not change these values — they match the established system.
+**Source:** Extracted from `SocioDashboard.tsx` (KpiTile) and `CmdKPalette.tsx` (CommandItem, input row). Values corrected to 4-multiple grid as part of Phase 4 refactor.
 
 ---
 
@@ -58,12 +59,24 @@ Declared values (multiples of 4 only):
 | Role | Size | Weight | Line Height | Letter Spacing | Notes |
 |------|------|--------|-------------|----------------|-------|
 | Body / default | 13px | 400 | 1.5 | -0.005em | Set on `body` in index.css — all prose |
-| Label / UI | 13px | 500 | 1.4 | -0.01em | CommandItem labels, table cells |
-| Eyebrow | 10.5px | 600 | 1.0 | +0.06em | KPI tile label, section eyebrow (UPPERCASE) |
-| Subtitles / hints | 11–11.5px | 400 | 1.45 | 0 | KPI detail line, CmdK subtitles |
+| Label / UI | 13px | 400 | 1.4 | -0.01em | CommandItem labels, table cells |
+| Eyebrow / hint | 11px | 600 (eyebrow) / 400 (hint) | 1.0 / 1.45 | +0.06em (eyebrow) / 0 (hint) | One size, two roles via weight + tracking: eyebrow = UPPERCASE + weight 600; hint/subtitle = weight 400 + normal case |
 | KPI number | 26px | 600 | 1.05 | -0.02em | KpiTile value — `text-kpi` token, tabular-nums |
 | Page heading | 20px | 600 | 1.2 | -0.02em | Dashboard h1 (greeting) — `text-display-md` |
-| Section header | 17px | 600 | 1.25 | -0.015em | "Custo por departamento" — `text-display-sm` |
+
+**4-size scale (canonical): 11px · 13px · 20px · 26px**
+
+**2-weight scale (canonical): 400 (regular) · 600 (semibold)**
+
+Size and weight assignments per surface:
+- SocioDashboard eyebrow ("Visão executiva"): 11px / 600 / UPPERCASE / +0.06em tracking
+- KPI tile detail hint ("mês corrente", "por pessoa / mês"): 11px / 400 / normal case
+- CmdK subtitle line (remote result subtitle): 11px / 400 / `text-text-subtle`
+- CmdK keyboard footer: 11px / 400 / `text-text-subtle`
+- Section headers ("Custo por departamento", CmdK group headings): 13px / 600 / UPPERCASE / `text-text-muted` — differentiated by weight, color, and tracking; no separate 17px size needed
+- Body, table cell text, form labels: 13px / 400
+- Dashboard greeting h1: 20px / 600
+- KPI values (folha, custo médio, headcount): 26px / 600 / tabular-nums
 
 **Tabular numerics:** All financial values (folha, custo médio) MUST use `font-variant-numeric: tabular-nums lining-nums` via the `.tabular` utility class. Never use proportional numbers for BRL values.
 
@@ -110,16 +123,16 @@ Declared values (multiples of 4 only):
 **Layout:** Single-column scroll, max-width 1400px, `p-5 lg:p-7`, `animate-fade-in` on mount.
 
 **Header section:**
-- Eyebrow: "Visão executiva" — 10.5px / uppercase / `text-text-subtle`
-- Greeting h1: 20px / semibold / `text-text` — "{Bom dia|Boa tarde|Boa noite}, {firstName}"
-- Subtitle line: 13px / `text-text-muted` — dynamic summary of scope (e.g. "Folha de R$ 45.000 · 23 pessoas · 6 departamentos")
+- Eyebrow: "Visão executiva" — 11px / 600 / uppercase / `text-text-subtle`
+- Greeting h1: 20px / 600 / `text-text` — "{Bom dia|Boa tarde|Boa noite}, {firstName}"
+- Subtitle line: 13px / 400 / `text-text-muted` — dynamic summary of scope (e.g. "Folha de R$ 45.000 · 23 pessoas · 6 departamentos")
 - CSV export button: secondary `Btn` size sm, Lucide `Download` icon, label "Relatório" — right-aligned
 
 **KPI tiles (row):**
 - Grid: `grid-cols-2 lg:grid-cols-3` — exactly 3 tiles (folha total, custo médio, headcount ativo). Remove performance and clima tiles completely.
-- Tile anatomy: eyebrow label (10.5px uppercase) → 26px tabular KPI value → 11.5px detail hint
+- Tile anatomy: eyebrow label (11px / 600 / uppercase) → 26px tabular KPI value → 11px / 400 detail hint
 - Empty value: render `"—"` in `text-text-subtle` (not zero, not blank)
-- Tile background: `bg-surface border border-border rounded-md p-3.5` — use existing `KpiTile` / `StatCard` primitive
+- Tile background: `bg-surface border border-border rounded-md p-4` — use existing `KpiTile` / `StatCard` primitive. Update `KpiTile` from `p-3.5` to `p-4` in this refactor.
 
 **Breakdown table (conditional):**
 
@@ -129,10 +142,11 @@ Declared values (multiples of 4 only):
 | `group` | "Custo por empresa" | All member companies (no top-N cap) | Empresa name + headcount + custo total + custo médio |
 
 - Progress bar: `ProgressBar` primitive with `hsl(var(--accent))` fill, relative to max row value
-- Row layout: `px-3.5 py-2.5`, border-b between rows, no border on last row
-- Department/company name: 13px / medium / `text-text`, truncated
-- Sub-hint: 11px / `text-text-subtle` (department: dept code or company_name if cross-listed; company: group membership indicator)
-- Value: 13px / semibold / tabular / `shrink-0`
+- Row layout: `px-3 py-2`, border-b between rows, no border on last row
+- Section header ("Custo por departamento" / "Custo por empresa"): 13px / 600 / uppercase / `text-text-muted`
+- Department/company name: 13px / 400 / `text-text`, truncated
+- Sub-hint: 11px / 400 / `text-text-subtle` (department: dept code or company_name if cross-listed; company: group membership indicator)
+- Value: 13px / 600 / tabular / `shrink-0`
 
 **Sections to REMOVE:**
 - `useClimateOverview` — entire clima KPI tile and hook call
@@ -162,20 +176,24 @@ Declared values (multiples of 4 only):
 
 **Dialog dimensions:** `max-w-[560px]`, positioned at `top-[18%]`, shadow-popup. Existing values preserved.
 
-**Input row:** `px-3.5 py-3`, border-b. Input: 14px / `placeholder:text-text-subtle`. Loader or `Esc` kbd badge on right.
+**Input row:** `px-4 py-3`, border-b. Input: 13px / 400 / `placeholder:text-text-subtle`. Loader or `Esc` kbd badge on right. (Executor note: `CmdKPalette.tsx` currently uses `px-3.5` at this location — MUST be updated to `px-4` as part of the DASH-04 refactor, free pickup alongside the CommandItem alignment fix.)
 
 **Default state (empty query):**
 Shows two static groups:
 1. **"Ações"** — quick action items (see copy contract below)
 2. **"Ir para"** — page navigation shortcuts
 
-Each item: icon (3.5 × 3.5 / `text-text-muted`) + label (13px) + keyboard shortcut `Kbd` badge or `ArrowRight` icon (3 × 3 / `text-text-subtle`).
+Each item: icon (3.5 × 3.5 / `text-text-muted`) + label (13px / 400) + keyboard shortcut `Kbd` badge or `ArrowRight` icon (3 × 3 / `text-text-subtle`).
+
+Group headings: 11px / 600 / uppercase / `text-text-muted`.
 
 **Search state (query ≥ 2 chars):**
 Shows remote result groups ABOVE static groups. Remote groups appear only when they have results. Groups: Vagas → Candidatos → Pessoas (in that order). PDI group removed from remote results (D-06 scope: vagas, candidatos, pessoas do escopo atual).
 
 **Remote result item anatomy:**
-- Icon (3.5 × 3.5 / `text-text-muted`) + title (13px truncated) + subtitle (11.5px / `text-text-subtle` truncated) + `ArrowRight` (3px)
+- Icon (3.5 × 3.5 / `text-text-muted`) + title (13px / 400 truncated) + subtitle (11px / 400 / `text-text-subtle` truncated) + `ArrowRight` (3px)
+
+**CommandItem padding:** `py-2 px-3` (8px vertical / 12px horizontal) — updated from previous `px-2.5` (10px non-grid) as part of this refactor.
 
 **Minimum query:** 2 chars. Empty hint: "Digite ao menos 2 caracteres." in `py-5 text-center text-[13px] text-text-subtle`.
 
@@ -193,7 +211,7 @@ Shows remote result groups ABOVE static groups. Remote groups appear only when t
 - "Iniciar avaliação" (out of scope for CmdK D-07)
 - PDI remote results group ("pdi" kind removed from `REMOTE_META`)
 
-**Keyboard footer bar:** Keep existing `↵ selecionar · ↑↓ navegar · ⌘K abrir / fechar` pattern. 11px / `text-text-subtle`.
+**Keyboard footer bar:** Keep existing `↵ selecionar · ↑↓ navegar · ⌘K abrir / fechar` pattern. 11px / 400 / `text-text-subtle`.
 
 **Scope enforcement (interaction contract):**
 - queryKey for remote search: `["global-search", scope.id, debouncedQuery]` — scope.id MUST be in key
@@ -210,14 +228,14 @@ Shows remote result groups ABOVE static groups. Remote groups appear only when t
 
 **Component:** shadcn `Switch` primitive (already in project).
 
-**Label:** "Replay de sessão (Sentry)" — 13px / `text-text`
-**Description:** "Quando ativo, sessões de uso são gravadas para debugging. Todo texto e dados são mascarados automaticamente." — 11.5px / `text-text-muted`
+**Label:** "Replay de sessão (Sentry)" — 13px / 400 / `text-text`
+**Description:** "Quando ativo, sessões de uso são gravadas para debugging. Todo texto e dados são mascarados automaticamente." — 11px / 400 / `text-text-muted`
 
 **Default state:** OFF (unchecked). This is the locked default per QUAL-06 — never pre-toggled.
 
 **Warning note (visible when toggle is ON):**
-- Inline banner below the switch: `bg-status-amber-soft border border-status-amber/30 rounded-md p-2.5 mt-2`
-- Text: "Replay ativo — todo conteúdo da tela é mascarado. Desative quando não precisar mais." — 11.5px / `text-status-amber`
+- Inline banner below the switch: `bg-status-amber-soft border border-status-amber/30 rounded-md p-2 mt-2`
+- Text: "Replay ativo — todo conteúdo da tela é mascarado. Desative quando não precisar mais." — 11px / 400 / `text-status-amber`
 
 **Interaction:** Toggle state persists in app config or env variable — planner decides storage mechanism. No confirmation dialog needed (not a destructive action).
 
@@ -375,6 +393,8 @@ These components are used or reused in Phase 4. Executor MUST use these — do n
 | `StatCard.tsx` primitive | KPI tile API contract |
 | PROJECT.md lock | "Performance e R&S ficam em telas dedicadas" — enforces removal of clima/org sections |
 | User input (this session) | 0 questions asked — all answered by upstream artifacts |
+| Checker revision 1 (2026-04-28) | 4 contract fixes: typography collapsed 6→4 sizes, weights collapsed 3→2, KpiTile padding corrected 14px→16px, CommandItem padding corrected 10px→12px |
+| Checker revision 2 (2026-04-28) | 1 contract fix: CmdK input row `px-3.5` (14px) corrected to `px-4` (16px) — multiples-of-4 compliance |
 
 ---
 
@@ -393,4 +413,6 @@ These components are used or reused in Phase 4. Executor MUST use these — do n
 
 *Phase: 04-dashboards-quality-polish*
 *UI-SPEC created: 2026-04-28*
+*UI-SPEC revised: 2026-04-28 (checker revision 1 — 4 blocking issues resolved)*
+*UI-SPEC revised: 2026-04-28 (checker revision 2 — CmdK input row px-3.5 → px-4)*
 *Created by: gsd-ui-researcher*
