@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-last_updated: "2026-04-28T09:19:46.900Z"
+status: planning
+last_updated: "2026-04-28T13:03:18.271Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 16
-  completed_plans: 16
-  percent: 50
+  total_plans: 17
+  completed_plans: 17
+  percent: 100
 ---
 
 # Lever Talents Hub — STATE
@@ -116,7 +116,7 @@ Nenhum no momento.
 
 ## Session Continuity
 
-**Last session:** 2026-04-28T09:16:49Z — Completed 02-04-PLAN.md (Wave 2 BLOCKING — Migration F applied to remote + types.ts regen + hiring-types.ts extended with Phase 2 exports + obsolete declaration merging removed)
+**Last session:** --stopped-at
 **Next action:** Wave 3 — Plan 02-05 (hooks LGPD: useCandidateConsents, useReadCandidateWithLog, etc.) agora desbloqueado. Tipos Phase 2 (`Consent`, `ConsentPurpose`, `DataAccessLogEntry`, `MoveApplicationStageArgs`, `ApplicationWithCandidate`) disponíveis via `@/integrations/supabase/hiring-types`. Owners de cleanup latente (38 tsc errors em 9 hooks/components/pages) listados em deferred-items.md.
 
 ---
