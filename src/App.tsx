@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import TeamManagement from "./pages/TeamManagement";
 import CompanyManagement from "./pages/CompanyManagement";
 import MyTeam from "./pages/MyTeam";
+import FirstLoginChangePassword from "./pages/FirstLoginChangePassword";
 import CollaboratorProfile from "./pages/CollaboratorProfile";
 import DevelopmentKanban from "./pages/DevelopmentKanban";
 import NotFound from "./pages/NotFound";
@@ -299,6 +300,17 @@ const App = () => {
                 }
               />
             </Route>
+
+            {/* First-login password change — auth required, no Layout (blocking, full-screen).
+                Pitfall §4: ProtectedRoute skips must_change_password redirect when already on this path. */}
+            <Route
+              path="/first-login-change-password"
+              element={
+                <ProtectedRoute>
+                  <FirstLoginChangePassword />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/hiring/fit/:token"
