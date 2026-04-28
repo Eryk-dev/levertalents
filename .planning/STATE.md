@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-last_updated: "2026-04-28T00:03:34.386Z"
+status: executing
+last_updated: "2026-04-28T02:00:27.340Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 16
+  completed_plans: 8
+  percent: 50
 ---
 
 # Lever Talents Hub — STATE
@@ -23,7 +23,7 @@ Project memory. Updated automatically at each transition.
 **Name:** Lever Talents Hub
 **Core value:** Fluxos principais funcionam sem erro, com dados sempre escopados corretamente por empresa (ou grupo de empresas).
 **Current milestone:** Refactor + redesenho de fluxos (v1)
-**Current focus:** Phase 01 — tenancy-backbone
+**Current focus:** Phase 02 — r-s-refactor
 **Project root:** `/Users/eryk/Documents/APP LEVER TALETS/leverup-talent-hub`
 **Planning root:** `/Users/eryk/Documents/APP LEVER TALETS/leverup-talent-hub/.planning`
 
@@ -31,12 +31,12 @@ Project memory. Updated automatically at each transition.
 
 ## Current Position
 
-Phase: 01 (tenancy-backbone) — EXECUTING
-Plan: 5 of 7
+Phase: 02 (r-s-refactor) — EXECUTING
+Plan: 2 of 9 (Plan 02-01 complete; Wave 0 done)
 **Phase:** 2
-**Plan:** Not started
-**Status:** Ready to plan
-**Progress:** [████████████░░░░░░░░] 57% (4/7 plans within Phase 1)
+**Plan:** 02-01 complete (Wave 0 test scaffolding)
+**Status:** Executing Phase 02 — Wave 1 ready (Plan 02-02 + 02-04)
+**Progress:** [█████░░░░░] 50%
 
 ---
 
@@ -48,10 +48,10 @@ Plan: 5 of 7
 | Phases completed | 0 |
 | Requirements mapped | 82/82 (100%) |
 | Requirements completed | 0/82 |
-| Plans created | 7 (Phase 1 only — Phases 2-4 pending) |
-| Plans completed | 4 |
+| Plans created | 16 (Phase 1: 7 + Phase 2: 9) |
+| Plans completed | 8 (7 Phase 1 + 1 Phase 2) |
 | Migrations applied | 4/7 (A, B1, B2, C) |
-| Test coverage | 0% (zero tests today) |
+| Test coverage | Wave 0 scaffolding: 23 files (17 vitest + 5 pgTAP + 2 msw) — implementation pending Waves 1-4 |
 
 ---
 
@@ -72,6 +72,9 @@ Plan: 5 of 7
 - Refactor sem features novas grandes
 - Folha calculada da soma de salários cadastrados
 - Pesquisa de clima 100% anônima
+- **(Plan 02-01)** Test skeletons usam pattern `describe.skip + it.todo` (vitest) e `SELECT skip(N)` (pgTAP) para serem failing-by-default — CI verde sem implementação
+- **(Plan 02-01)** MSW handler URL hard-coded ao project Lever (`ehbxpbeijofxtsbezwxd`) garante intercept mesmo se .env mudar; T-02-01-02 accepted no threat model
+- **(Plan 02-01)** Realtime mock via `createMockChannel().__emit(eventType, payload)` substitui WebSocket real para testar `useApplicationsRealtime`
 
 ### Active TODOs
 
@@ -97,8 +100,8 @@ Nenhum no momento.
 
 ## Session Continuity
 
-**Last session:** --stopped-at
-**Next action:** Execute Wave 2 (`/gsd-execute-phase 1` continues automatically).
+**Last session:** 2026-04-28T01:58:21Z — Completed 02-01-PLAN.md (Wave 0 test scaffolding)
+**Next action:** Execute Wave 1 — Plans 02-02 (Migration F utils) + 02-04 (counts hook port). Wave 2 BLOCKING (Plan 02-03 db push) deve rodar sequencial após Wave 1.
 
 ---
 
@@ -120,4 +123,4 @@ Nenhum no momento.
 
 *Initialized: 2026-04-27*
 
-**Planned Phase:** 1 (Tenancy Backbone) — 7 plans — 2026-04-27T18:01:25.025Z
+**Planned Phase:** 02 (R&S Refactor) — 9 plans — 2026-04-28T01:46:26.617Z

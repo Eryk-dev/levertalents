@@ -77,7 +77,7 @@ TAL-01, TAL-02, TAL-03, TAL-04, TAL-05, TAL-06, TAL-07, TAL-08, TAL-09
   5. Toda leitura de PII de candidato passa por RPC `read_candidate_with_log(id, context)` — `data_access_log` registra actor + entity + action + context + scope_company_id em append-only. Retenção 36 meses via `pg_cron`. CPF é chave canonical de dedup (complementar ao email). Realtime subscribe por jobId atualiza kanban quando outro RH move candidato.
 
 **Plans**: 9 plans across 5 waves
-- [ ] 02-01-PLAN.md — Wave 0 test scaffolding (16 Vitest + 5 pgTAP + MSW handlers)
+- [x] 02-01-PLAN.md — Wave 0 test scaffolding (16 Vitest + 5 pgTAP + MSW handlers) *(completed 2026-04-28)*
 - [ ] 02-02-PLAN.md — Migration F (4 sub-migrations: stages + data_access_log + consents + CPF)
 - [ ] 02-03-PLAN.md — Wave 1 utilities (supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
 - [ ] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
