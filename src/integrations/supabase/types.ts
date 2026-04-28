@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       application_stage_history: {
@@ -85,6 +110,7 @@ export type Database = {
           id: string
           job_opening_id: string
           last_moved_by: string | null
+          metadata: Json
           notes: string | null
           rejection_message_id: string | null
           stage: Database["public"]["Enums"]["application_stage_enum"]
@@ -103,6 +129,7 @@ export type Database = {
           id?: string
           job_opening_id: string
           last_moved_by?: string | null
+          metadata?: Json
           notes?: string | null
           rejection_message_id?: string | null
           stage?: Database["public"]["Enums"]["application_stage_enum"]
@@ -121,6 +148,7 @@ export type Database = {
           id?: string
           job_opening_id?: string
           last_moved_by?: string | null
+          metadata?: Json
           notes?: string | null
           rejection_message_id?: string | null
           stage?: Database["public"]["Enums"]["application_stage_enum"]
@@ -270,6 +298,73 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_consents: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          document_url: string | null
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          legal_basis: Database["public"]["Enums"]["consent_legal_basis_enum"]
+          purpose: Database["public"]["Enums"]["consent_purpose_enum"]
+          revoked_at: string | null
+          revoked_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          document_url?: string | null
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          legal_basis?: Database["public"]["Enums"]["consent_legal_basis_enum"]
+          purpose: Database["public"]["Enums"]["consent_purpose_enum"]
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          document_url?: string | null
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          legal_basis?: Database["public"]["Enums"]["consent_legal_basis_enum"]
+          purpose?: Database["public"]["Enums"]["consent_purpose_enum"]
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_consents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_consents_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_consents_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -834,6 +929,67 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "cultural_fit_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_access_log: {
+        Row: {
+          action: string
+          actor_id: string
+          at: string
+          context: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          ip_address: unknown
+          scope_company_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          at?: string
+          context?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          scope_company_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          at?: string
+          context?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          scope_company_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_access_log_scope_company_id_fkey"
+            columns: ["scope_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_access_log_scope_company_id_fkey"
+            columns: ["scope_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2145,6 +2301,79 @@ export type Database = {
       }
     }
     Views: {
+      active_candidate_consents: {
+        Row: {
+          candidate_id: string | null
+          created_at: string | null
+          document_url: string | null
+          expires_at: string | null
+          granted_at: string | null
+          granted_by: string | null
+          id: string | null
+          legal_basis:
+            | Database["public"]["Enums"]["consent_legal_basis_enum"]
+            | null
+          purpose: Database["public"]["Enums"]["consent_purpose_enum"] | null
+          revoked_at: string | null
+          revoked_by: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          expires_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string | null
+          legal_basis?:
+            | Database["public"]["Enums"]["consent_legal_basis_enum"]
+            | null
+          purpose?: Database["public"]["Enums"]["consent_purpose_enum"] | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          expires_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string | null
+          legal_basis?:
+            | Database["public"]["Enums"]["consent_legal_basis_enum"]
+            | null
+          purpose?: Database["public"]["Enums"]["consent_purpose_enum"] | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_consents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_consents_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_consents_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies_public: {
         Row: {
           address_city: string | null
@@ -2557,7 +2786,34 @@ export type Database = {
       }
       hiring_supabase_url: { Args: never; Returns: string }
       is_people_manager: { Args: { _user_id: string }; Returns: boolean }
+      normalize_cpf: { Args: { input: string }; Returns: string }
       org_unit_descendants: { Args: { _unit_id: string }; Returns: string[] }
+      read_candidate_with_log: {
+        Args: { p_candidate_id: string; p_context?: string }
+        Returns: {
+          anonymization_reason:
+            | Database["public"]["Enums"]["anonymization_reason_enum"]
+            | null
+          anonymized_at: string | null
+          cpf: string | null
+          created_at: string
+          cv_storage_path: string | null
+          document_number: string | null
+          document_type: Database["public"]["Enums"]["document_type_enum"]
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          source: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "candidates"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       resolve_default_scope: { Args: { _uid: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -2604,6 +2860,18 @@ export type Database = {
         | "referencia"
         | "alinhamento"
         | "outro"
+      consent_legal_basis_enum:
+        | "consent"
+        | "legitimate_interest"
+        | "contract"
+        | "legal_obligation"
+      consent_purpose_enum:
+        | "aplicar_a_esta_vaga"
+        | "incluir_no_banco_de_talentos_global"
+        | "compartilhar_com_cliente_externo"
+        | "manter_cv_pos_recusa"
+        | "considerar_outras_vagas_lever"
+        | "considerar_vagas_grupo_lever"
       contract_type_enum: "clt" | "pj" | "estagio" | "pj_equity"
       description_approval_enum:
         | "rascunho"
@@ -2764,6 +3032,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       anonymization_reason_enum: ["solicitacao", "retencao_expirada"],
@@ -2799,6 +3070,20 @@ export const Constants = {
         "referencia",
         "alinhamento",
         "outro",
+      ],
+      consent_legal_basis_enum: [
+        "consent",
+        "legitimate_interest",
+        "contract",
+        "legal_obligation",
+      ],
+      consent_purpose_enum: [
+        "aplicar_a_esta_vaga",
+        "incluir_no_banco_de_talentos_global",
+        "compartilhar_com_cliente_externo",
+        "manter_cv_pos_recusa",
+        "considerar_outras_vagas_lever",
+        "considerar_vagas_grupo_lever",
       ],
       contract_type_enum: ["clt", "pj", "estagio", "pj_equity"],
       description_approval_enum: [
