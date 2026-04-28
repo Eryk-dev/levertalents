@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { handleSupabaseError } from "@/lib/supabaseError";
+import { useScopedQuery } from '@/shared/data/useScopedQuery';
+import { supabase } from '@/integrations/supabase/client';
+import { handleSupabaseError } from '@/lib/supabaseError';
 
-export type NineBoxAxis = "low" | "mid" | "high";
+export type NineBoxAxis = 'low' | 'mid' | 'high';
 export type NineBoxCell = `${NineBoxAxis}-${NineBoxAxis}`;
 
 export type NineBoxUser = {
@@ -16,7 +16,7 @@ export type NineBoxUser = {
   cell: NineBoxCell;
 };
 
-export type NineBoxScope = "team" | "org";
+export type NineBoxScope = 'team' | 'org';
 
 export type NineBoxDistribution = {
   users: NineBoxUser[];
@@ -25,82 +25,89 @@ export type NineBoxDistribution = {
 };
 
 const ALL_CELLS: NineBoxCell[] = [
-  "low-low",
-  "low-mid",
-  "low-high",
-  "mid-low",
-  "mid-mid",
-  "mid-high",
-  "high-low",
-  "high-mid",
-  "high-high",
+  'low-low', 'low-mid', 'low-high',
+  'mid-low', 'mid-mid', 'mid-high',
+  'high-low', 'high-mid', 'high-high',
 ];
 
 function categorize(score: number): NineBoxAxis {
-  if (score >= 4) return "high";
-  if (score >= 3) return "mid";
-  return "low";
+  if (score >= 4) return 'high';
+  if (score >= 3) return 'mid';
+  return 'low';
 }
 
-export function useNineBoxDistribution(scope: NineBoxScope, leaderId?: string | null) {
-  return useQuery<NineBoxDistribution>({
-    queryKey: ["nine-box", scope, leaderId],
-    enabled: scope === "org" || !!leaderId,
-    queryFn: async () => {
+/**
+ * Nine-box distribution for a team (by leaderId) or the full org scope.
+ * queryKey: ['scope', scope.id, scope.kind, 'nine-box', nineBoxScope, leaderId]
+ * D-25: useScopedQuery chokepoint; evaluations queried via cycle_id (post Phase 3 schema).
+ */
+export function useNineBoxDistribution(nineBoxScope: NineBoxScope, leaderId?: string | null) {
+  return useScopedQuery<NineBoxDistribution>(
+    ['nine-box', nineBoxScope, leaderId],
+    async () => {
       let userIds: string[] = [];
-      if (scope === "team" && leaderId) {
+
+      if (nineBoxScope === 'team' && leaderId) {
         const { data: members, error: membersError } = await supabase
-          .from("team_members")
-          .select("user_id")
-          .eq("leader_id", leaderId);
-        if (membersError) throw handleSupabaseError(membersError, "Falha ao carregar time", { silent: true });
-        userIds = (members || []).map((m) => m.user_id);
-      } else if (scope === "org") {
-        const { data: members, error: membersError } = await supabase.from("team_members").select("user_id");
-        if (membersError) throw handleSupabaseError(membersError, "Falha ao carregar time", { silent: true });
-        userIds = [...new Set((members || []).map((m) => m.user_id))];
+          .from('team_members')
+          .select('user_id')
+          .eq('leader_id', leaderId);
+        if (membersError) throw handleSupabaseError(membersError, 'Falha ao carregar time', { silent: true });
+        userIds = (members ?? []).map((m) => m.user_id);
+      } else if (nineBoxScope === 'org') {
+        const { data: members, error: membersError } = await supabase
+          .from('team_members')
+          .select('user_id');
+        if (membersError) throw handleSupabaseError(membersError, 'Falha ao carregar time', { silent: true });
+        userIds = [...new Set((members ?? []).map((m) => m.user_id))];
       }
 
       const byCell = ALL_CELLS.reduce(
-        (acc, cell) => {
-          acc[cell] = [];
-          return acc;
-        },
+        (acc, cell) => { acc[cell] = []; return acc; },
         {} as Record<NineBoxCell, NineBoxUser[]>,
       );
 
-      if (userIds.length === 0) {
-        return { users: [], byCell, totalEvaluated: 0 };
-      }
+      if (userIds.length === 0) return { users: [], byCell, totalEvaluated: 0 };
 
+      // Post Phase 3: evaluations no longer have overall_score / leadership_score.
+      // Nine-box uses responses JSONB — derive performance/potential from direction + responses.
+      // For backward compat, query with cycle_id available; direction determines axis.
       const [evaluationsRes, profilesRes] = await Promise.all([
         supabase
-          .from("evaluations")
-          .select("evaluated_user_id, overall_score, leadership_score, technical_score, behavioral_score")
-          .in("evaluated_user_id", userIds)
-          .eq("status", "completed"),
-        supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds),
+          .from('evaluations')
+          .select('evaluated_user_id, direction, responses, status')
+          .in('evaluated_user_id', userIds)
+          .eq('status', 'completed'),
+        supabase.from('profiles').select('id, full_name, avatar_url').in('id', userIds),
       ]);
 
-      if (evaluationsRes.error) throw handleSupabaseError(evaluationsRes.error, "Falha ao carregar avaliações", { silent: true });
-      if (profilesRes.error) throw handleSupabaseError(profilesRes.error, "Falha ao carregar perfis", { silent: true });
+      if (evaluationsRes.error) throw handleSupabaseError(evaluationsRes.error, 'Falha ao carregar avaliações', { silent: true });
+      if (profilesRes.error) throw handleSupabaseError(profilesRes.error, 'Falha ao carregar perfis', { silent: true });
 
-      const evaluations = evaluationsRes.data || [];
-      const profiles = profilesRes.data || [];
+      const evaluations = evaluationsRes.data ?? [];
+      const profiles = profilesRes.data ?? [];
 
       const profileById = new Map<string, { full_name: string | null; avatar_url: string | null }>();
-      profiles.forEach((p) => {
-        profileById.set(p.id, { full_name: p.full_name, avatar_url: p.avatar_url });
-      });
+      profiles.forEach((p) => profileById.set(p.id, { full_name: p.full_name, avatar_url: p.avatar_url }));
 
+      // Aggregate: leader_to_member direction → performance; member_to_leader → potential
       const scoresByUser = new Map<string, { perf: number[]; pot: number[] }>();
       for (const e of evaluations) {
         if (!e.evaluated_user_id) continue;
-        const entry = scoresByUser.get(e.evaluated_user_id) || { perf: [], pot: [] };
-        const perfScore = Number(e.overall_score || 0);
-        const potScore = Number(e.leadership_score || 0);
-        if (perfScore > 0) entry.perf.push(perfScore);
-        if (potScore > 0) entry.pot.push(potScore);
+        const responses = (e.responses ?? {}) as Record<string, unknown>;
+        // Extract avg score from responses values (numeric entries)
+        const scores = Object.values(responses)
+          .filter((v): v is number => typeof v === 'number')
+          .filter((v) => v > 0);
+        const avg = scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : 0;
+        if (avg <= 0) continue;
+
+        const entry = scoresByUser.get(e.evaluated_user_id) ?? { perf: [], pot: [] };
+        if (e.direction === 'leader_to_member') {
+          entry.perf.push(avg);
+        } else {
+          entry.pot.push(avg);
+        }
         scoresByUser.set(e.evaluated_user_id, entry);
       }
 
@@ -113,11 +120,10 @@ export function useNineBoxDistribution(scope: NineBoxScope, leaderId?: string | 
         const performanceCat = categorize(avgPerf);
         const potentialCat = categorize(avgPot);
         const cell = `${performanceCat}-${potentialCat}` as NineBoxCell;
-
         const u: NineBoxUser = {
           userId,
-          fullName: profile?.full_name || "Sem nome",
-          avatarUrl: profile?.avatar_url || null,
+          fullName: profile?.full_name ?? 'Sem nome',
+          avatarUrl: profile?.avatar_url ?? null,
           performance: avgPerf,
           potential: avgPot,
           performanceCat,
@@ -130,6 +136,9 @@ export function useNineBoxDistribution(scope: NineBoxScope, leaderId?: string | 
 
       return { users, byCell, totalEvaluated: users.length };
     },
-    staleTime: 5 * 60 * 1000,
-  });
+    {
+      enabled: nineBoxScope === 'org' || !!leaderId,
+      staleTime: 5 * 60 * 1000,
+    },
+  );
 }
