@@ -36,7 +36,7 @@ export function OneOnOneAgenda({ items, onChange }: OneOnOneAgendaProps) {
 
   return (
     <Card>
-      <SectionHeader>Pauta</SectionHeader>
+      <SectionHeader title="Pauta" />
       <ul className="space-y-2">
         {state.items.length === 0 && (
           <li>

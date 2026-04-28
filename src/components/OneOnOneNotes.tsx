@@ -31,7 +31,7 @@ export function OneOnOneNotes(props: OneOnOneNotesProps) {
 
   return (
     <Card>
-      <SectionHeader>Notas</SectionHeader>
+      <SectionHeader title="Notas" />
       <div className="space-y-4">
 
         {/* Free-form notes */}

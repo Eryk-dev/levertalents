@@ -37,7 +37,7 @@ export function OneOnOneActionItems({ items, onChange }: OneOnOneActionItemsProp
 
   return (
     <Card>
-      <SectionHeader>Action items</SectionHeader>
+      <SectionHeader title="Action items" />
       <ul className="space-y-2">
         {state.items.length === 0 && (
           <li>

@@ -46,7 +46,7 @@ export function OneOnOnePDIPanel({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <SectionHeader>PDI</SectionHeader>
+        <SectionHeader title="PDI" />
         {open ? (
           <ChevronUp className="size-4" />
         ) : (

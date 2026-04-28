@@ -41,14 +41,14 @@ function RHNoteInner({ meetingId }: Props) {
 
   return (
     <Card className="border-l-4 border-l-status-purple">
-      <SectionHeader>
-        <span className="flex items-center gap-2">
-          Notas RH
-          <Chip color="purple" size="sm">
-            RH-only
-          </Chip>
-        </span>
-      </SectionHeader>
+      <SectionHeader
+        title={
+          <span className="flex items-center gap-2">
+            Notas RH
+            <Chip color="purple" size="sm">RH-only</Chip>
+          </span>
+        }
+      />
       <p className="text-xs text-text-subtle mb-2">Visível apenas para RH.</p>
       <Textarea
         value={notes}
