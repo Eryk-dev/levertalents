@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useScopedQuery } from '@/shared/data/useScopedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { handleSupabaseError } from '@/lib/supabaseError';
 
@@ -9,44 +9,58 @@ interface Alert {
   relatedId?: string;
 }
 
+/**
+ * Leader alerts: low scores, pending 1:1s, PDIs awaiting approval.
+ * queryKey: ['scope', scope.id, scope.kind, 'leader-alerts', leaderId]
+ * D-25: useScopedQuery chokepoint.
+ * Post Phase 3: evaluations no longer have overall_score — derive from responses JSONB.
+ */
 export function useLeaderAlerts(leaderId: string | undefined) {
-  return useQuery({
-    queryKey: ['leader-alerts', leaderId],
-    queryFn: async () => {
+  return useScopedQuery<Alert[]>(
+    ['leader-alerts', leaderId],
+    async () => {
       if (!leaderId) return [];
 
       const alerts: Alert[] = [];
 
-      // Buscar scores baixos (avaliações com overall_score < 3.5)
-      const { data: lowScores, error: lowScoresError } = await supabase
+      // Fetch low-scoring evaluations (leader_to_member direction, avg score < 3.5)
+      const { data: lowScoreEvals, error: lowScoresError } = await supabase
         .from('evaluations')
         .select(`
           id,
-          overall_score,
+          responses,
           evaluated_user_id,
-          profiles!evaluations_evaluated_user_id_fkey (
-            full_name
-          )
+          profiles!evaluations_evaluated_user_id_fkey(full_name)
         `)
         .eq('evaluator_user_id', leaderId)
-        .lt('overall_score', 3.5)
-        .order('created_at', { ascending: false })
-        .limit(3);
-      if (lowScoresError) throw handleSupabaseError(lowScoresError, 'Falha ao carregar scores baixos', { silent: true });
+        .eq('direction', 'leader_to_member')
+        .eq('status', 'completed')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      if (lowScoresError) throw handleSupabaseError(lowScoresError, 'Falha ao carregar scores', { silent: true });
 
-      if (lowScores) {
-        lowScores.forEach(evaluation => {
-          const profile = evaluation.profiles as any;
+      if (lowScoreEvals) {
+        for (const evaluation of lowScoreEvals) {
+          const responses = (evaluation.responses ?? {}) as Record<string, unknown>;
+          const scores = Object.values(responses).filter(
+            (v): v is number => typeof v === 'number' && v > 0,
+          );
+          if (!scores.length) continue;
+          const avg = scores.reduce((s, v) => s + v, 0) / scores.length;
+          if (avg >= 3.5) continue;
+
+          const profile = evaluation.profiles as { full_name: string | null } | null;
           alerts.push({
             type: 'score',
-            message: `Score baixo: ${profile?.full_name} (${evaluation.overall_score})`,
+            message: `Score baixo: ${profile?.full_name ?? 'Colaborador'} (${avg.toFixed(1)})`,
             action: 'Agendar 1:1',
-            relatedId: evaluation.evaluated_user_id
+            relatedId: evaluation.evaluated_user_id,
           });
-        });
+          if (alerts.filter((a) => a.type === 'score').length >= 3) break;
+        }
       }
 
-      // Buscar 1:1s pendentes (scheduled mas não realizados)
+      // Fetch pending 1:1s (scheduled but past scheduled_date)
       const { data: pendingOneOnOnes, error: pendingOneOnOnesError } = await supabase
         .from('one_on_ones')
         .select('id, scheduled_date')
@@ -63,24 +77,21 @@ export function useLeaderAlerts(leaderId: string | undefined) {
         });
       }
 
-      // Buscar PDIs sem aprovação
+      // Fetch PDIs awaiting approval from team members
       const { data: teamMembers, error: teamMembersError } = await supabase
         .from('team_members')
         .select('user_id')
         .eq('leader_id', leaderId);
       if (teamMembersError) throw handleSupabaseError(teamMembersError, 'Falha ao carregar time', { silent: true });
 
-      const teamUserIds = teamMembers?.map(tm => tm.user_id) || [];
-
+      const teamUserIds = (teamMembers ?? []).map((tm) => tm.user_id);
       if (teamUserIds.length > 0) {
         const { data: pendingPDIs, error: pendingPDIsError } = await supabase
           .from('development_plans')
           .select(`
             id,
             user_id,
-            profiles!development_plans_user_id_fkey (
-              full_name
-            )
+            profiles!development_plans_user_id_fkey(full_name)
           `)
           .eq('status', 'pending_approval')
           .in('user_id', teamUserIds)
@@ -98,6 +109,6 @@ export function useLeaderAlerts(leaderId: string | undefined) {
 
       return alerts;
     },
-    enabled: !!leaderId,
-  });
+    { enabled: !!leaderId },
+  );
 }
