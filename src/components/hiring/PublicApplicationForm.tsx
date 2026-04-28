@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -15,8 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { OptInCheckboxes } from "./OptInCheckboxes";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -83,8 +83,16 @@ function buildSchema(fitSurvey: { id: string; name: string } | null, fitQuestion
           "Formato inválido. Use PDF, PNG ou JPEG.",
         ),
       fit_responses: z.record(z.any()).optional(),
-      consent: z.literal(true, {
+      // TAL-04 LGPD opt-in granular (Plan 02-09).
+      // consent_aplicacao_vaga é OBRIGATÓRIO (literal true; bloqueia submit);
+      // consents.* são OPCIONAIS (default false; não pré-marcados).
+      consent_aplicacao_vaga: z.literal(true, {
         errorMap: () => ({ message: "Você precisa aceitar para continuar." }),
+      }),
+      consents: z.object({
+        incluir_no_banco_de_talentos_global: z.boolean(),
+        compartilhar_com_cliente_externo: z.boolean(),
+        manter_cv_pos_recusa: z.boolean(),
       }),
       hp: z.string().optional(),
     })
@@ -139,7 +147,12 @@ type FormValues = {
   linkedin?: string;
   cv: FileList;
   fit_responses?: Record<string, unknown>;
-  consent: true;
+  consent_aplicacao_vaga: true;
+  consents: {
+    incluir_no_banco_de_talentos_global: boolean;
+    compartilhar_com_cliente_externo: boolean;
+    manter_cv_pos_recusa: boolean;
+  };
   hp?: string;
 };
 
@@ -273,7 +286,10 @@ export default function PublicApplicationForm({
   const schema = buildSchema(fitSurvey, fitQuestions);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    // Zod 3.25 + @hookform/resolvers 5.2.2 — o triplo Resolver<FormValues, ctx, FormValues>
+    // não infere stricto a partir de schemas com .optional()/.superRefine().
+    // Cast preserva runtime + types nas leituras.
+    resolver: zodResolver(schema) as unknown as Resolver<FormValues, unknown, FormValues>,
     defaultValues: {
       full_name: "",
       email: "",
@@ -281,7 +297,13 @@ export default function PublicApplicationForm({
       linkedin: "",
       hp: "",
       fit_responses: {},
-      consent: undefined as unknown as true,
+      // TAL-04 — checkboxes não pré-marcados.
+      consent_aplicacao_vaga: undefined as unknown as true,
+      consents: {
+        incluir_no_banco_de_talentos_global: false,
+        compartilhar_com_cliente_externo: false,
+        manter_cv_pos_recusa: false,
+      },
     },
   });
 
@@ -304,7 +326,14 @@ export default function PublicApplicationForm({
       formData.append("email", data.email.trim());
       if (data.phone?.trim()) formData.append("phone", data.phone.trim());
       if (data.linkedin?.trim()) formData.append("linkedin", data.linkedin.trim());
+      // Backwards-compat: legacy `consent` boolean (pre Plan 02-09).
+      // Edge Function continua aceitando ambos os shapes durante transição.
       formData.append("consent", "true");
+      // TAL-04 — granular consents (Plan 02-09).
+      // Edge Function `apply-to-job` (Plan 06) lê este JSON e persiste cada
+      // finalidade=true como row em `candidate_consents` (granted_by=null,
+      // self-grant; expires_at=now+24mo; legal_basis='consent').
+      formData.append("consents", JSON.stringify(data.consents));
       formData.append("hp", data.hp ?? "");
       formData.append("cv", data.cv[0]);
 
@@ -615,45 +644,21 @@ export default function PublicApplicationForm({
           </div>
         ) : null}
 
-        {/* Consent */}
-        <FormField
-          control={form.control}
-          name="consent"
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex items-start gap-3">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value === true}
-                    onCheckedChange={(checked) =>
-                      field.onChange(checked === true ? true : undefined)
-                    }
-                    id="consent-check"
-                    className="mt-0.5"
-                  />
-                </FormControl>
-                <label
-                  htmlFor="consent-check"
-                  className="cursor-pointer text-[12.5px] text-text-muted leading-snug"
-                >
-                  Autorizo o tratamento dos meus dados de acordo com a{" "}
-                  <a
-                    href="/politica-privacidade"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="link-accent underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    LGPD
-                  </a>{" "}
-                  para fins de processo seletivo.{" "}
-                  <span className="text-status-red">*</span>
-                </label>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* TAL-04 LGPD opt-in — 3 checkboxes não pré-marcados (Plan 02-09) */}
+        <OptInCheckboxes control={form.control} />
+
+        <p className="text-[11px] text-text-muted">
+          Ao enviar, você confirma que leu nossa{" "}
+          <a
+            href="/politica-privacidade"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link-accent underline"
+          >
+            Política de Privacidade
+          </a>{" "}
+          e tem ao menos 18 anos.
+        </p>
 
         <Button
           type="submit"
