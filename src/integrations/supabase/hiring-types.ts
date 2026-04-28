@@ -613,222 +613,79 @@ export type JobDescriptionPublicRow = Pick<
   | "benefits_list"
 >;
 
-// --- Module augmentation --------------------------------------------------
-// Merge the hiring tables / enums into the auto-generated `Database` type so
-// that `supabase.from("job_openings")` in hooks resolves to the correct row
-// shape without any `as any` casts.
+// --- Module augmentation REMOVED in Plan 02-04 ---------------------------
+// Pre-Plan 02-04, this file declared a `declare module "./types"` block to merge
+// the hiring tables/enums/views into the auto-generated `Database` type.
+//
+// In Plan 02-04 the Supabase CLI became available and `types.ts` was regenerated
+// from the linked remote project. The auto-generated `types.ts` now contains
+// the canonical shape of every public table/view/function (including all hiring
+// entities AND the new Phase 2 surface — data_access_log, candidate_consents,
+// active_candidate_consents view, read_candidate_with_log RPC, the consent
+// enums). The declaration-merging block became a `Duplicate identifier
+// 'Database'` conflict because the auto-gen exports `type Database = { ... }`
+// (a type alias, NOT an interface), and TypeScript cannot merge a type alias
+// with a `declare module` interface augmentation.
+//
+// All hand-written aliases above (JobOpeningRow, ApplicationRow, CandidateRow,
+// etc.) remain valid as standalone type aliases and continue to be the
+// canonical entry points for hiring code (avoiding deeply-nested
+// `Database["public"]["Tables"][...]` lookups). The Phase 2 additions below
+// reference the auto-gen `Database` type directly because the Phase 2 schema
+// did not exist in any hand-written form.
 
-declare module "./types" {
-  interface Database {
-    public: {
-      Tables: Database["public"]["Tables"] & {
-        job_openings: {
-          Row: JobOpeningRow;
-          Insert: JobOpeningInsert;
-          Update: JobOpeningUpdate;
-          Relationships: [];
-        };
-        job_descriptions: {
-          Row: JobDescriptionRow;
-          Insert: JobDescriptionInsert;
-          Update: JobDescriptionUpdate;
-          Relationships: [];
-        };
-        job_external_publications: {
-          Row: JobExternalPublicationRow;
-          Insert: JobExternalPublicationInsert;
-          Update: JobExternalPublicationUpdate;
-          Relationships: [];
-        };
-        candidates: {
-          Row: CandidateRow;
-          Insert: CandidateInsert;
-          Update: CandidateUpdate;
-          Relationships: [];
-        };
-        applications: {
-          Row: ApplicationRow;
-          Insert: ApplicationInsert;
-          Update: ApplicationUpdate;
-          Relationships: [];
-        };
-        application_stage_history: {
-          Row: ApplicationStageHistoryRow;
-          Insert: Partial<ApplicationStageHistoryRow>;
-          Update: Partial<ApplicationStageHistoryRow>;
-          Relationships: [];
-        };
-        cultural_fit_surveys: {
-          Row: CulturalFitSurveyRow;
-          Insert: CulturalFitSurveyInsert;
-          Update: CulturalFitSurveyUpdate;
-          Relationships: [];
-        };
-        cultural_fit_questions: {
-          Row: CulturalFitQuestionRow;
-          Insert: CulturalFitQuestionInsert;
-          Update: CulturalFitQuestionUpdate;
-          Relationships: [];
-        };
-        cultural_fit_tokens: {
-          Row: CulturalFitTokenRow;
-          Insert: Partial<CulturalFitTokenRow>;
-          Update: Partial<CulturalFitTokenRow>;
-          Relationships: [];
-        };
-        cultural_fit_responses: {
-          Row: CulturalFitResponseRow;
-          Insert: Partial<CulturalFitResponseRow>;
-          Update: Partial<CulturalFitResponseRow>;
-          Relationships: [];
-        };
-        background_checks: {
-          Row: BackgroundCheckRow;
-          Insert: BackgroundCheckInsert;
-          Update: BackgroundCheckUpdate;
-          Relationships: [];
-        };
-        interviews: {
-          Row: InterviewRow;
-          Insert: InterviewInsert;
-          Update: InterviewUpdate;
-          Relationships: [];
-        };
-        interview_decisions: {
-          Row: InterviewDecisionRow;
-          Insert: InterviewDecisionInsert;
-          Update: InterviewDecisionUpdate;
-          Relationships: [];
-        };
-        hiring_decisions: {
-          Row: HiringDecisionRow;
-          Insert: Partial<HiringDecisionRow>;
-          Update: Partial<HiringDecisionRow>;
-          Relationships: [];
-        };
-        employee_onboarding_handoffs: {
-          Row: EmployeeOnboardingHandoffRow;
-          Insert: EmployeeOnboardingHandoffInsert;
-          Update: EmployeeOnboardingHandoffUpdate;
-          Relationships: [];
-        };
-        standard_messages: {
-          Row: StandardMessageRow;
-          Insert: StandardMessageInsert;
-          Update: StandardMessageUpdate;
-          Relationships: [];
-        };
-        candidate_access_log: {
-          Row: CandidateAccessLogRow;
-          Insert: Partial<CandidateAccessLogRow>;
-          Update: Partial<CandidateAccessLogRow>;
-          Relationships: [];
-        };
-        candidate_conversations: {
-          Row: CandidateConversationRow;
-          Insert: CandidateConversationInsert;
-          Update: CandidateConversationUpdate;
-          Relationships: [];
-        };
-        companies: {
-          Row: CompanyRow;
-          Insert: CompanyInsert;
-          Update: CompanyUpdate;
-          Relationships: [];
-        };
-      };
-      Views: Database["public"]["Views"] & {
-        jobs_public: {
-          Row: JobPublicRow;
-          Relationships: [];
-        };
-        companies_public: {
-          Row: CompanyPublicRow;
-          Relationships: [];
-        };
-        job_descriptions_public: {
-          Row: JobDescriptionPublicRow;
-          Relationships: [];
-        };
-        cultural_fit_surveys_public: {
-          Row: Pick<CulturalFitSurveyRow, "id" | "name" | "active">;
-          Relationships: [];
-        };
-        cultural_fit_questions_public: {
-          Row: Pick<
-            CulturalFitQuestionRow,
-            "id" | "survey_id" | "order_index" | "kind" | "prompt" | "options" | "scale_min" | "scale_max"
-          >;
-          Relationships: [];
-        };
-        v_hiring_jobs_by_status: {
-          Row: { company_id: string; status: JobStatus; count: number };
-          Relationships: [];
-        };
-        v_hiring_applications_by_stage: {
-          Row: { company_id: string; stage: ApplicationStage; count: number };
-          Relationships: [];
-        };
-        v_hiring_bottlenecks: {
-          Row: {
-            application_id: string;
-            stage: ApplicationStage;
-            stage_entered_at: string;
-            job_opening_id: string;
-            company_id: string;
-            job_title: string;
-            candidate_name: string;
-            days_in_stage: number;
-          };
-          Relationships: [];
-        };
-        v_hiring_avg_time_per_job: {
-          Row: { company_id: string; avg_days_open: number | null };
-          Relationships: [];
-        };
-        v_hiring_stage_conversion: {
-          Row: {
-            company_id: string;
-            from_stage: ApplicationStage | null;
-            to_stage: ApplicationStage;
-            transitions: number;
-          };
-          Relationships: [];
-        };
-        v_hiring_final_approval_rate: {
-          Row: {
-            company_id: string;
-            aprovados: number;
-            reprovados: number;
-            approval_rate: number | null;
-          };
-          Relationships: [];
-        };
-      };
-      Functions: Database["public"]["Functions"];
-      Enums: Database["public"]["Enums"] & {
-        work_mode_enum: WorkMode;
-        contract_type_enum: ContractType;
-        job_status_enum: JobStatus;
-        job_close_reason_enum: JobCloseReason;
-        publication_channel_enum: PublicationChannel;
-        description_approval_enum: DescriptionApproval;
-        document_type_enum: DocumentType;
-        anonymization_reason_enum: AnonymizationReason;
-        application_stage_enum: ApplicationStage;
-        fit_question_kind_enum: FitQuestionKind;
-        background_status_enum: BackgroundStatus;
-        interview_kind_enum: InterviewKind;
-        interview_mode_enum: InterviewMode;
-        interview_status_enum: InterviewStatus;
-        evaluator_decision_enum: EvaluatorDecision;
-        hiring_outcome_enum: HiringOutcome;
-        standard_message_kind_enum: StandardMessageKind;
-        log_action_enum: LogAction;
-        discard_reason_enum: DiscardReason;
-        candidate_conversation_kind_enum: CandidateConversationKind;
-      };
-      CompositeTypes: Database["public"]["CompositeTypes"];
-    };
-  }
+// =========================================================================
+// Phase 2 — Migration F types (hand-written extensions)
+// =========================================================================
+
+// candidate_consents
+export type Consent = Database["public"]["Tables"]["candidate_consents"]["Row"];
+export type ConsentInsert =
+  Database["public"]["Tables"]["candidate_consents"]["Insert"];
+export type ConsentUpdate =
+  Database["public"]["Tables"]["candidate_consents"]["Update"];
+
+// View active_candidate_consents (revoked_at IS NULL AND not expired)
+export type ActiveConsent =
+  Database["public"]["Views"]["active_candidate_consents"]["Row"];
+
+// LGPD enums
+export type ConsentPurpose =
+  Database["public"]["Enums"]["consent_purpose_enum"];
+export type ConsentLegalBasis =
+  Database["public"]["Enums"]["consent_legal_basis_enum"];
+
+// data_access_log (append-only audit log; INSERT only via SECURITY DEFINER RPCs)
+export type DataAccessLogEntry =
+  Database["public"]["Tables"]["data_access_log"]["Row"];
+export type DataAccessLogInsert =
+  Database["public"]["Tables"]["data_access_log"]["Insert"];
+
+// RPC read_candidate_with_log — only sanctioned read path for candidate PII
+export type ReadCandidateWithLogArgs =
+  Database["public"]["Functions"]["read_candidate_with_log"]["Args"];
+export type ReadCandidateWithLogReturn =
+  Database["public"]["Functions"]["read_candidate_with_log"]["Returns"];
+
+// =========================================================================
+// Phase 2 — Move application stage args (consumed by useMoveApplicationStage)
+// =========================================================================
+
+export interface MoveApplicationStageArgs {
+  id: string;
+  fromStage: ApplicationStage;
+  toStage: ApplicationStage;
+  jobId: string;
+  companyId: string;
 }
+
+// =========================================================================
+// Phase 2 — ApplicationWithCandidate (used by useApplicationsByJob)
+// =========================================================================
+
+export type ApplicationWithCandidate = ApplicationRow & {
+  candidate: Pick<
+    CandidateRow,
+    "id" | "full_name" | "email" | "anonymized_at"
+  > | null;
+};
