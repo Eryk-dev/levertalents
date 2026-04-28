@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { phase3Handlers } from '../../src/test/perf-mocks/index';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'https://ehbxpbeijofxtsbezwxd.supabase.co';
 
@@ -10,4 +11,6 @@ export const handlers = [
   http.get(`${SUPABASE_URL}/rest/v1/org_units`, () => HttpResponse.json([])),
   // RPCs return null by default
   http.post(`${SUPABASE_URL}/rest/v1/rpc/resolve_default_scope`, () => HttpResponse.json(null)),
+  // Phase 3 handlers — Edge Function create-user-with-temp-password + RPCs get_climate_aggregate + submit_climate_response
+  ...phase3Handlers,
 ];
