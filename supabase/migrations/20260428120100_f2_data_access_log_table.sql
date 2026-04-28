@@ -134,10 +134,12 @@ WHERE cal.action::text IN ('view', 'update')
   );
 
 -- 5. pg_cron — retention 36 meses (rotina semanal segunda-feira 03:30 UTC = 00:30 BRT)
+-- Idempotente: unschedule existente antes de re-schedule.
 DO $$
 BEGIN
-  PERFORM cron.unschedule('data_access_log_retention_cleanup')
-    WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'data_access_log_retention_cleanup');
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'data_access_log_retention_cleanup') THEN
+    PERFORM cron.unschedule('data_access_log_retention_cleanup');
+  END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
