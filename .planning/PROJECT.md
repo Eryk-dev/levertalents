@@ -47,9 +47,9 @@ Plataforma SaaS multi-tenant que unifica **Gestão de Performance Interna** (1:1
 
 - [ ] Vaga **vinculada a 1 empresa** (obrigatório, não-nulo)
 - [ ] Stages do kanban: **template global** padrão configurável + cada vaga pode adicionar/remover stages locais
-- [ ] **Banco de Talentos global** (cruza empresas) com tags de empresa/vaga e histórico de participação. Auditoria + termo de consentimento LGPD obrigatórios para uso externo
+- [x] **Banco de Talentos global** (cruza empresas) com tags de empresa/vaga e histórico de participação. Auditoria + termo de consentimento LGPD obrigatórios para uso externo *(Validated in Phase 02: candidate_consents granular, RPC read_candidate_with_log, data_access_log append-only com pg_cron 36mo, talent_pool filtra por consent ativo, RevokeConsentDialog auditável)*
 - [ ] Candidato é entidade global, pode estar em N vagas de N empresas simultaneamente
-- [ ] **Estabilizar bug crítico do kanban R&S** (mover candidato falha / dados somem) — bug #1 do refactor
+- [x] **Estabilizar bug crítico do kanban R&S** (mover candidato falha / dados somem) — bug #1 do refactor *(Validated in Phase 02: canTransition pre-check em CandidatesKanban + optimistic mutation com rollback em useApplications + drawer aninhado + filtros inline + toggle Quadro/Tabela + sparkbar/SLA + Encerradas com lista real de terminais)*
 
 **Performance interna**
 
@@ -149,4 +149,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-27 after initialization*
+*Last updated: 2026-04-28 after Phase 02 (r-s-refactor) completion — bug #1 do kanban fechado + Banco de Talentos LGPD-compliant + drawer aninhado + Wave 4 surface wired*
