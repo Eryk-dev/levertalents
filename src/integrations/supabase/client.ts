@@ -8,10 +8,21 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Plan 02-06 (Rule 3 fix): pass a fetch indirection that re-resolves
+// `globalThis.fetch` on each call. supabase-js's `resolveFetch` captures
+// the native fetch reference at client construction; MSW (used in vitest)
+// installs a fetchProxy on `globalThis.fetch` AFTER the client is created
+// (server.listen runs in beforeAll, but the supabase client is constructed
+// at module-load time). Without this indirection, supabase tests escape
+// MSW interception and hit the real Supabase API. In production this is
+// a no-op — `globalThis.fetch === fetch` (both are native).
+const fetchIndirect: typeof fetch = (input, init) => globalThis.fetch(input, init);
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  global: { fetch: fetchIndirect },
 });

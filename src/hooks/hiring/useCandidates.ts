@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { isValidCpfFormat, normalizeCpf } from "@/lib/hiring/cpf";
+import { useScopedQuery } from "@/shared/data/useScopedQuery";
 import type {
   ApplicationStage,
   CandidateInsert,
@@ -12,8 +14,10 @@ export const candidatesKeys = {
   all: ["hiring", "candidates"] as const,
   list: (search: string) => ["hiring", "candidates", "list", search] as const,
   listWithApps: (search: string) => ["hiring", "candidates", "list-with-apps", search] as const,
-  detail: (id: string) => ["hiring", "candidates", "detail", id] as const,
+  detail: (id: string, context: string = "drawer") =>
+    ["hiring", "candidates", "detail", id, context] as const,
   byEmail: (email: string) => ["hiring", "candidates", "by-email", email] as const,
+  byCpf: (cpf: string) => ["hiring", "candidates", "by-cpf", cpf] as const,
 };
 
 export interface CandidateListItem extends CandidateRow {
@@ -102,17 +106,30 @@ export function useCandidatesListWithApplications(search: string) {
   });
 }
 
-export function useCandidate(id: string | undefined) {
-  return useQuery({
-    queryKey: candidatesKeys.detail(id ?? "none"),
-    enabled: !!id,
-    queryFn: async (): Promise<CandidateRow | null> => {
+/**
+ * Lê candidato individual via RPC `read_candidate_with_log` (Migration F.2,
+ * TAL-06). A RPC re-aplica RLS lógica E grava entrada em `data_access_log`
+ * atomicamente — log nunca pode ser bypassado.
+ *
+ * staleTime 60s evita re-fetch loop em re-renders do drawer (T-02-06-04 DoS).
+ *
+ * `context` (default "drawer") é registrado em data_access_log.context — útil
+ * para distinguir leitura via drawer vs export vs relatório.
+ */
+export function useCandidate(id: string | undefined, context: string = "drawer") {
+  return useScopedQuery<CandidateRow | null, Error>(
+    ["hiring", "candidates", "detail", id ?? "none", context],
+    async (): Promise<CandidateRow | null> => {
       if (!id) return null;
-      const { data, error } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
+      const { data, error } = await supabase.rpc("read_candidate_with_log", {
+        p_candidate_id: id,
+        p_context: context,
+      });
       if (error) throw error;
-      return (data as CandidateRow) ?? null;
+      return (data as CandidateRow | null) ?? null;
     },
-  });
+    { enabled: !!id, staleTime: 60_000 },
+  );
 }
 
 export function useCandidateByEmail(email: string) {
@@ -124,6 +141,34 @@ export function useCandidateByEmail(email: string) {
       if (error) throw error;
       return (data as CandidateRow) ?? null;
     },
+  });
+}
+
+/**
+ * TAL-09 — Lookup por CPF normalizado (canonical dedup key). Mirror client-side
+ * do trigger DB `tg_normalize_candidate_cpf`. NÃO usa useScopedQuery — busca
+ * cross-empresa para garantir dedup global (RLS controla quem PODE ler, mas
+ * candidato com CPF pode existir em qualquer empresa).
+ *
+ * Disabled quando CPF inválido (≠ 11 dígitos pós-normalização).
+ */
+export function useCandidateByCpf(cpf: string | null | undefined) {
+  const normalized = normalizeCpf(cpf);
+  return useQuery<CandidateRow | null, Error>({
+    queryKey: candidatesKeys.byCpf(normalized ?? "none"),
+    enabled: isValidCpfFormat(cpf),
+    queryFn: async (): Promise<CandidateRow | null> => {
+      if (!normalized) return null;
+      const { data, error } = await supabase
+        .from("candidates")
+        .select("*")
+        .eq("cpf", normalized)
+        .is("anonymized_at", null)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as CandidateRow) ?? null;
+    },
+    staleTime: 30_000,
   });
 }
 
