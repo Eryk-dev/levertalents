@@ -29,6 +29,7 @@ export type Subject =
   | 'ClimateSurvey'
   | 'Folha'
   | 'Platform'
+  | 'RhNote'   // D-17: RH-only notes on 1:1 meetings (admin + rh only)
   | 'all';
 
 export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete';
@@ -87,6 +88,7 @@ export function defineAppAbility(ctx: AbilityContext): AppAbility {
     can('manage', 'OneOnOne');
     can('manage', 'ClimateSurvey');
     can('read', 'Folha');
+    can('manage', 'RhNote'); // D-17: RH can read/write 1:1 RH notes
     cannot('manage', 'Platform'); // RBAC-03
     return build();
   }
