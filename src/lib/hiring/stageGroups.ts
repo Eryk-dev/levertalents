@@ -134,11 +134,22 @@ export const STAGE_GROUP_DOT_COLORS: Record<StageGroupKey, string> = {
   descartados: "hsl(var(--text-subtle))",
 };
 
-/** Cores para a mini-sparkbar do JobCard (distribuição por grupo). */
+/**
+ * Cores para a mini-sparkbar do JobCard (distribuição por grupo).
+ *
+ * D-11 (Phase 2 CONTEXT.md): cores por intencionalidade do funil, não pela
+ * ordem visual.
+ *   - Azul (status-blue) → movimento inicial: triagem + checagem
+ *   - Amarelo (status-amber) → entrevista: entrevista_rh + entrevista_final
+ *   - Verde (status-green) → decisão / aprovado / admissão
+ *   - Vermelho (status-red) → descartados
+ *
+ * Regression guard em tests/hiring/stageGroups.test.ts (T-02-03-03).
+ */
 export const STAGE_GROUP_BAR_COLORS: Record<StageGroupKey, string> = {
-  triagem: "bg-text-subtle/40",
+  triagem: "bg-status-blue/70",
   checagem: "bg-status-blue/70",
-  entrevista_rh: "bg-status-blue/80",
+  entrevista_rh: "bg-status-amber/80",
   entrevista_final: "bg-status-amber/80",
   decisao: "bg-status-green",
   descartados: "bg-status-red/60",
