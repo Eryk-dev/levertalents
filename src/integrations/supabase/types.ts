@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       application_stage_history: {
@@ -523,30 +498,37 @@ export type Database = {
           comment: string | null
           created_at: string | null
           id: string
+          org_unit_id: string | null
           question_id: string
           score: number
           survey_id: string
-          user_id: string
         }
         Insert: {
           comment?: string | null
           created_at?: string | null
           id?: string
+          org_unit_id?: string | null
           question_id: string
           score: number
           survey_id: string
-          user_id: string
         }
         Update: {
           comment?: string | null
           created_at?: string | null
           id?: string
+          org_unit_id?: string | null
           question_id?: string
           score?: number
           survey_id?: string
-          user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "climate_responses_org_unit_id_fkey"
+            columns: ["org_unit_id"]
+            isOneToOne: false
+            referencedRelation: "org_units"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "climate_responses_question_id_fkey"
             columns: ["question_id"]
@@ -561,17 +543,11 @@ export type Database = {
             referencedRelation: "climate_surveys"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "climate_responses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       climate_surveys: {
         Row: {
+          company_id: string
           created_at: string | null
           created_by: string
           description: string | null
@@ -583,6 +559,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          company_id: string
           created_at?: string | null
           created_by: string
           description?: string | null
@@ -594,6 +571,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string | null
           created_by?: string
           description?: string | null
@@ -605,6 +583,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "climate_surveys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "climate_surveys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "climate_surveys_created_by_fkey"
             columns: ["created_by"]
@@ -1250,56 +1242,171 @@ export type Database = {
           },
         ]
       }
+      evaluation_cycles: {
+        Row: {
+          company_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          name: string
+          starts_at: string
+          status: string
+          template_id: string
+          template_snapshot: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          name: string
+          starts_at: string
+          status?: string
+          template_id: string
+          template_snapshot: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          name?: string
+          starts_at?: string
+          status?: string
+          template_id?: string
+          template_snapshot?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_cycles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluation_cycles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluation_cycles_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "evaluation_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          schema_json: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          schema_json: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          schema_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluation_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evaluations: {
         Row: {
-          areas_for_improvement: string | null
-          behavioral_score: number | null
-          comments: string | null
+          company_id: string
           created_at: string | null
+          cycle_id: string
+          direction: string
           evaluated_user_id: string
           evaluator_user_id: string
           id: string
-          leadership_score: number | null
-          overall_score: number | null
-          period: string
+          responses: Json | null
           status: string | null
-          strengths: string | null
-          technical_score: number | null
           updated_at: string | null
         }
         Insert: {
-          areas_for_improvement?: string | null
-          behavioral_score?: number | null
-          comments?: string | null
+          company_id: string
           created_at?: string | null
+          cycle_id: string
+          direction: string
           evaluated_user_id: string
           evaluator_user_id: string
           id?: string
-          leadership_score?: number | null
-          overall_score?: number | null
-          period: string
+          responses?: Json | null
           status?: string | null
-          strengths?: string | null
-          technical_score?: number | null
           updated_at?: string | null
         }
         Update: {
-          areas_for_improvement?: string | null
-          behavioral_score?: number | null
-          comments?: string | null
+          company_id?: string
           created_at?: string | null
+          cycle_id?: string
+          direction?: string
           evaluated_user_id?: string
           evaluator_user_id?: string
           id?: string
-          leadership_score?: number | null
-          overall_score?: number | null
-          period?: string
+          responses?: Json | null
           status?: string | null
-          strengths?: string | null
-          technical_score?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "evaluations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluations_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "evaluation_cycles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evaluations_evaluated_user_id_fkey"
             columns: ["evaluated_user_id"]
@@ -1838,6 +1945,42 @@ export type Database = {
           },
         ]
       }
+      one_on_one_rh_notes: {
+        Row: {
+          meeting_id: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          meeting_id: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          meeting_id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "one_on_one_rh_notes_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: true
+            referencedRelation: "one_on_ones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_rh_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       one_on_ones: {
         Row: {
           agenda: string | null
@@ -1845,6 +1988,7 @@ export type Database = {
           audio_url: string | null
           collaborator_feedback: string | null
           collaborator_id: string
+          company_id: string
           created_at: string | null
           duration_minutes: number | null
           id: string
@@ -1862,6 +2006,7 @@ export type Database = {
           audio_url?: string | null
           collaborator_feedback?: string | null
           collaborator_id: string
+          company_id: string
           created_at?: string | null
           duration_minutes?: number | null
           id?: string
@@ -1879,6 +2024,7 @@ export type Database = {
           audio_url?: string | null
           collaborator_feedback?: string | null
           collaborator_id?: string
+          company_id?: string
           created_at?: string | null
           duration_minutes?: number | null
           id?: string
@@ -1896,6 +2042,20 @@ export type Database = {
             columns: ["collaborator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_ones_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_ones_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -2060,7 +2220,9 @@ export type Database = {
           full_name: string
           hire_date: string | null
           id: string
+          must_change_password: boolean
           phone: string | null
+          temp_password_expires_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2071,7 +2233,9 @@ export type Database = {
           full_name: string
           hire_date?: string | null
           id: string
+          must_change_password?: boolean
           phone?: string | null
+          temp_password_expires_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2082,7 +2246,9 @@ export type Database = {
           full_name?: string
           hire_date?: string | null
           id?: string
+          must_change_password?: boolean
           phone?: string | null
+          temp_password_expires_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -2755,6 +2921,10 @@ export type Database = {
         Args: { p_candidate_id: string }
         Returns: undefined
       }
+      get_climate_aggregate: {
+        Args: { p_org_unit_id?: string; p_survey_id: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2817,6 +2987,15 @@ export type Database = {
       resolve_default_scope: { Args: { _uid: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_climate_response: {
+        Args: {
+          p_comment?: string
+          p_question_id: string
+          p_score: number
+          p_survey_id: string
+        }
+        Returns: undefined
+      }
       validate_and_consume_fit_token: {
         Args: { p_token_raw: string }
         Returns: {
@@ -3032,9 +3211,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       anonymization_reason_enum: ["solicitacao", "retencao_expirada"],
