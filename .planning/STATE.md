@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-04-28T02:13:15.454Z"
+last_updated: "2026-04-28T02:34:54.915Z"
 progress:
   total_phases: 4
   completed_phases: 1
@@ -32,10 +32,10 @@ Project memory. Updated automatically at each transition.
 ## Current Position
 
 Phase: 02 (r-s-refactor) — EXECUTING
-Plan: 3 of 9 (Plans 02-01, 02-02 complete; Wave 0 + Wave 1 partial)
+Plan: 4 of 9 (Plans 02-01, 02-02, 02-03 complete; Wave 0 + Wave 1 utilities done)
 **Phase:** 2
-**Plan:** 02-02 complete (Migration F sub-migrations F.1-F.4 SQLs escritos)
-**Status:** Executing Phase 02 — Wave 1 continua (Plan 02-04 hooks); Wave 2 BLOCKING (Plan 02-03/04 db push) prox
+**Plan:** 02-03 complete (Wave 1 utilities — supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
+**Status:** Executing Phase 02 — Wave 2 BLOCKING (Plan 02-04 schema push + types regen) próximo
 **Progress:** [██████░░░░] 56%
 
 ---
@@ -49,11 +49,12 @@ Plan: 3 of 9 (Plans 02-01, 02-02 complete; Wave 0 + Wave 1 partial)
 | Requirements mapped | 82/82 (100%) |
 | Requirements completed | 0/82 |
 | Plans created | 16 (Phase 1: 7 + Phase 2: 9) |
-| Plans completed | 9 (7 Phase 1 + 2 Phase 2) |
+| Plans completed | 10 (7 Phase 1 + 3 Phase 2) |
 | Migrations applied | 4/7 (A, B1, B2, C) — F.1-F.4 SQLs escritos, push em Plan 02-04 |
 | Migrations written (pending push) | F.1, F.2, F.3, F.4 (Plan 02-02) |
-| Test coverage | Wave 0 scaffolding: 23 files (17 vitest + 5 pgTAP + 2 msw); Wave 1 (02-02) ativou 5 pgTAP suites com 19 tests |
+| Test coverage | Wave 0: 23 files; Wave 1 (02-02): 5 pgTAP suites com 19 tests; Wave 1 (02-03): 6 vitest suites com 376 tests green (canTransition 294 + stageGroups 17 + supabaseError 20 + sla 17 + cpf 14 + useCardPreferences 14) |
 | Phase 02 P02 duration | 7 min, 4 tasks, 9 files |
+| Phase 02 P03 duration | 8 min, 3 tasks, 11 files |
 
 ---
 
@@ -81,6 +82,10 @@ Plan: 3 of 9 (Plans 02-01, 02-02 complete; Wave 0 + Wave 1 partial)
 - **(Plan 02-02)** F.3 candidate_consents requer `CREATE EXTENSION btree_gist` — sem ela `EXCLUDE USING gist (candidate_id WITH =, purpose WITH =)` falha no apply (uuid/enum nao tem default operator class para gist)
 - **(Plan 02-02)** F.2 `data_access_log` e RLS-enabled mas SEM policy INSERT — escrita apenas via RPC SECURITY DEFINER (`read_candidate_with_log`); audit log inviolavel mesmo para roles authenticated
 - **(Plan 02-02)** RPC `read_candidate_with_log` e VOLATILE (nao STABLE) — funcao faz INSERT em data_access_log, declarar STABLE seria mentira e causaria otimizacoes erradas (Postgres deduplicaria chamadas)
+- **(Plan 02-03)** `supabaseError.ts` exporta `MoveApplicationError` discriminated union + 4 detect helpers (RLS 42501 / network TypeError|AbortError|code='' / conflict 23514+/transition/i / synthetic transition kind) + `getMoveErrorToastConfig` com cópia UI-locked (D-05). Plan 02-05 consome para `useMoveApplicationStage`
+- **(Plan 02-03)** SLA thresholds D-10 LOCK em `sla.ts`: 0-1d=ok, 2-4d=warning(amber), >=5d=critical(red). Pure function `daysSince` clamp em 0 para datas futuras/inválidas; `SLA_THRESHOLDS = { warning: 2, critical: 5 }` exportado para tests
+- **(Plan 02-03)** `cardCustomization.ts` Zod schema versionado (`version: z.literal(1)`); load via `safeParse` retorna DEFAULT em qualquer falha (corrupted JSON, schema antigo, userId ausente). Namespace `leverup:rs:card-fields:{userId}` mitiga T-02-03-01 (localStorage tampering); save tem silent-fail para storage cheio/disabled
+- **(Plan 02-03)** `STAGE_GROUP_BAR_COLORS` atualizado para D-11 (intencionalidade do funil, não ordem visual): triagem+checagem=`bg-status-blue/70`, entrevista_rh+entrevista_final=`bg-status-amber/80`, decisao=`bg-status-green`, descartados=`bg-status-red/60`. Regression guard via `tests/hiring/stageGroups.test.ts` (T-02-03-03 mitigado)
 
 ### Active TODOs
 
@@ -106,8 +111,8 @@ Nenhum no momento.
 
 ## Session Continuity
 
-**Last session:** 2026-04-28T02:13:15.449Z — Completed 02-02-PLAN.md (Migration F sub-migrations F.1-F.4 SQLs + 5 pgTAP suites ativas)
-**Next action:** Continue Wave 1 — Plan 02-04 (counts hook port + utilities). Wave 2 BLOCKING (Plan 02-03/04 `supabase db push` + types regen) sequencial apos Wave 1 completar.
+**Last session:** 2026-04-28T02:34:54.911Z — Completed 02-03-PLAN.md (Wave 1 utilities — supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
+**Next action:** Wave 2 BLOCKING — Plan 02-04 (`supabase db push` aplica F.1-F.4 + `supabase gen types typescript --linked` regenera types.ts + `npx supabase test db` roda 19 pgTAP tests). Após Plan 02-04, Wave 3 (Plan 02-05 hooks LGPD) destrava.
 
 ---
 

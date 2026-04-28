@@ -79,7 +79,7 @@ TAL-01, TAL-02, TAL-03, TAL-04, TAL-05, TAL-06, TAL-07, TAL-08, TAL-09
 **Plans**: 9 plans across 5 waves
 - [x] 02-01-PLAN.md — Wave 0 test scaffolding (16 Vitest + 5 pgTAP + MSW handlers) *(completed 2026-04-28)*
 - [x] 02-02-PLAN.md — Migration F (4 sub-migrations: stages + data_access_log + consents + CPF) *(completed 2026-04-28)*
-- [ ] 02-03-PLAN.md — Wave 1 utilities (supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
+- [x] 02-03-PLAN.md — Wave 1 utilities (supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11) *(completed 2026-04-28)*
 - [ ] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
 - [ ] 02-05-PLAN.md — Hiring core hooks (useApplications rewrite + useApplicationsRealtime + useApplicationCountsByJob)
 - [ ] 02-06-PLAN.md — LGPD hooks + Edge Function (consents + talent pool filter + apply-to-job)
@@ -150,7 +150,7 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tenancy Backbone | 7/7 | Complete (human-UAT pending) | 2026-04-27 |
-| 2. R&S Refactor | 0/9 | Not started | - |
+| 2. R&S Refactor | 3/9 | Executing (Wave 0 + Wave 1 utilities done) | - |
 | 3. Performance Refactor | 0/? | Not started | - |
 | 4. Dashboards + Quality Polish | 0/? | Not started | - |
 
