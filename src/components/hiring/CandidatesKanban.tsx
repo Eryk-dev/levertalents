@@ -4,26 +4,38 @@ import {
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
+  KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/primitives";
-import { OptimisticMutationToast } from "./OptimisticMutationToast";
 import { CandidateCard, type KanbanApplication } from "./CandidateCard";
-import { applicationsKeys, useApplicationsByJob, useMoveApplicationStage } from "@/hooks/hiring/useApplications";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LegacyStageWarning } from "./LegacyStageWarning";
+import { useApplicationsByJob, useMoveApplicationStage } from "@/hooks/hiring/useApplications";
+import { useApplicationsRealtime } from "@/hooks/hiring/useApplicationsRealtime";
+import { useScope } from "@/app/providers/ScopeProvider";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
-import type { ApplicationStage } from "@/integrations/supabase/hiring-types";
-import { STAGE_GROUPS, STAGE_GROUP_DOT_COLORS, type StageGroup } from "@/lib/hiring/stageGroups";
-import { handleSupabaseError } from "@/lib/supabaseError";
+import {
+  APPLICATION_STAGE_LABELS,
+  canTransition,
+} from "@/lib/hiring/statusMachine";
+import {
+  STAGE_GROUPS,
+  STAGE_GROUP_BY_STAGE,
+  STAGE_GROUP_DOT_COLORS,
+  type StageGroup,
+} from "@/lib/hiring/stageGroups";
 
 interface CandidatesKanbanProps {
   jobId: string;
+  jobName?: string;
   onOpenCandidate?: (application: KanbanApplication) => void;
   selectedApplicationId?: string | null;
   onAddCandidate?: (group: StageGroup) => void;
@@ -65,9 +77,13 @@ function Column({
   return (
     <div
       ref={setNodeRef}
+      data-testid={`appcol:${group.key}`}
       className={cn(
-        "flex flex-1 min-w-[150px] flex-col rounded-md border border-border bg-surface",
-        isOver && "ring-1 ring-accent",
+        "flex flex-1 min-w-[150px] flex-col rounded-md border bg-surface transition-colors",
+        // UI-SPEC §"Kanban column on drag-over": bg-accent-soft + border-accent + dashed
+        isOver
+          ? "bg-accent-soft border-accent border-dashed"
+          : "border-border",
       )}
     >
       <header className="flex items-center justify-between gap-2 px-2.5 py-2 border-b border-border">
@@ -130,14 +146,20 @@ const DESCARTADOS_KEY = "descartados" as const;
 
 export function CandidatesKanban({
   jobId,
+  jobName,
   onOpenCandidate,
   selectedApplicationId,
   onAddCandidate,
 }: CandidatesKanbanProps) {
+  // jobName aceito por consistência com chamadas externas; não usado no body.
+  void jobName;
+  const { scope } = useScope();
   const { data: applications = [], isLoading } = useApplicationsByJob(jobId);
   const move = useMoveApplicationStage();
-  const queryClient = useQueryClient();
-  const [conflict, setConflict] = useState(false);
+
+  // D-04: Realtime silent re-render per-jobId (Plan 02-05 hook).
+  useApplicationsRealtime(jobId);
+
   const [activeApp, setActiveApp] = useState<KanbanApplication | null>(null);
   const [descartadosOpen, setDescartadosOpen] = useState(false);
 
@@ -204,22 +226,11 @@ export function CandidatesKanban({
     return byGroup;
   }, [applications, backgrounds, interviewsNext]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-  const performMove = async (args: {
-    id: string;
-    fromStage: ApplicationStage;
-    toStage: ApplicationStage;
-    expectedUpdatedAt: string;
-  }) => {
-    const result = await move.mutateAsync({
-      id: args.id,
-      fromStage: args.fromStage,
-      toStage: args.toStage,
-      expectedUpdatedAt: args.expectedUpdatedAt,
-    });
-    if (!result.ok) setConflict(true);
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   const onDragStart = (event: DragStartEvent) => {
     const id = event.active.id as string;
@@ -234,7 +245,7 @@ export function CandidatesKanban({
     }
   };
 
-  const onDragEnd = async (event: DragEndEvent) => {
+  const onDragEnd = (event: DragEndEvent) => {
     setActiveApp(null);
     const activeId = event.active.id as string;
     const overId = event.over?.id as string | undefined;
@@ -244,29 +255,29 @@ export function CandidatesKanban({
     const app = applications.find((a) => a.id === appId);
     if (!app) return;
     const targetGroup = STAGE_GROUPS.find((g) => g.key === groupKey);
-    if (!targetGroup) return;
-
-    const currentGroup = STAGE_GROUPS.find((g) => g.stages.includes(app.stage));
-    if (currentGroup?.key === targetGroup.key) return;
+    // Mesma coluna: nada a fazer.
+    if (!targetGroup || targetGroup.key === STAGE_GROUP_BY_STAGE[app.stage]) return;
 
     const toStage = targetGroup.defaultStage;
-    if (!toStage) {
-      toast.error("Destino inválido");
+
+    // D-02: canTransition() ANTES do mutate — corrige bug #1.
+    if (!canTransition(app.stage, toStage, "application")) {
+      toast.error(
+        `Não é possível mover de "${APPLICATION_STAGE_LABELS[app.stage]}" direto para "${APPLICATION_STAGE_LABELS[toStage]}".`,
+      );
       return;
     }
 
     if (targetGroup.key === DESCARTADOS_KEY) setDescartadosOpen(true);
 
-    try {
-      await performMove({
-        id: app.id,
-        fromStage: app.stage,
-        toStage,
-        expectedUpdatedAt: app.updated_at,
-      });
-    } catch (err) {
-      handleSupabaseError(err as Error, "Não foi possível mover o candidato");
-    }
+    if (!scope) return;
+    move.mutate({
+      id: app.id,
+      fromStage: app.stage,
+      toStage,
+      jobId,
+      companyId: scope.companyIds[0] ?? "",
+    });
   };
 
   if (isLoading) {
@@ -275,14 +286,7 @@ export function CandidatesKanban({
 
   return (
     <div className="space-y-3">
-      <OptimisticMutationToast
-        visible={conflict}
-        onReload={() => {
-          setConflict(false);
-          queryClient.invalidateQueries({ queryKey: applicationsKeys.byJob(jobId) });
-        }}
-        onDismiss={() => setConflict(false)}
-      />
+      <LegacyStageWarning jobId={jobId} />
       <DndContext
         sensors={sensors}
         onDragStart={onDragStart}

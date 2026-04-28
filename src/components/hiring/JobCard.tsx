@@ -2,13 +2,9 @@ import { useDraggable } from "@dnd-kit/core";
 import { Lock, Users, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JobOpeningRow } from "@/integrations/supabase/hiring-types";
-import {
-  STAGE_GROUPS,
-  STAGE_GROUP_BAR_COLORS,
-  type StageGroupKey,
-} from "@/lib/hiring/stageGroups";
 import type { JobApplicationCounts } from "@/hooks/hiring/useApplicationCountsByJob";
 import { Chip } from "@/components/primitives/LinearKit";
+import { SparkbarDistribution } from "@/components/hiring/SparkbarDistribution";
 
 interface JobCardProps {
   job: JobOpeningRow;
@@ -49,9 +45,6 @@ export function JobCard({
   const newToday = counts?.today ?? 0;
   const idleDays = counts?.idleDays ?? null;
   const stalled = idleDays != null && idleDays >= 7 && total > 0;
-
-  const visibleGroups = STAGE_GROUPS.filter((g) => g.key !== "descartados");
-  const totalActive = visibleGroups.reduce((acc, g) => acc + (counts?.byGroup[g.key] ?? 0), 0);
 
   return (
     <button
@@ -111,22 +104,12 @@ export function JobCard({
         )}
       </div>
 
-      {total > 0 && (
-        <div className="mt-2 flex h-1 w-full overflow-hidden rounded-full bg-bg-muted">
-          {visibleGroups.map((g) => {
-            const v = counts?.byGroup[g.key] ?? 0;
-            if (v === 0 || totalActive === 0) return null;
-            const pct = (v / totalActive) * 100;
-            return (
-              <span
-                key={g.key}
-                style={{ width: `${pct}%` }}
-                className={cn("h-full", STAGE_GROUP_BAR_COLORS[g.key as StageGroupKey])}
-                title={`${g.label}: ${v}`}
-              />
-            );
-          })}
-        </div>
+      {total > 0 && counts && (
+        <SparkbarDistribution
+          byGroup={counts.byGroup}
+          total={total}
+          className="mt-2"
+        />
       )}
     </button>
   );
