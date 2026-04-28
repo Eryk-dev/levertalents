@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-04-28T02:34:54.915Z"
+last_updated: "2026-04-28T09:19:46.900Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 16
-  completed_plans: 9
-  percent: 56
+  completed_plans: 11
+  percent: 69
 ---
 
 # Lever Talents Hub — STATE
@@ -32,11 +32,11 @@ Project memory. Updated automatically at each transition.
 ## Current Position
 
 Phase: 02 (r-s-refactor) — EXECUTING
-Plan: 4 of 9 (Plans 02-01, 02-02, 02-03 complete; Wave 0 + Wave 1 utilities done)
+Plan: 5 of 9 (Plans 02-01, 02-02, 02-03, 02-04 complete; Wave 0 + Wave 1 + Wave 2 done)
 **Phase:** 2
-**Plan:** 02-03 complete (Wave 1 utilities — supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
-**Status:** Executing Phase 02 — Wave 2 BLOCKING (Plan 02-04 schema push + types regen) próximo
-**Progress:** [██████░░░░] 56%
+**Plan:** 02-04 complete (Wave 2 BLOCKING — Migration F applied to remote ehbxpbeijofxtsbezwxd via supabase db push + types.ts regenerated to 3128 lines + hiring-types.ts extended with 12 Phase 2 hand-written exports + obsolete declare module block removed)
+**Status:** Executing Phase 02 — Wave 3 (Plan 02-05 hooks LGPD) próximo, agora desbloqueado pelos types regenerados
+**Progress:** [███████░░░] 69%
 
 ---
 
@@ -49,14 +49,15 @@ Plan: 4 of 9 (Plans 02-01, 02-02, 02-03 complete; Wave 0 + Wave 1 utilities done
 | Requirements mapped | 82/82 (100%) |
 | Requirements completed | 0/82 |
 | Plans created | 16 (Phase 1: 7 + Phase 2: 9) |
-| Plans completed | 10 (7 Phase 1 + 3 Phase 2) |
-| Migrations applied | 4/7 (A, B1, B2, C) — F.1-F.4 SQLs escritos, push em Plan 02-04 |
-| Migrations written (pending push) | F.1, F.2, F.3, F.4 (Plan 02-02) |
-| Test coverage | Wave 0: 23 files; Wave 1 (02-02): 5 pgTAP suites com 19 tests; Wave 1 (02-03): 6 vitest suites com 376 tests green (canTransition 294 + stageGroups 17 + supabaseError 20 + sla 17 + cpf 14 + useCardPreferences 14) |
+| Plans completed | 11 (7 Phase 1 + 4 Phase 2) |
+| Migrations applied | 8/8 Phase 2 (A, B1, B2, C, F.1, F.2, F.3, F.4) — Migration F aplicada ao remote em Plan 02-04 |
+| Test coverage | Wave 0: 23 files; Wave 1 (02-02): 5 pgTAP suites com 19 tests; Wave 1 (02-03): 6 vitest suites com 376 tests green (canTransition 294 + stageGroups 17 + supabaseError 20 + sla 17 + cpf 14 + useCardPreferences 14); Wave 2 (02-04): types.ts 3128 lines + 12 Phase 2 exports em hiring-types.ts |
 | Phase 02 P02 duration | 7 min, 4 tasks, 9 files |
 | Phase 02 P03 duration | 8 min, 3 tasks, 11 files |
+| Phase 02 P04 duration | 9.4 min, 3 tasks, 3 files |
 
 ---
+| Phase 02 P04 | 9.4min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,10 @@ Plan: 4 of 9 (Plans 02-01, 02-02, 02-03 complete; Wave 0 + Wave 1 utilities done
 - **(Plan 02-03)** SLA thresholds D-10 LOCK em `sla.ts`: 0-1d=ok, 2-4d=warning(amber), >=5d=critical(red). Pure function `daysSince` clamp em 0 para datas futuras/inválidas; `SLA_THRESHOLDS = { warning: 2, critical: 5 }` exportado para tests
 - **(Plan 02-03)** `cardCustomization.ts` Zod schema versionado (`version: z.literal(1)`); load via `safeParse` retorna DEFAULT em qualquer falha (corrupted JSON, schema antigo, userId ausente). Namespace `leverup:rs:card-fields:{userId}` mitiga T-02-03-01 (localStorage tampering); save tem silent-fail para storage cheio/disabled
 - **(Plan 02-03)** `STAGE_GROUP_BAR_COLORS` atualizado para D-11 (intencionalidade do funil, não ordem visual): triagem+checagem=`bg-status-blue/70`, entrevista_rh+entrevista_final=`bg-status-amber/80`, decisao=`bg-status-green`, descartados=`bg-status-red/60`. Regression guard via `tests/hiring/stageGroups.test.ts` (T-02-03-03 mitigado)
+- **(Plan 02-04)** Migration F (F.1-F.4) aplicada ao remote `ehbxpbeijofxtsbezwxd` via `supabase db push --linked --include-all`. Sanity checks: 2 novas tabelas (data_access_log + candidate_consents), cron job `data_access_log_retention_cleanup` com schedule `30 3 * * 1`, RPC `read_candidate_with_log` + view `active_candidate_consents` + partial unique idx `idx_candidates_cpf_unique` + função `normalize_cpf` operando corretamente. Phase 1 FK index migration (`20260423100000`) trackeada como prereq do --include-all
+- **(Plan 02-04)** Removido `declare module "./types"` block obsoleto em `src/integrations/supabase/hiring-types.ts`: pre-Plan-02-04 mergia hand-written shapes na auto-gen Database via interface, mas o auto-gen exporta `type Database = { ... }` (alias) que NÃO pode ser mergido com `interface Database` via declare module — TypeScript reporta `Duplicate identifier 'Database'`. Hand-written aliases (JobOpeningRow, ApplicationRow, CandidateRow, etc.) ficam standalone; 12 novos exports Phase 2 (Consent, ConsentInsert, ConsentUpdate, ActiveConsent, ConsentPurpose, ConsentLegalBasis, DataAccessLogEntry, DataAccessLogInsert, ReadCandidateWithLog{Args,Return}, MoveApplicationStageArgs, ApplicationWithCandidate) são thin aliases sobre `Database["public"][...]`
+- **(Plan 02-04)** Auto-gen `types.ts` é canonical post-Plan-02-04: qualquer mudança de schema → `npx supabase gen types typescript --linked 2>/dev/null > src/integrations/supabase/types.ts` + commit. Stderr redirect (`2>/dev/null`) é mandatory: o CLI imprime "Initialising login role..." em stderr, sem o redirect isso vaza para stdout e fica como linha 1 do arquivo gerado, quebrando TS compile
+- **(Plan 02-04)** 38 latent tsc errors revelados pelo regen (em hooks/components/pages fora de `src/integrations/`, `src/lib/`, `src/app/`) são out-of-scope per plan; documentados em `deferred-items.md` com owners (Plans 02-05 a 02-09). Estavam latentes antes (mascarados pelo declaration merging)
 
 ### Active TODOs
 
@@ -111,8 +116,8 @@ Nenhum no momento.
 
 ## Session Continuity
 
-**Last session:** 2026-04-28T02:34:54.911Z — Completed 02-03-PLAN.md (Wave 1 utilities — supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
-**Next action:** Wave 2 BLOCKING — Plan 02-04 (`supabase db push` aplica F.1-F.4 + `supabase gen types typescript --linked` regenera types.ts + `npx supabase test db` roda 19 pgTAP tests). Após Plan 02-04, Wave 3 (Plan 02-05 hooks LGPD) destrava.
+**Last session:** 2026-04-28T09:16:49Z — Completed 02-04-PLAN.md (Wave 2 BLOCKING — Migration F applied to remote + types.ts regen + hiring-types.ts extended with Phase 2 exports + obsolete declaration merging removed)
+**Next action:** Wave 3 — Plan 02-05 (hooks LGPD: useCandidateConsents, useReadCandidateWithLog, etc.) agora desbloqueado. Tipos Phase 2 (`Consent`, `ConsentPurpose`, `DataAccessLogEntry`, `MoveApplicationStageArgs`, `ApplicationWithCandidate`) disponíveis via `@/integrations/supabase/hiring-types`. Owners de cleanup latente (38 tsc errors em 9 hooks/components/pages) listados em deferred-items.md.
 
 ---
 

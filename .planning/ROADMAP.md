@@ -150,7 +150,7 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tenancy Backbone | 7/7 | Complete (human-UAT pending) | 2026-04-27 |
-| 2. R&S Refactor | 3/9 | Executing (Wave 0 + Wave 1 utilities done) | - |
+| 2. R&S Refactor | 4/9 | Executing (Wave 0 + Wave 1 + Wave 2 schema push done) | - |
 | 3. Performance Refactor | 0/? | Not started | - |
 | 4. Dashboards + Quality Polish | 0/? | Not started | - |
 
