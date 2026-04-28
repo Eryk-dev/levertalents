@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: existing (project-locked Linear-inspired design system; baseColor=slate, cssVariables=true)
 created: 2026-04-28
+revised: 2026-04-28 (checker fixes: Issues 1/2/3 + Recommendations A/B)
 ---
 
 # Phase 3 — UI Design Contract
@@ -39,29 +40,39 @@ Inherits the project-locked scale from Tailwind defaults (multiples of 4). Phase
 |-------|-------|------------------|
 | 1 | 4px | Icon-to-text gap inside `Btn`, `Chip` (default LinearKit gap) |
 | 2 | 8px | Inline element spacing inside form rows, action-item checkbox→label gap |
-| 3 | 12px | Compact card padding (`p-3`) — used on cycle cards, 1:1 list rows |
 | 4 | 16px | Default block padding inside dialogs/sheets, gap between form sections |
 | 6 | 24px | Section padding inside Evaluations page, Climate page, OneOnOnes page; gap between cycle cards |
 | 8 | 32px | Layout gap between page header and content; spacing above first section in `OneOnOneMeetingForm` |
 | 12 | 48px | Top spacing on the dedicated `/first-login-change-password` page (centered card with breathing room) |
 | 16 | 64px | Reserved — empty states (vertical centering of illustration + headline + body + CTA) |
 
+### Justified exceptions (FLAGs — outside the safe set {4, 8, 16, 24, 32, 48, 64})
+
+These two values are NOT in the standard 8-point scale, but they are **already shipped** in the Linear-inspired primitives and product surfaces. Changing them mid-app would break visual consistency with Phase 1/2 components and force a global re-densification that is out of scope. They are documented here as exceptions so the checker can flag (not block) and the executor can keep using them where the existing pattern requires it.
+
+| Token | Value | Why exception | Where Phase 3 inherits it |
+|-------|-------|---------------|----------------------------|
+| `3.5` | 14px | LinearKit `Card` primitive (`src/components/primitives/LinearKit.tsx:233` — `<div className={cn("p-3.5", contentClassName)}>`) and `StatCard` (`src/components/primitives/StatCard.tsx:57`) ship `p-3.5` as the canonical card padding. Already used by `EvaluationCard`, `OneOnOnesTab` meeting cards, `Climate.tsx surface-paper`, `Index.tsx` accent banner. Density is the Linear "small surface" baseline. | Cycle list cards (`CycleCard`), 1:1 meeting list rows, climate survey cards, post-cadastro `OnboardingMessageBlock` outer surface, `FirstLoginChangePasswordCard`. Reuse `p-3.5` to match shipped surfaces — DO NOT introduce a new card padding token. |
+| `3` | 12px | `p-3` (12px) is the established compact-tile padding for inline status/info blocks. Already shipped in: `PDIReviewCard.tsx:103`, `PDIFormIntegrated.tsx:434/473/752`, `OneOnOneMeetingForm.tsx:469/613`, `EvaluationForm.tsx:667`, `NineBoxMatrix.tsx:88` (`min-h-[120px] p-3` tile), `ClimateQuestionsDialog.tsx:76`, `LinkPDIToOneOnOne.tsx:103`. Replacing it would require touching ~10 shipped components outside Phase 3 scope. | Inline info/warning blocks inside the new 1:1 sub-components (`OneOnOneAgenda` callout, `OneOnOneNotes` Plaud paste warning callout, `OneOnOneActionItems` empty-tile, `OneOnOneRHNote` purple-bordered tile), and the inline error/warning callout above the FirstLoginChangePassword form. Reuse the existing PDI/OneOnOne callout pattern verbatim. |
+
 Touch-target exception: minimum `36px` (Tailwind `h-9`) for any control RH may tap on tablet (Btn `lg`, `Switch`, checklist checkboxes in `OneOnOneActionItems`). This is below the WCAG 44px ideal but matches the Linear density already shipped — do not break consistency mid-app.
 
-Exceptions: none introduced by Phase 3.
+**No NEW spacing values introduced by Phase 3.** The two exceptions above are documentation of pre-existing shipped reality, not new tokens.
 
 ---
 
 ## Typography
 
-Inherits from `tailwind.config.ts` `fontSize` extensions and `index.css` `body` defaults. Phase 3 uses exactly these four roles (LinearKit-aligned):
+Inherits from `tailwind.config.ts` `fontSize` extensions and `index.css` `body` defaults. Phase 3 uses exactly these four roles, each with **at most two distinct weights** across the entire contract (400 for body, 600 for everything else):
 
 | Role | Size | Weight | Line Height | Letter Spacing | Tailwind / class |
 |------|------|--------|-------------|----------------|------------------|
 | Body | 13px | 400 | 1.5 | -0.005em | base `<body>` default — used for form labels, list rows, dialog descriptions, 1:1 notes textarea content, climate question prompt |
-| Label / metadata | 11–12px | 500–600 | 1.4 | normal | `text-xs`/`text-[12px]` — used for chip text, KV pair labels, "RH visível" badge, audit timestamps, "Expira em 24h" caption |
+| Label / metadata | 11–12px | 600 | 1.4 | normal | `text-xs`/`text-[12px]` — used for chip text, KV pair labels, "RH visível" badge, audit timestamps, "Expira em 24h" caption |
 | Section heading | 17px | 600 | 1.25 | -0.015em | `text-display-sm` — used for page section titles ("Pauta", "Notas", "Action items", "Notas RH", "Transcrição (Plaud)", "Resumo (Plaud)") |
 | Display / page title | 20px | 600 | 1.2 | -0.02em | `text-display-md` — used for page H1 ("Avaliações", "Clima", "1:1s", "Cadastrar pessoa"), KPI numbers in cycle summary cards |
+
+**Weight inventory:** exactly two — `400` (body only) and `600` (every other role: Label/metadata, Section heading, Display, Eyebrow). Weight `500` is **not used** in Phase 3 surfaces.
 
 Eyebrow (kicker) above section headings: `text-eyebrow` (10.5px / 600 / uppercase / +0.06em) — used for "CICLO ATIVO", "AVALIAÇÃO LÍDER → LIDERADO", "RH-ONLY", "ANÔNIMA". This is a metadata layer, not a 5th heading level; counts toward Label role.
 
@@ -117,27 +128,46 @@ Note: The "RH visível" persistent badge on every 1:1 form (D-15) uses `Chip col
 
 ---
 
+## Visual Focal Points
+
+Each primary screen has exactly one focal point — the dominant element a first-time RH user is meant to perceive on entry.
+
+| Screen | Focal point |
+|--------|-------------|
+| Avaliações (`/avaliacoes`) | `CycleCard` grid + accent **"Criar ciclo"** button (top-right of page header). Selected card uses `--accent-soft` left-border to anchor the eye. |
+| Clima (`/clima`) | Active `ClimateAggregateCard` grid + accent **"Disparar pesquisa"** button (top-right of page header). The 100%-anônima blue banner sits directly under the page title, not as a focal element but as a contextual lock. |
+| 1:1s (`/1-on-1s`) | Toggle "Lista geral / Por par" (RH only) + accent **"Nova 1:1"** button (top-right). Below toggle, the active list/grouping fills the viewport. |
+| 1:1 form (`OneOnOneMeetingForm`) | Sticky header with title + RH-visible amber chip + status chip + accent **"Salvar 1:1"** button. Sections scroll under the sticky header in the locked Pauta → Notas → Action items → PDI → Notas RH order. |
+| Evaluation form | Per-section card stack with the current section's accent border highlighting active focus. Sticky bottom-bar with **"Salvar avaliação"** primary + "Salvar rascunho" secondary. |
+| Climate response form (anonymous) | Centered single-column form. Blue banner **"Esta pesquisa é 100% anônima."** anchors the top; question prompts fill the body; **"Enviar respostas"** primary button anchors the bottom. No identification UI anywhere in the focal hierarchy. |
+| Cadastrar pessoa (`/cadastrar-pessoa`) | Two-column form (desktop) → single-column (mobile). Accent **"Cadastrar e gerar mensagem"** primary at form bottom. On success, focal shifts to the `OnboardingMessageBlock` monospace card with **"Copiar mensagem"**. |
+| First-login (`/first-login-change-password`) | Single centered card (`max-w-md`). `LeverArrow` symbol at top, heading "Crie sua nova senha", two password fields, accent full-width **"Trocar senha"**. No sidebar, no header — page is genuinely blocking. |
+
+---
+
 ## Copywriting Contract
 
 All copy is in Brazilian Portuguese (pt-BR). Tone: direct, professional, never cute. No exclamation marks except in the WhatsApp onboarding template (which mimics natural human chat).
 
 ### Page-level CTAs
 
+Every CTA is verb + noun (or verb + noun phrase). Generic labels like "OK", "Confirmar" alone, "Cancelar" alone, "Submit", "Fechar" alone are **forbidden** — every dismissal label names what is being preserved or abandoned.
+
 | Page | Primary CTA label | Secondary action |
 |------|-------------------|------------------|
 | Avaliações (`/avaliacoes` or current route) | **Criar ciclo** | "Ver encerrados" (link, switches tab) |
-| Avaliações — dialog "Criar ciclo" | **Abrir ciclo** | "Cancelar" (Btn `ghost`) |
+| Avaliações — dialog "Criar ciclo" | **Abrir ciclo** | **"Manter rascunho"** (Btn `ghost` — preserves the draft form values for the next time the dialog opens; closes dialog without committing) |
 | Avaliação form (preencher) | **Salvar avaliação** | "Salvar rascunho" (Btn `secondary`) |
 | Clima (`/clima`) | **Disparar pesquisa** | "Ver histórico" |
-| Clima — dialog "Disparar pesquisa" | **Disparar agora** | "Cancelar" |
+| Clima — dialog "Disparar pesquisa" | **Confirmar disparo** | **"Voltar para pesquisas"** (Btn `ghost` — closes the dialog and returns to the surveys list without dispatching) |
 | Clima — formulário do respondente (anônimo) | **Enviar respostas** | (no secondary — anonymous flow) |
 | 1:1s (`/1-on-1s` ou rota atual) | **Nova 1:1** | toggle "Lista geral / Por par" |
 | 1:1 form | **Salvar 1:1** | "Concluir 1:1" (Btn `primary` — appears only when status='in-progress') |
-| Cadastrar pessoa (`/cadastrar-pessoa`) | **Cadastrar e gerar mensagem** | "Cancelar" |
-| Pós-cadastro modal | **Copiar mensagem** | "Fechar" (Btn `ghost`) |
+| Cadastrar pessoa (`/cadastrar-pessoa`) | **Cadastrar e gerar mensagem** | **"Voltar para a lista"** (Btn `ghost` — returns to /pessoas without committing) |
+| Pós-cadastro modal | **Copiar mensagem** | **"Concluir cadastro"** (Btn `ghost` — closes the modal and returns to the people list; signals the cadastro is finalized and the message has been handled by the RH) |
 | First login | **Trocar senha** | (no secondary — blocking flow) |
 
-Every CTA uses verb + noun. No "OK", no "Confirmar" alone, no "Submit".
+Verbs are imperative, present-tense, and name the noun being acted on. No bare "Cancelar", "Fechar", or "OK" anywhere in Phase 3 surfaces.
 
 ### Empty states
 
@@ -310,7 +340,7 @@ Step 2 — Post-success modal/section (`OnboardingMessageBlock`). Layout:
 - Section heading: "Pessoa cadastrada"
 - Body (small): "Copie a mensagem abaixo e envie pelo seu WhatsApp para {Nome}."
 - Monospace block with the locked template (above) — already populated.
-- Two buttons stacked on mobile, side-by-side on desktop: **Btn `accent` "Copiar mensagem"** (primary) + **Btn `ghost` "Fechar"**.
+- Two buttons stacked on mobile, side-by-side on desktop: **Btn `accent` "Copiar mensagem"** (primary) + **Btn `ghost` "Concluir cadastro"** (secondary — closes modal, returns to pessoa list).
 - "Copiar mensagem" → copies entire formatted text → button label flashes to "Copiado ✓" for 1.2s with `status-green` foreground, then resets.
 
 Step 3 — When the new person logs in for the first time, ProtectedRoute reads `profiles.must_change_password === true` and force-redirects to `/first-login-change-password` regardless of intended URL. The page renders:
@@ -392,7 +422,7 @@ Step 3 — When the new person logs in for the first time, ProtectedRoute reads 
 - [ ] Dimension 2 Visuals: PASS
 - [ ] Dimension 3 Color: PASS
 - [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
+- [ ] Dimension 5 Spacing: PASS (with 2 documented FLAGs — `p-3.5` and `p-3` reused from shipped Linear primitives, justified above)
 - [ ] Dimension 6 Registry Safety: PASS
 
 **Approval:** pending
@@ -401,4 +431,5 @@ Step 3 — When the new person logs in for the first time, ProtectedRoute reads 
 
 *Phase: 03-performance-refactor*
 *UI-SPEC drafted: 2026-04-28 by gsd-ui-researcher*
+*Revised: 2026-04-28 — fixed 3 blocking issues (CTA dismissal labels, single-weight typography family, declared 12px/14px spacing exceptions with codebase evidence) + 2 recommendations (verb+noun CTAs, focal points per screen).*
 *Pre-populated from: 01-CONTEXT.md (Phase 1 patterns) + 02-CONTEXT.md (Phase 2 patterns) + 03-CONTEXT.md (24 decisions D-01..D-29) + 03-DISCUSSION-LOG.md + REQUIREMENTS.md (16 reqs) + ROADMAP.md (Phase 3 success criteria) + leverup-talent-hub/CLAUDE.md (locked stack) + tailwind.config.ts + src/index.css + src/components/primitives/LinearKit.tsx*
