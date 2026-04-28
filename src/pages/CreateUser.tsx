@@ -1,9 +1,13 @@
+/**
+ * AUTH-01/AUTH-02: Cadastro de pessoa com senha temporária via Edge Function.
+ * Após sucesso, exibe OnboardingMessageBlock com mensagem WhatsApp pronta (D-20).
+ * Pitfall §12: tempPassword armazenado apenas em local state — limpo no Concluir.
+ */
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,16 +21,17 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { Btn, Row } from "@/components/primitives/LinearKit";
 import { useTeams } from "@/hooks/useTeams";
+import { useCreateUserWithTempPassword } from "@/hooks/useCreateUserWithTempPassword";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { OnboardingMessageBlock } from "@/components/OnboardingMessageBlock";
 
 const LEADER_ROLES = new Set(["lider", "socio", "admin"]);
 
 const createUserSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  department: z.string().optional(),
-  hireDate: z.string().optional(),
-  role: z.enum(["admin", "socio", "lider", "rh", "colaborador"], {
+  // password field removed — Edge Function generates temp password (AUTH-02/D-21)
+  role: z.enum(["admin", "socio", "lider", "rh", "liderado"], {
     required_error: "Selecione um papel",
   }),
   companyId: z.string().optional(),
@@ -36,22 +41,35 @@ const createUserSchema = z.object({
 
 type CreateUserForm = z.infer<typeof createUserSchema>;
 
+interface OnboardingResult {
+  fullName: string;
+  email: string;
+  tempPassword: string;
+  expiresAt: string;
+}
+
 export default function CreateUser() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
   const { companies, teams, users, loading: teamsLoading } = useTeams();
+  const create = useCreateUserWithTempPassword();
+  const { data: rhProfile } = useUserProfile();
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [selectedLeaderId, setSelectedLeaderId] = useState<string>("");
+  // Pitfall §12: tempPassword in local state only — cleared on Concluir/unmount
+  const [result, setResult] = useState<OnboardingResult | null>(null);
+  const [duplicateError, setDuplicateError] = useState(false);
 
   const {
     register,
     handleSubmit,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<CreateUserForm>({
     resolver: zodResolver(createUserSchema),
+    defaultValues: { role: 'liderado' },
   });
 
   const teamsForCompany = useMemo(
@@ -70,66 +88,66 @@ export default function CreateUser() {
     return eligible;
   }, [users, teams, selectedTeamId]);
 
-  const onSubmit = async (data: CreateUserForm) => {
-    try {
-      setIsLoading(true);
+  const onSubmit = (data: CreateUserForm) => {
+    setDuplicateError(false);
+    const payload = {
+      ...data,
+      email: data.email.toLowerCase().trim(),
+      fullName: data.fullName.trim(),
+      companyId: selectedCompanyId || undefined,
+      orgUnitId: selectedTeamId || undefined,
+    };
 
-      // Defensive client-side email check before hitting the edge function.
-      const emailCheck = z.string().email().safeParse(data.email);
-      if (!emailCheck.success) {
-        toast.error("Email inválido");
-        return;
-      }
-
-      const { data: result, error } = await supabase.functions.invoke("create-user", {
-        body: {
-          email: data.email,
-          password: data.password,
-          fullName: data.fullName,
-          department: data.department || null,
-          hireDate: data.hireDate || null,
-          role: data.role,
-          teamId: selectedTeamId || null,
-          leaderId: selectedLeaderId || null,
-        },
-      });
-
-      if (error) {
-        let serverMessage: string | undefined;
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.json === "function") {
-          try {
-            const body = await ctx.clone().json();
-            serverMessage = body?.error || body?.msg || body?.message;
-          } catch {
-            /* noop */
-          }
+    create.mutate(payload, {
+      onSuccess: (res) => {
+        // Pitfall §12: store only in local state, clear on Concluir
+        setResult({
+          fullName: payload.fullName,
+          email: payload.email,
+          tempPassword: res.tempPassword,
+          expiresAt: res.expiresAt,
+        });
+        reset();
+        setSelectedCompanyId("");
+        setSelectedTeamId("");
+        setSelectedLeaderId("");
+        toast.success("Pessoa cadastrada");
+      },
+      onError: (e) => {
+        if (e.message === "duplicate_email") {
+          setDuplicateError(true);
+        } else {
+          toast.error("Não foi possível cadastrar", { description: e.message });
         }
-        throw new Error(serverMessage || error.message || "Erro ao criar usuário");
-      }
-      if (!result?.success) throw new Error(result?.error || "Erro ao criar usuário");
-
-      toast.success("Usuário criado com sucesso!");
-      navigate("/admin");
-    } catch (error: any) {
-      console.error("Error creating user:", error);
-      const msg: string = error?.message || "Erro ao criar usuário";
-      const friendly = /already been registered|already registered|user.*exists/i.test(msg)
-        ? "Este email já está cadastrado. Use outro ou peça reset de senha no Supabase."
-        : /invalid/i.test(msg) && /email/i.test(msg)
-        ? "Email inválido ou domínio bloqueado pelo Supabase. Tente outro email."
-        : msg;
-      toast.error(friendly);
-    } finally {
-      setIsLoading(false);
-    }
+      },
+    });
   };
+
+  // Post-success: render OnboardingMessageBlock (D-20 WhatsApp message)
+  if (result) {
+    return (
+      <div className="p-5 lg:p-7 max-w-[720px] mx-auto">
+        <OnboardingMessageBlock
+          fullName={result.fullName}
+          email={result.email}
+          tempPassword={result.tempPassword}
+          expiresAt={result.expiresAt}
+          rhFullName={rhProfile?.full_name ?? "RH"}
+          onComplete={() => {
+            // Clear tempPassword from memory before navigating (Pitfall §12)
+            setResult(null);
+            navigate("/admin");
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-5 lg:p-7 font-sans text-text max-w-[720px] mx-auto animate-fade-in">
       <div className="flex items-baseline justify-between">
         <div>
-          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">Criar usuário</h1>
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">Cadastrar pessoa</h1>
           <div className="text-[13px] text-text-muted mt-0.5">
             Adicione uma pessoa à base e defina seu papel inicial
           </div>
@@ -140,7 +158,7 @@ export default function CreateUser() {
           icon={<ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />}
           onClick={() => navigate("/admin")}
         >
-          Voltar
+          Voltar para a lista
         </Btn>
       </div>
 
@@ -149,45 +167,33 @@ export default function CreateUser() {
           <Input id="fullName" {...register("fullName")} placeholder="João Silva" />
         </CreateField>
 
-        <CreateField label="Email *" htmlFor="email" error={errors.email?.message}>
+        <CreateField label="E-mail *" htmlFor="email" error={errors.email?.message}>
           <Input
             id="email"
             type="email"
             {...register("email")}
             placeholder="joao.silva@exemplo.com"
           />
-        </CreateField>
-
-        <CreateField label="Senha *" htmlFor="password" error={errors.password?.message}>
-          <Input
-            id="password"
-            type="password"
-            {...register("password")}
-            placeholder="Mínimo 6 caracteres"
-          />
+          {duplicateError && (
+            <p className="text-[12px] text-status-red mt-1">
+              Já existe uma pessoa com este e-mail nesta empresa. Verifique antes de criar uma duplicada.
+            </p>
+          )}
         </CreateField>
 
         <CreateField label="Papel *" htmlFor="role" error={errors.role?.message}>
-          <Select onValueChange={(value) => setValue("role", value as any)}>
+          <Select onValueChange={(value) => setValue("role", value as CreateUserForm["role"])}>
             <SelectTrigger id="role">
               <SelectValue placeholder="Selecione o papel" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="colaborador">Colaborador</SelectItem>
+              <SelectItem value="liderado">Liderado</SelectItem>
               <SelectItem value="lider">Líder</SelectItem>
               <SelectItem value="rh">RH</SelectItem>
               <SelectItem value="socio">Sócio</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-        </CreateField>
-
-        <CreateField label="Departamento" htmlFor="department">
-          <Input id="department" {...register("department")} placeholder="TI, RH, Comercial..." />
-        </CreateField>
-
-        <CreateField label="Data de contratação" htmlFor="hireDate">
-          <Input id="hireDate" type="date" {...register("hireDate")} />
         </CreateField>
 
         <div className="pt-1">
@@ -310,9 +316,9 @@ export default function CreateUser() {
             variant="primary"
             size="md"
             className="flex-1 justify-center"
-            disabled={isLoading}
+            disabled={create.isPending}
           >
-            {isLoading ? "Criando..." : "Salvar"}
+            {create.isPending ? "Cadastrando…" : "Cadastrar e gerar mensagem"}
           </Btn>
         </Row>
       </form>
