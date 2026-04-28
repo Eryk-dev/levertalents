@@ -2290,21 +2290,31 @@ ROLLBACK;
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Todas as 7 questions foram resolvidas em 2026-04-27 durante revisão do plan checker.
+> Resoluções aterrissam no plan-set Phase 2 (especialmente Plan 02 F.1 e Plan 06).
 
 1. **`useApplicationsByJob` rewriting para `useScopedQuery`** — todos os hooks de hiring são portados em Phase 2 ou só os tocados pelo refactor (move + counts + realtime)? Sugestão: **só os tocados**; outros (e.g., `useReuseCandidateForJob`, `useRejectApplication`) ficam para refactor incremental conforme `useScopedQuery` precisar deles. Planner decide.
+   **RESOLVED 2026-04-27:** Apenas os hooks listados em CONTEXT.md "Reusable Assets" + os hooks novos introduzidos em Plans 05/06 são portados. Hooks pré-existentes de hiring NÃO modificados pela Phase 2 ficam como estão (deferred para Phase 3 conforme CONTEXT.md "Fora desta fase: Reescrita dos hooks de Performance pra useScopedQuery"). Plans 05/06 listam explicitamente os hooks tocados nos `files_modified`.
 
 2. **Realtime — quando a session do usuário tem múltiplos jobs abertos em abas diferentes**, cada aba tem seu próprio channel `applications:job:{jobId}`. Supabase suporta múltiplos channels per client; não há limite prático aqui. **Confirmação:** Phase 1 mockado conta como verified.
+   **RESOLVED 2026-04-27:** Phase 2 entrega per-jobId silent re-render (D-04). Multi-tab dedup de own-mutation echoes feito comparando `payload.new.updated_at` ao último optimistic write — implementado em `useApplicationsRealtime` (Plan 05). Nenhum trabalho extra requerido nesta fase além dessa dedup logic.
 
 3. **Stage normalization — `sem_retorno` → `triagem` ou → `recusado`?** CONTEXT.md decidiu `sem_retorno → triagem` com `legacy_marker`. Mas semanticamente, "sem retorno" é mais próximo de recusado (candidato não respondeu). Confirmação com owner antes da Migration F.1: **manter `triagem` (preserva visibilidade)** ou **mover para `recusado`** (libera slot)? **Recomendação do researcher:** seguir CONTEXT.md (triagem + marker), mas planner registra a alternativa caso owner mude de ideia em UAT.
+   **RESOLVED 2026-04-27:** Mapear para `triagem` per CONTEXT.md D-mapping (linha 76). Preservar `metadata.legacy_marker = 'sem_retorno'` na row de application para rastreabilidade forense. **Plan 02 F.1 SQL alinhado conforme essa decisão** — substituídas referências a `em_interesse` pelos targets corretos: `aguardando_fit_cultural → fit_cultural`, `sem_retorno → triagem` (com legacy_marker), `fit_recebido → fit_cultural`.
 
 4. **`document_url` em `candidate_consents`** — REQUIREMENTS.md TAL-03 não pede explicitamente. Schema em §7 inclui como nullable. Planner decide: hash de aceitação eletrônica é suficiente em v1, ou exige PDF do termo (storage bucket dedicado)? **Recomendação:** hash em v1 (`sha256(timestamp + candidate_id + purpose)`); PDF é v2.
+   **RESOLVED 2026-04-27:** Manter layout atual de Storage bucket; sem mudança de schema nesta fase. Coluna `document_url` permanece nullable em F.3 e fica não populada em v1 (preenchida em v2 quando houver fluxo de PDF do termo). Future v2 pode mover para per-candidate folder; out of scope para Phase 2.
 
 5. **Sparkbar no card de CANDIDATO** — D-11 fala em sparkbar no card de VAGA. Card de candidato (D-07) **não tem sparkbar**. Confirmação implícita: sparkbar só na vaga; candidato tem dot de SLA, não sparkbar.
+   **RESOLVED 2026-04-27:** Apenas em `JobCard` per D-11. `CandidateCard` surface SLA + mínimo D-07 + campos customizáveis D-08, NÃO sparkbar. Plan 07 reforça: SparkbarDistribution é componente reusável extraído de JobCard, e não é integrado ao CandidateCard.
 
 6. **Toggle Board↔Tabela em `AllCandidatesKanban` (visão global)** — D-09 fala genericamente. Aplicar também na tela `/hiring/candidates` (busca global) ou só no kanban per-job? **Recomendação:** ambos, mas planner pode reduzir para per-job em v1 se prazo apertar.
+   **RESOLVED 2026-04-27:** Per-jobId apenas em v1 (um toggle state por job). AllCandidatesKanban toggle é V2-07 deferred (CONTEXT.md `<deferred>`). Plan 08 BoardTableToggle aceita jobId como key de namespace localStorage; visão global usa jobId="global" mas a feature de toggle no /hiring/candidates fica para v2.
 
 7. **Dependência circular entre Migration F.2 e F.3** — `read_candidate_with_log` é definida em F.2; `candidate_consents` em F.3. Se a RPC precisa filtrar candidatos com consent ativo (Banco de Talentos), F.2 não pode referenciar F.3. **Solução:** RPC F.2 retorna candidate sem filtro de consent; filtragem de consent é feita em SQL no hook (`useTalentPool` faz JOIN com `active_candidate_consents`). Sem dependência circular.
+   **RESOLVED 2026-04-27:** F.2 (data_access_log + RPC) cria infra; F.3 (candidate_consents) depende de F.2 apenas para que `read_candidate_with_log` registre leituras de consent. Aplicar F.2 primeiro, depois F.3 (já refletido na ordem dos timestamps `20260428120100` < `20260428120200`). Sem dependência circular real.
 
 ---
 

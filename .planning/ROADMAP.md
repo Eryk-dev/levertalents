@@ -76,7 +76,16 @@ TAL-01, TAL-02, TAL-03, TAL-04, TAL-05, TAL-06, TAL-07, TAL-08, TAL-09
   4. Candidato aplicar a vaga exige opt-in **não pré-marcado** com finalidade explícita; `candidate_consents` registra purpose + legal_basis + expires_at + revoked_at por finalidade granular. Banco de Talentos só lista candidatos com consent ativo, não revogado, não expirado. Revogação (RH ou candidato) preserva histórico de auditoria mas remove visibilidade futura.
   5. Toda leitura de PII de candidato passa por RPC `read_candidate_with_log(id, context)` — `data_access_log` registra actor + entity + action + context + scope_company_id em append-only. Retenção 36 meses via `pg_cron`. CPF é chave canonical de dedup (complementar ao email). Realtime subscribe por jobId atualiza kanban quando outro RH move candidato.
 
-**Plans**: TBD
+**Plans**: 9 plans across 5 waves
+- [ ] 02-01-PLAN.md — Wave 0 test scaffolding (16 Vitest + 5 pgTAP + MSW handlers)
+- [ ] 02-02-PLAN.md — Migration F (4 sub-migrations: stages + data_access_log + consents + CPF)
+- [ ] 02-03-PLAN.md — Wave 1 utilities (supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
+- [ ] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
+- [ ] 02-05-PLAN.md — Hiring core hooks (useApplications rewrite + useApplicationsRealtime + useApplicationCountsByJob)
+- [ ] 02-06-PLAN.md — LGPD hooks + Edge Function (consents + talent pool filter + apply-to-job)
+- [ ] 02-07-PLAN.md — Kanban surface (CandidatesKanban + Card + SLA + sparkbar + JobCard + LegacyStageWarning)
+- [ ] 02-08-PLAN.md — Filters + Toggle + Table + CPF dedup
+- [ ] 02-09-PLAN.md — Drawer split + LGPD UI + Pages
 **UI hint**: yes
 
 **Research flag**: Calibrar volume médio de candidatos por vaga com RH antes de implementar kanban refatorado — define se `@tanstack/react-virtual` é necessário agora ou pode esperar v2 (V2-06). Defer por default; só pull-in se volume médio >100/vaga.
@@ -141,7 +150,7 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tenancy Backbone | 7/7 | Complete (human-UAT pending) | 2026-04-27 |
-| 2. R&S Refactor | 0/? | Not started | - |
+| 2. R&S Refactor | 0/9 | Not started | - |
 | 3. Performance Refactor | 0/? | Not started | - |
 | 4. Dashboards + Quality Polish | 0/? | Not started | - |
 
