@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Plus, ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import {
@@ -18,24 +18,37 @@ import { CandidatesKanban } from "@/components/hiring/CandidatesKanban";
 import { CandidateForm } from "@/components/hiring/CandidateForm";
 import { CandidateDrawer } from "@/components/hiring/CandidateDrawer";
 import type { KanbanApplication } from "@/components/hiring/CandidateCard";
+import { LegacyStageWarning } from "@/components/hiring/LegacyStageWarning";
+import { PipelineFilters } from "@/components/hiring/PipelineFilters";
+import {
+  BoardTableToggle,
+  useKanbanView,
+} from "@/components/hiring/BoardTableToggle";
+import { CandidatesTable } from "@/components/hiring/CandidatesTable";
+import { CardFieldsCustomizer } from "@/components/hiring/CardFieldsCustomizer";
+import {
+  useApplicationsByJob,
+  useReuseCandidateForJob,
+} from "@/hooks/hiring/useApplications";
 import { useJobOpening } from "@/hooks/hiring/useJobOpening";
-import { useReuseCandidateForJob } from "@/hooks/hiring/useApplications";
+import { useTerminalApplications } from "@/hooks/hiring/useTerminalApplications";
+import { APPLICATION_STAGE_LABELS } from "@/lib/hiring/statusMachine";
+import { formatBRDate } from "@/lib/formatBR";
 
 const ENCERRADAS_SESSION_KEY = "leverup:rs:encerradas-open";
 
 /**
- * Plan 02-09 Task 4 — Page orchestration para CandidatesKanban (per-jobId).
+ * Page orchestration para CandidatesKanban (per-jobId).
  *
- * Integra:
- *   - CandidatesKanban (board) + CandidateDrawer aninhado (Notion-style;
- *     feedback_ux.md — nunca navega fora da page)
- *   - Drawer mobile via overlay; desktop via grid 1fr/420px
- *   - RS-10 Encerradas colapsadas (sessionStorage persist por sessão)
- *
- * Wiring de LegacyStageWarning + BoardTableToggle + CandidatesTable +
- * CardFieldsCustomizer fica como TODO — esses componentes são entregues por
- * Plans 02-07 e 02-08 (em execução paralela). O orquestrador centraliza o
- * merge antes da Wave 5 / verify.
+ * Wave 4 wire-in (Plan 02-10 gap closure — fecha SC-1 e SC-3 da
+ * 02-VERIFICATION.md):
+ *   - LegacyStageWarning + PipelineFilters + BoardTableToggle +
+ *     CandidatesTable + CardFieldsCustomizer integrados (RS-09 + RS-13).
+ *   - RS-10 Encerradas com lista real de terminais via
+ *     `useTerminalApplications` — não mais placeholder + link.
+ *   - Drawer aninhado preservado (Notion-style; feedback_ux.md).
+ *   - Mobile overlay drawer + sessionStorage persist do Encerradas
+ *     mantidos do Plan 02-09.
  */
 export default function CandidatesKanbanPage() {
   const { id: jobId } = useParams<{ id: string }>();
@@ -47,11 +60,36 @@ export default function CandidatesKanbanPage() {
   } | null>(null);
   const reuse = useReuseCandidateForJob();
 
-  // RS-10 — encerradas colapsadas por default; sessionStorage persiste por sessão
+  // Wave 4 wire-in (D-09): persiste preferência de view por jobId em
+  // localStorage:leverup:rs:view:{jobId}. Hook trata jobId vazio
+  // internamente (re-read via useEffect).
+  const [view, setView] = useKanbanView(jobId ?? "");
+
+  // RS-10 — encerradas colapsadas por default; sessionStorage persiste por sessão.
   const [encerradasOpen, setEncerradasOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return sessionStorage.getItem(ENCERRADAS_SESSION_KEY) === "true";
   });
+
+  // Compartilha cache com o board (mesmo queryKey via useScopedQuery): ambos
+  // os views consomem a mesma useApplicationsByJob query — sem refetch ao
+  // alternar Quadro/Tabela.
+  const { data: applications = [] } = useApplicationsByJob(job?.id);
+
+  const tableApplications: KanbanApplication[] = useMemo(
+    () =>
+      applications.map((a) => ({
+        id: a.id,
+        candidate_id: a.candidate_id,
+        candidate_name: a.candidate?.full_name ?? "",
+        candidate_email: a.candidate?.email ?? null,
+        stage: a.stage,
+        stage_entered_at: a.stage_entered_at,
+        job_title: job?.title ?? null,
+        nextInterviewAt: null,
+      })),
+    [applications, job?.title],
+  );
 
   if (isLoading) return <LoadingState layout="cards" count={3} />;
   if (!job) {
@@ -113,26 +151,42 @@ export default function CandidatesKanbanPage() {
           </Row>
         </div>
 
-        {/*
-         * TODO Wave 4 wire-in (após merge Plans 02-07 / 02-08):
-         *   <LegacyStageWarning jobId={job.id} />        // Plan 02-07
-         *   <PipelineFilters />                          // Plan 02-08 inline (URL state)
-         *   <BoardTableToggle jobId={job.id} value={view} onChange={setView} />  // Plan 02-08
-         *   <CardFieldsCustomizer />                     // Plan 02-08
-         *   {view === "table" ? <CandidatesTable ... /> : <CandidatesKanban ... />}
-         */}
+        {/* Wave 4 wire-in (Plan 02-10): banner legacy + filtros inline +
+            toolbar com toggle Quadro/Tabela e popover de customização. */}
+        <div className="px-5 lg:px-7">
+          <LegacyStageWarning jobId={job.id} />
+        </div>
+
+        <PipelineFilters />
+
+        <Row
+          justify="between"
+          align="center"
+          gap={6}
+          className="px-5 lg:px-7 py-2"
+        >
+          <BoardTableToggle jobId={job.id} value={view} onChange={setView} />
+          <CardFieldsCustomizer />
+        </Row>
 
         <div className="flex-1 min-h-0 overflow-auto scrollbar-linear px-5 lg:px-7 pb-5">
-          <CandidatesKanban
-            jobId={job.id}
-            onOpenCandidate={handleOpenCandidate}
-            selectedApplicationId={candidateDrawer?.applicationId ?? null}
-          />
+          {view === "table" ? (
+            <CandidatesTable
+              applications={tableApplications}
+              onOpen={handleOpenCandidate}
+              selectedId={candidateDrawer?.applicationId ?? null}
+            />
+          ) : (
+            <CandidatesKanban
+              jobId={job.id}
+              onOpenCandidate={handleOpenCandidate}
+              selectedApplicationId={candidateDrawer?.applicationId ?? null}
+            />
+          )}
 
-          {/* RS-10 — Vagas encerradas colapsada (apenas placeholder; full list
-              vive em /hiring/jobs page agregada). Mantido aqui para preservar
-              padrão de Collapsible com sessionStorage para essa funcionalidade
-              do plano. */}
+          {/* RS-10 — Encerradas (colapsada por default; sessionStorage persiste).
+              Plan 02-10: substituído placeholder fixo por lista real de
+              terminais via useTerminalApplications. */}
           <Collapsible open={encerradasOpen} onOpenChange={handleEncerradasToggle}>
             <CollapsibleTrigger asChild>
               <button
@@ -148,14 +202,10 @@ export default function CandidatesKanbanPage() {
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="px-3 py-3 text-[12.5px] text-text-muted">
-                Etapas terminais (admitido/recusado/reprovado) ficam aqui
-                quando expandido. Lista detalhada vive em
-                <Link to="/hiring/jobs" className="ml-1 text-accent-text underline">
-                  /hiring/jobs
-                </Link>
-                .
-              </div>
+              <TerminalApplicationsList
+                jobId={job.id}
+                onOpen={handleOpenCandidate}
+              />
             </CollapsibleContent>
           </Collapsible>
         </div>
@@ -209,5 +259,71 @@ export default function CandidatesKanbanPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * RS-10 Encerradas — lista real de applications em stages terminais
+ * (admitido | reprovado_pelo_gestor | recusado) para a vaga corrente.
+ * Deriva via useMemo de useApplicationsByJob (cache compartilhado com o
+ * board — sem query DB extra).
+ */
+function TerminalApplicationsList({
+  jobId,
+  onOpen,
+}: {
+  jobId: string;
+  onOpen: (app: KanbanApplication) => void;
+}) {
+  const { data: terminals = [], isLoading } = useTerminalApplications(jobId);
+
+  if (isLoading) {
+    return (
+      <div className="px-3 py-3 text-[12.5px] text-text-muted">
+        Carregando…
+      </div>
+    );
+  }
+
+  if (terminals.length === 0) {
+    return (
+      <div className="px-3 py-3 text-[12.5px] text-text-muted">
+        Nenhum candidato em etapa final desta vaga.
+      </div>
+    );
+  }
+
+  return (
+    <ul className="px-3 py-2 flex flex-col gap-1">
+      {terminals.map((app) => (
+        <li key={app.id}>
+          <button
+            type="button"
+            onClick={() =>
+              onOpen({
+                id: app.id,
+                candidate_id: app.candidate_id,
+                candidate_name: app.candidate?.full_name ?? "",
+                stage: app.stage,
+                stage_entered_at: app.stage_entered_at,
+              })
+            }
+            className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-bg-subtle text-left"
+            aria-label={`Abrir ${app.candidate?.full_name ?? "candidato"}`}
+          >
+            <span className="text-[13px] font-medium truncate">
+              {app.candidate?.full_name ?? "—"}
+            </span>
+            <span className="flex items-center gap-2 shrink-0 text-[11.5px] text-text-muted">
+              <span>{APPLICATION_STAGE_LABELS[app.stage]}</span>
+              <span aria-hidden>·</span>
+              <span className="tabular-nums">
+                {formatBRDate(app.stage_entered_at)}
+              </span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
