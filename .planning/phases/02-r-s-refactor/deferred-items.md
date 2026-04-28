@@ -67,3 +67,34 @@ These errors do NOT block Plan 02-04 completion. The Phase 2 schema is correct
 on the remote and the regenerated types contain every Phase 2 artifact
 (data_access_log, candidate_consents, active_candidate_consents,
 read_candidate_with_log, the consent enums).
+
+---
+
+## Plan 02-05 (Wave 3 hooks core)
+
+### Consumers usando shape antigo de useMoveApplicationStage args (4 errors)
+
+Plan 02-05 reescreveu `useMoveApplicationStage` para o shape canonical
+`MoveApplicationStageArgs` (`{ id, fromStage, toStage, jobId, companyId }`)
+seguindo D-03 last-writer-wins (sem `expectedUpdatedAt` optimistic locking).
+
+Os 4 consumers atuais ainda passam `expectedUpdatedAt` (campo agora removido
+do tipo) e omitem `jobId` + `companyId` (campos agora obrigatorios). TS reporta:
+
+```
+src/components/hiring/AllCandidatesKanban.tsx(252,7): TS2353
+src/components/hiring/CandidateDrawer.tsx(433,23): TS2353
+src/components/hiring/CandidatesKanban.tsx(219,7): TS2353
+src/pages/hiring/CandidateProfile.tsx(498,23): TS2353
+```
+
+**Recommended owners:**
+- `CandidatesKanban.tsx` + `AllCandidatesKanban.tsx`: Plan 02-08 (UI Wave 4 -
+  refactor kanban onDragEnd para canTransition + nova API; D-02)
+- `CandidateDrawer.tsx`: Plan 02-08/09 (drawer split + decisao move flow)
+- `CandidateProfile.tsx`: Plan 02-09 (split do CandidateProfile 1169 linhas)
+
+Esses errors NAO bloqueiam Plan 02-05 — o plan explicitamente diz que apenas
+`src/hooks/hiring/useApplications.ts` + `useApplicationsRealtime.ts` +
+`useApplicationCountsByJob.ts` precisam ficar tsc-clean (estao). Plans 02-08
+e 02-09 vao reescrever os call sites com o shape correto.
