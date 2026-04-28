@@ -112,10 +112,21 @@ ONE-01, ONE-02, ONE-03, ONE-04, ONE-05, ONE-06
   4. 1:1 tem campos dedicados para anexar transcrição Plaud (textarea longa, paste do dispositivo) e resumo (texto editável). Hooks de Performance todos migrados para `useScopedQuery` — toda queryKey inclui `scope.id`; trocar empresa não vaza dados de Performance entre escopos. Componentes monolíticos tocados nesta fase (`OneOnOneMeetingForm.tsx` 909 linhas) são quebrados quando refatorados.
   5. RH/Admin cria pessoa via formulário (nome, email, role, empresa, org_unit); sistema gera senha temporária com expiry 24h. App exibe **mensagem pré-formatada de WhatsApp** com link de primeiro acesso e credencial — RH copia e envia (não há email automático). Pessoa é forçada a trocar senha no primeiro login antes de acessar qualquer outra tela.
 
-**Plans**: TBD
+**Plans**: 11 plans across 5 waves
+- [ ] 03-01-PLAN.md — Wave 0 test scaffolding (Vitest stubs + pgTAP stubs + MSW handlers + fixtures) (Wave 0)
+- [ ] 03-02-PLAN.md — Backfill E (e1 Grupo Lever + 7 empresas / e2 teams→org_units / e3 socios→memberships) (Wave 1)
+- [ ] 03-03-PLAN.md — company_id pre-migrations (expand→backfill→constrain em evaluations/one_on_ones/climate_surveys) (Wave 1)
+- [ ] 03-04-PLAN.md — Schema novo Performance (perf1/perf2/clim1/clim2/one1/auth1/cron1 — RLS + RPCs + trigger snapshot freeze) (Wave 2)
+- [ ] 03-05-PLAN.md — [BLOCKING] supabase db push 13 migrations + types regen + pgTAP upgrade (Wave 2)
+- [ ] 03-06-PLAN.md — Utilities (passwordGenerator + evaluationTemplate + climateAggregation + scopeKey) + Edge Function create-user-with-temp-password (Wave 3)
+- [ ] 03-07-PLAN.md — 21 hooks migrados/criados (15 rewrites + 6 new para useScopedQuery + auth flow) (Wave 3)
+- [ ] 03-08-PLAN.md — OneOnOneMeetingForm split D-18 (4 sub-componentes + 4 custom hooks + Plaud + RH note) (Wave 4)
+- [ ] 03-09-PLAN.md — EvaluationForm dynamic Zod + Cycles list + CreateCycleDialog + Evaluations page refactor (Wave 4)
+- [ ] 03-10-PLAN.md — ClimateAggregateCard k-anon UI + Climate page refactor (Wave 4)
+- [ ] 03-11-PLAN.md — CreateUser + WhatsApp OnboardingMessageBlock + FirstLoginChangePassword + ProtectedRoute extension (Wave 4)
 **UI hint**: yes
 
-**Research flag**: Templates de avaliação customizáveis por empresa (V2-05) impactam modelagem de `evaluation_cycles` — confirmar com owner antes da Fase 3 se modelo global default é suficiente para v1. Default: global, com customização por ciclo dentro da mesma empresa.
+**Research flag**: Templates de avaliação customizáveis por empresa (V2-05) — RESOLVED in CONTEXT D-05/D-06: template per company com snapshot freezed em cycles. Pulled into v1 (was V2 deferred). REQUIREMENTS.md may need V2-05 → PERF-08 re-tag.
 
 ---
 
