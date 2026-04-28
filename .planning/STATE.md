@@ -8,8 +8,8 @@ progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 16
-  completed_plans: 11
-  percent: 69
+  completed_plans: 13
+  percent: 81
 ---
 
 # Lever Talents Hub — STATE
@@ -32,11 +32,11 @@ Project memory. Updated automatically at each transition.
 ## Current Position
 
 Phase: 02 (r-s-refactor) — EXECUTING
-Plan: 5 of 9 (Plans 02-01, 02-02, 02-03, 02-04 complete; Wave 0 + Wave 1 + Wave 2 done)
+Plan: 7 of 9 (Plans 02-01, 02-02, 02-03, 02-04, 02-05, 02-06 complete; Waves 0-3 done)
 **Phase:** 2
-**Plan:** 02-04 complete (Wave 2 BLOCKING — Migration F applied to remote ehbxpbeijofxtsbezwxd via supabase db push + types.ts regenerated to 3128 lines + hiring-types.ts extended with 12 Phase 2 hand-written exports + obsolete declare module block removed)
-**Status:** Executing Phase 02 — Wave 3 (Plan 02-05 hooks LGPD) próximo, agora desbloqueado pelos types regenerados
-**Progress:** [███████░░░] 69%
+**Plan:** 02-05 + 02-06 complete (Wave 3 — 9 hooks hiring + apply-to-job edge function: useApplications/Realtime/CountsByJob, useCandidateConsents, useTalentPool, useCandidates via RPC, useCardPreferences, useDataAccessLog, useCandidateTags. +37 vitest tests green; supabase/client.ts ganhou fetch indirection p/ MSW)
+**Status:** Executing Phase 02 — Wave 4 (UI: kanban + filters + drawer split + LGPD UI) próximo
+**Progress:** [████████░░] 81%
 
 ---
 

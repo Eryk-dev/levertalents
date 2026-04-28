@@ -80,9 +80,9 @@ TAL-01, TAL-02, TAL-03, TAL-04, TAL-05, TAL-06, TAL-07, TAL-08, TAL-09
 - [x] 02-01-PLAN.md — Wave 0 test scaffolding (16 Vitest + 5 pgTAP + MSW handlers) *(completed 2026-04-28)*
 - [x] 02-02-PLAN.md — Migration F (4 sub-migrations: stages + data_access_log + consents + CPF) *(completed 2026-04-28)*
 - [x] 02-03-PLAN.md — Wave 1 utilities (supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11) *(completed 2026-04-28)*
-- [ ] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
-- [ ] 02-05-PLAN.md — Hiring core hooks (useApplications rewrite + useApplicationsRealtime + useApplicationCountsByJob)
-- [ ] 02-06-PLAN.md — LGPD hooks + Edge Function (consents + talent pool filter + apply-to-job)
+- [x] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
+- [x] 02-05-PLAN.md — Hiring core hooks (useApplications rewrite + useApplicationsRealtime + useApplicationCountsByJob)
+- [x] 02-06-PLAN.md — LGPD hooks + Edge Function (consents + talent pool filter + apply-to-job)
 - [ ] 02-07-PLAN.md — Kanban surface (CandidatesKanban + Card + SLA + sparkbar + JobCard + LegacyStageWarning)
 - [ ] 02-08-PLAN.md — Filters + Toggle + Table + CPF dedup
 - [ ] 02-09-PLAN.md — Drawer split + LGPD UI + Pages
