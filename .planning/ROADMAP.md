@@ -83,9 +83,9 @@ TAL-01, TAL-02, TAL-03, TAL-04, TAL-05, TAL-06, TAL-07, TAL-08, TAL-09
 - [x] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
 - [x] 02-05-PLAN.md — Hiring core hooks (useApplications rewrite + useApplicationsRealtime + useApplicationCountsByJob)
 - [x] 02-06-PLAN.md — LGPD hooks + Edge Function (consents + talent pool filter + apply-to-job)
-- [ ] 02-07-PLAN.md — Kanban surface (CandidatesKanban + Card + SLA + sparkbar + JobCard + LegacyStageWarning)
-- [ ] 02-08-PLAN.md — Filters + Toggle + Table + CPF dedup
-- [ ] 02-09-PLAN.md — Drawer split + LGPD UI + Pages
+- [x] 02-07-PLAN.md — Kanban surface (CandidatesKanban + Card + SLA + sparkbar + JobCard + LegacyStageWarning)
+- [x] 02-08-PLAN.md — Filters + Toggle + Table + CPF dedup
+- [x] 02-09-PLAN.md — Drawer split + LGPD UI + Pages
 **UI hint**: yes
 
 **Research flag**: Calibrar volume médio de candidatos por vaga com RH antes de implementar kanban refatorado — define se `@tanstack/react-virtual` é necessário agora ou pode esperar v2 (V2-06). Defer por default; só pull-in se volume médio >100/vaga.
