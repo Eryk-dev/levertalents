@@ -1,21 +1,65 @@
-import React from 'react';
-import { describe, it } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
-void React;
+import { server } from "../msw/server";
+import PublicApplicationForm from "@/components/hiring/PublicApplicationForm";
 
-// Wave 0 skeleton — Plan 02-07 modifica PublicApplicationForm.tsx para
-// 3 LGPD checkboxes não pré-marcados (TAL-04 + TAL-06).
+// Plan 02-09 Task 3 (TDD) — TAL-04 LGPD opt-in:
+// 3 checkboxes não pré-marcados (1 obrigatório + 2 opcionais);
+// microcopy LGPD locked; submit bloqueia sem consent_aplicacao_vaga.
 
-describe.skip('PublicApplicationForm — LGPD opt-in', () => {
-  it.todo('3 LGPD checkboxes não pré-marcados (defaultChecked=false)');
-  it.todo(
-    'checkbox visíveis: incluir_no_banco_de_talentos_global, compartilhar_com_cliente_externo, manter_cv_pos_recusa'
-  );
-  it.todo('submit bloqueia sem consent_aplicacao_vaga (literal true)');
-  it.todo('submit envia formData.consents JSON.stringify({ ... })');
-  it.todo('microcopy LGPD aparece sob cada checkbox (UI-SPEC §"LGPD opt-in copy")');
-  it.todo('sem nenhum opt-in marcado, application ainda submete (apenas vaga atual)');
-  it.todo('formata erro de consent_aplicacao_vaga via Zod errorMap em PT-BR');
+beforeEach(() => {
+  vi.restoreAllMocks();
 });
 
-// TODO Plan 02-07: remover .skip e implementar
+afterEach(() => {
+  server.resetHandlers();
+});
+
+function renderForm() {
+  return render(
+    <PublicApplicationForm
+      jobId="job-1"
+      companyName="Test Co"
+      fitSurvey={null}
+      fitQuestions={[]}
+    />,
+  );
+}
+
+describe("PublicApplicationForm — TAL-04 opt-in NÃO pré-marcado", () => {
+  it("renderiza pelo menos 3 checkboxes (1 obrigatório + 2 opcionais) NÃO pré-marcados", () => {
+    renderForm();
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes.length).toBeGreaterThanOrEqual(3);
+    for (const cb of checkboxes) {
+      expect(cb).not.toBeChecked();
+    }
+  });
+
+  it("microcopy LGPD aparece sob cada checkbox", () => {
+    renderForm();
+    // Checkbox 1 obrigatório — base legal art 7º V (procedimento pré-contratual)
+    expect(screen.getByText(/LGPD art\.\s*7º\s*V/i)).toBeInTheDocument();
+    // Checkbox 2 — Banco de Talentos: 24 meses
+    expect(screen.getByText(/24 meses/i)).toBeInTheDocument();
+    // Checkbox 3 — clientes externos
+    expect(
+      screen.getByText(/clientes externos|empresas-clientes/i),
+    ).toBeInTheDocument();
+  });
+
+  it("submit bloqueia se consent_aplicacao_vaga não marcado (mostra erro Zod)", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const submitBtn = screen.getByRole("button", {
+      name: /enviar candidatura|enviando|enviar/i,
+    });
+    await user.click(submitBtn);
+    expect(
+      await screen.findByText(/Você precisa aceitar/i),
+    ).toBeInTheDocument();
+  });
+});
