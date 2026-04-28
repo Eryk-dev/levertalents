@@ -61,8 +61,10 @@ Refactor de coesão. Sem features novas grandes. Cada requisito é uma capabilit
 - [ ] **RS-02**: Stages do kanban de candidatos seguem template global default; cada vaga pode adicionar/remover/renomear stages locais
 - [ ] **RS-03**: Mover candidato entre stages no kanban é **estável**: optimistic update com `onMutate`/`setQueryData` + rollback em erro; sem flash de "voltar" (corrige bug #1)
 - [ ] **RS-04**: Mover candidato valida transição via `canTransition()` antes de chamar `mutate` (corrige rejeições servidor-side silenciosas)
-- [ ] **RS-05**: Migration normaliza stages legados (`aguardando_fit_cultural`, `sem_retorno`, `fit_recebido`) para os stages do template atual
-- [ ] **RS-06**: Kanban consolida 16 stages atuais em 6 grupos visuais (input do UX-AUDIT-VAGAS.md)
+- [x] **RS-05
+**: Migration normaliza stages legados (`aguardando_fit_cultural`, `sem_retorno`, `fit_recebido`) para os stages do template atual
+- [x] **RS-06
+**: Kanban consolida 16 stages atuais em 6 grupos visuais (input do UX-AUDIT-VAGAS.md)
 - [ ] **RS-07**: Detalhe do candidato abre em **drawer lateral** (não página dedicada) — preserva contexto do kanban
 - [ ] **RS-08**: Card do candidato no kanban mostra sparkbar de distribuição por stage e indicador de SLA (verde/amarelo/vermelho conforme tempo no stage)
 - [ ] **RS-09**: Filtros (vaga, source, fase, tag) são inline acima do kanban, não em modal
@@ -74,13 +76,18 @@ Refactor de coesão. Sem features novas grandes. Cada requisito é uma capabilit
 
 - [ ] **TAL-01**: Banco de Talentos é global (não isolado por empresa) — candidato pode aparecer em vagas de N empresas
 - [ ] **TAL-02**: Candidato tem tags por empresa/vaga em que participou (histórico)
-- [ ] **TAL-03**: Tabela `candidate_consents` (candidate_id, purpose, legal_basis, expires_at, revoked_at, granted_at) — consentimento granular por finalidade
+- [x] **TAL-03
+**: Tabela `candidate_consents` (candidate_id, purpose, legal_basis, expires_at, revoked_at, granted_at) — consentimento granular por finalidade
 - [ ] **TAL-04**: Fluxo de candidatura exige opt-in **não pré-marcado** para inclusão no banco com finalidade explícita
-- [ ] **TAL-05**: Tabela `data_access_log` (entity_type, entity_id, action, scope_company_id, context, actor_id, at) — append-only
-- [ ] **TAL-06**: Leitura de PII de candidato passa por RPC `read_candidate_with_log(id, context)` — log automático
-- [ ] **TAL-07**: Retenção do `data_access_log` é 36 meses; pg_cron faz cleanup
+- [x] **TAL-05
+**: Tabela `data_access_log` (entity_type, entity_id, action, scope_company_id, context, actor_id, at) — append-only
+- [x] **TAL-06
+**: Leitura de PII de candidato passa por RPC `read_candidate_with_log(id, context)` — log automático
+- [x] **TAL-07
+**: Retenção do `data_access_log` é 36 meses; pg_cron faz cleanup
 - [ ] **TAL-08**: Candidato (ou RH em nome dele) pode revogar consentimento; revogação remove acesso futuro mas preserva histórico de auditoria
-- [ ] **TAL-09**: CPF é chave de dedup canonical (complementar a email) na criação de candidato
+- [x] **TAL-09
+**: CPF é chave de dedup canonical (complementar a email) na criação de candidato
 
 ### Performance: Avaliações & Clima (PERF)
 

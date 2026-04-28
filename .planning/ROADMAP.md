@@ -78,7 +78,7 @@ TAL-01, TAL-02, TAL-03, TAL-04, TAL-05, TAL-06, TAL-07, TAL-08, TAL-09
 
 **Plans**: 9 plans across 5 waves
 - [x] 02-01-PLAN.md — Wave 0 test scaffolding (16 Vitest + 5 pgTAP + MSW handlers) *(completed 2026-04-28)*
-- [ ] 02-02-PLAN.md — Migration F (4 sub-migrations: stages + data_access_log + consents + CPF)
+- [x] 02-02-PLAN.md — Migration F (4 sub-migrations: stages + data_access_log + consents + CPF) *(completed 2026-04-28)*
 - [ ] 02-03-PLAN.md — Wave 1 utilities (supabaseError detectors + sla.ts + cpf.ts + cardCustomization.ts + STAGE_GROUP_BAR_COLORS D-11)
 - [ ] 02-04-PLAN.md — [BLOCKING] Schema push + types regen
 - [ ] 02-05-PLAN.md — Hiring core hooks (useApplications rewrite + useApplicationsRealtime + useApplicationCountsByJob)

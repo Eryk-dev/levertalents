@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-04-28T02:00:27.340Z"
+last_updated: "2026-04-28T02:13:15.454Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 16
-  completed_plans: 8
-  percent: 50
+  completed_plans: 9
+  percent: 56
 ---
 
 # Lever Talents Hub — STATE
@@ -32,11 +32,11 @@ Project memory. Updated automatically at each transition.
 ## Current Position
 
 Phase: 02 (r-s-refactor) — EXECUTING
-Plan: 2 of 9 (Plan 02-01 complete; Wave 0 done)
+Plan: 3 of 9 (Plans 02-01, 02-02 complete; Wave 0 + Wave 1 partial)
 **Phase:** 2
-**Plan:** 02-01 complete (Wave 0 test scaffolding)
-**Status:** Executing Phase 02 — Wave 1 ready (Plan 02-02 + 02-04)
-**Progress:** [█████░░░░░] 50%
+**Plan:** 02-02 complete (Migration F sub-migrations F.1-F.4 SQLs escritos)
+**Status:** Executing Phase 02 — Wave 1 continua (Plan 02-04 hooks); Wave 2 BLOCKING (Plan 02-03/04 db push) prox
+**Progress:** [██████░░░░] 56%
 
 ---
 
@@ -49,9 +49,11 @@ Plan: 2 of 9 (Plan 02-01 complete; Wave 0 done)
 | Requirements mapped | 82/82 (100%) |
 | Requirements completed | 0/82 |
 | Plans created | 16 (Phase 1: 7 + Phase 2: 9) |
-| Plans completed | 8 (7 Phase 1 + 1 Phase 2) |
-| Migrations applied | 4/7 (A, B1, B2, C) |
-| Test coverage | Wave 0 scaffolding: 23 files (17 vitest + 5 pgTAP + 2 msw) — implementation pending Waves 1-4 |
+| Plans completed | 9 (7 Phase 1 + 2 Phase 2) |
+| Migrations applied | 4/7 (A, B1, B2, C) — F.1-F.4 SQLs escritos, push em Plan 02-04 |
+| Migrations written (pending push) | F.1, F.2, F.3, F.4 (Plan 02-02) |
+| Test coverage | Wave 0 scaffolding: 23 files (17 vitest + 5 pgTAP + 2 msw); Wave 1 (02-02) ativou 5 pgTAP suites com 19 tests |
+| Phase 02 P02 duration | 7 min, 4 tasks, 9 files |
 
 ---
 
@@ -75,6 +77,10 @@ Plan: 2 of 9 (Plan 02-01 complete; Wave 0 done)
 - **(Plan 02-01)** Test skeletons usam pattern `describe.skip + it.todo` (vitest) e `SELECT skip(N)` (pgTAP) para serem failing-by-default — CI verde sem implementação
 - **(Plan 02-01)** MSW handler URL hard-coded ao project Lever (`ehbxpbeijofxtsbezwxd`) garante intercept mesmo se .env mudar; T-02-01-02 accepted no threat model
 - **(Plan 02-01)** Realtime mock via `createMockChannel().__emit(eventType, payload)` substitui WebSocket real para testar `useApplicationsRealtime`
+- **(Plan 02-02)** F.1 mapeia legacy stages (`aguardando_fit_cultural`, `sem_retorno`, `fit_recebido`) para `'em_interesse'` (defaultStage da Triagem em STAGE_GROUPS.ts) — enum `application_stage_enum` NAO tem `'fit_cultural'`/`'triagem'` como valores; `metadata.legacy_marker` preservado para auditoria forense
+- **(Plan 02-02)** F.3 candidate_consents requer `CREATE EXTENSION btree_gist` — sem ela `EXCLUDE USING gist (candidate_id WITH =, purpose WITH =)` falha no apply (uuid/enum nao tem default operator class para gist)
+- **(Plan 02-02)** F.2 `data_access_log` e RLS-enabled mas SEM policy INSERT — escrita apenas via RPC SECURITY DEFINER (`read_candidate_with_log`); audit log inviolavel mesmo para roles authenticated
+- **(Plan 02-02)** RPC `read_candidate_with_log` e VOLATILE (nao STABLE) — funcao faz INSERT em data_access_log, declarar STABLE seria mentira e causaria otimizacoes erradas (Postgres deduplicaria chamadas)
 
 ### Active TODOs
 
@@ -100,8 +106,8 @@ Nenhum no momento.
 
 ## Session Continuity
 
-**Last session:** 2026-04-28T01:58:21Z — Completed 02-01-PLAN.md (Wave 0 test scaffolding)
-**Next action:** Execute Wave 1 — Plans 02-02 (Migration F utils) + 02-04 (counts hook port). Wave 2 BLOCKING (Plan 02-03 db push) deve rodar sequencial após Wave 1.
+**Last session:** 2026-04-28T02:13:15.449Z — Completed 02-02-PLAN.md (Migration F sub-migrations F.1-F.4 SQLs + 5 pgTAP suites ativas)
+**Next action:** Continue Wave 1 — Plan 02-04 (counts hook port + utilities). Wave 2 BLOCKING (Plan 02-03/04 `supabase db push` + types regen) sequencial apos Wave 1 completar.
 
 ---
 
