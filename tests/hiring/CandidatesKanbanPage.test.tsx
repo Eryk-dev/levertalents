@@ -81,6 +81,11 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Reset persisted state entre testes (Encerradas usa sessionStorage,
+  // BoardTableToggle usa localStorage). Sem isso, testes anteriores
+  // vazam state via storage e quebram isolamento.
+  if (typeof sessionStorage !== "undefined") sessionStorage.clear();
+  if (typeof localStorage !== "undefined") localStorage.clear();
   vi.mocked(useJobOpening).mockReturnValue({
     data: mockedJob,
     isLoading: false,
