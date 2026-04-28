@@ -1,86 +1,74 @@
 -- =========================================================================
 -- pgTAP test: Migration F.3 — candidate_consents table + view active_
--- Status: PENDING (skip habilitado até Plan 02-02 aplicar a migration)
+-- Activated by: Plan 02-02 (Wave 1)
 -- REQs: TAL-03, TAL-04, TAL-06, TAL-08
 -- =========================================================================
 begin;
 select plan(4);
 
--- Skipped até Plan 02-02 (Migration F.3) implementar:
-select skip(4, 'pending Migration F.3 apply by Plan 02-02');
+select tests.authenticate_as_service_role();
 
--- TODO Plan 02-02: remover linha de skip acima e ativar os testes abaixo.
---
--- Setup esperado:
---   select tests.authenticate_as_service_role();
---   insert into public.candidates (id, full_name, email) values
---     ('eeeeeeee-1111-1111-1111-111111111111', 'Candidato Consent', 'c@example.com');
---
+insert into public.candidates (id, full_name, email) values
+  ('ffffffff-0000-0000-0000-000000000030', 'Cand C1', 'c1+f3@example.com')
+  on conflict (id) do nothing;
+
 -- TEST 1: Constraint consents_revoked_after_granted bloqueia revoked_at < granted_at
---   prepare bad_revoke as
---     insert into public.candidate_consents
---       (candidate_id, purpose, legal_basis, granted_at, revoked_at)
---     values
---       ('eeeeeeee-1111-1111-1111-111111111111'::uuid,
---        'incluir_no_banco_de_talentos_global',
---        'consent',
---        '2026-04-27T10:00:00Z'::timestamptz,
---        '2026-04-27T09:00:00Z'::timestamptz);
---   select throws_ok(
---     'execute bad_revoke',
---     '23514',
---     null,
---     'Check bloqueia revoked_at < granted_at'
---   );
---
--- TEST 2: EXCLUDE constraint bloqueia 2 consents ATIVOS (revoked_at IS NULL)
---   para (candidate_id, purpose)
---   insert into public.candidate_consents
---     (candidate_id, purpose, legal_basis, granted_at)
---   values
---     ('eeeeeeee-1111-1111-1111-111111111111'::uuid,
---      'compartilhar_com_cliente_externo', 'consent', now());
---   prepare dup_active as
---     insert into public.candidate_consents
---       (candidate_id, purpose, legal_basis, granted_at)
---     values
---       ('eeeeeeee-1111-1111-1111-111111111111'::uuid,
---        'compartilhar_com_cliente_externo', 'consent', now());
---   select throws_ok(
---     'execute dup_active',
---     '23P01',  -- exclusion_violation
---     null,
---     'EXCLUDE bloqueia 2 consents ativos para mesma (candidate_id, purpose)'
---   );
---
--- TEST 3: View active_candidate_consents EXCLUI revoked + expired
---   insert into public.candidate_consents
---     (candidate_id, purpose, legal_basis, granted_at, expires_at)
---   values
---     ('eeeeeeee-1111-1111-1111-111111111111'::uuid,
---      'manter_cv_pos_recusa', 'consent', now() - interval '2 years',
---      now() - interval '1 day');
---   select is(
---     (select count(*)::bigint from public.active_candidate_consents
---      where candidate_id = 'eeeeeeee-1111-1111-1111-111111111111'::uuid
---        and purpose = 'manter_cv_pos_recusa'),
---     0::bigint,
---     'View active_ exclui consents expirados'
---   );
---
--- TEST 4: Re-grant após revoke é permitido (revoked_at IS NOT NULL não conta no EXCLUDE)
---   update public.candidate_consents
---     set revoked_at = now(), revoked_by = auth.uid()
---     where candidate_id = 'eeeeeeee-1111-1111-1111-111111111111'::uuid
---       and purpose = 'compartilhar_com_cliente_externo';
---   select lives_ok(
---     $$insert into public.candidate_consents
---         (candidate_id, purpose, legal_basis, granted_at)
---       values
---         ('eeeeeeee-1111-1111-1111-111111111111'::uuid,
---          'compartilhar_com_cliente_externo', 'consent', now())$$,
---     'Re-grant permitido após revoke (EXCLUDE conta apenas ativos)'
---   );
+prepare invalid_revoke as
+  insert into public.candidate_consents (candidate_id, purpose, granted_at, revoked_at)
+  values (
+    'ffffffff-0000-0000-0000-000000000030'::uuid,
+    'incluir_no_banco_de_talentos_global',
+    now(),
+    now() - interval '1 day'
+  );
+select throws_ok(
+  'execute invalid_revoke',
+  '23514',
+  null,
+  'CHECK consents_revoked_after_granted bloqueia revoked_at < granted_at'
+);
+
+-- TEST 2: EXCLUDE constraint bloqueia 2 consents ATIVOS para (candidate, purpose)
+insert into public.candidate_consents (id, candidate_id, purpose) values
+  ('ffffffff-0000-0000-0000-000000000040'::uuid,
+   'ffffffff-0000-0000-0000-000000000030'::uuid,
+   'incluir_no_banco_de_talentos_global');
+
+prepare duplicate_active as
+  insert into public.candidate_consents (candidate_id, purpose) values
+    ('ffffffff-0000-0000-0000-000000000030'::uuid,
+     'incluir_no_banco_de_talentos_global');
+select throws_ok(
+  'execute duplicate_active',
+  '23P01',  -- exclusion_violation
+  null,
+  'EXCLUDE bloqueia 2 consents ativos para (candidate, purpose)'
+);
+
+-- TEST 3: View active_candidate_consents EXCLUI revogados
+update public.candidate_consents set revoked_at = now()
+  where id = 'ffffffff-0000-0000-0000-000000000040'::uuid;
+
+insert into public.candidate_consents (id, candidate_id, purpose, revoked_at) values
+  ('ffffffff-0000-0000-0000-000000000041'::uuid,
+   'ffffffff-0000-0000-0000-000000000030'::uuid,
+   'manter_cv_pos_recusa',
+   now());
+
+select is(
+  (select count(*)::bigint from public.active_candidate_consents
+    where candidate_id = 'ffffffff-0000-0000-0000-000000000030'::uuid),
+  0::bigint,
+  'View active exclui consents com revoked_at IS NOT NULL'
+);
+
+-- TEST 4: Re-grant apos revoke e permitido (EXCLUDE so conta revoked_at IS NULL)
+select lives_ok(
+  $$ insert into public.candidate_consents (candidate_id, purpose) values
+       ('ffffffff-0000-0000-0000-000000000030'::uuid,
+        'incluir_no_banco_de_talentos_global') $$,
+  'Re-grant apos revoke e permitido (EXCLUDE so conta revoked_at IS NULL)'
+);
 
 select * from finish();
 rollback;
