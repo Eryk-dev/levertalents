@@ -247,10 +247,54 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Phase 2 TAL-04: persistir consents granulares LGPD (cada finalidade marcada
+  // vira 1 row em candidate_consents). granted_by=null é self-grant via form
+  // público (RH pode revogar via useRevokeConsent — Plan 02-06 Task 1).
+  // Falha silenciosa: log [consent] e segue (não bloqueia application).
+  // Sem PII no log (CLAUDE.md compliance, threat T-02-06-06).
+  const consentsRaw = form.get("consents");
+  let consents: Record<string, boolean> = {};
+  try {
+    consents = JSON.parse(typeof consentsRaw === "string" ? consentsRaw : "{}");
+  } catch {
+    // payload mal formado — segue sem persist (form ainda passou validação básica).
+  }
+
+  const nowIso = new Date().toISOString();
+  // expires_at: 24 meses (alinhado com TAL-08 retenção LGPD).
+  const expiresIso = new Date(
+    Date.now() + 24 * 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const consentRows = Object.entries(consents)
+    .filter(([, granted]) => granted === true)
+    .map(([purpose]) => ({
+      candidate_id: candidateId,
+      purpose,
+      legal_basis: "consent",
+      granted_at: nowIso,
+      granted_by: null,
+      expires_at: expiresIso,
+    }));
+
+  let consentsPersisted = 0;
+  if (consentRows.length > 0) {
+    const { error: consentErr } = await admin
+      .from("candidate_consents")
+      .insert(consentRows);
+    if (consentErr) {
+      // Não falhar a application — log e seguir
+      console.error("[consent] failed to persist", consentErr);
+    } else {
+      consentsPersisted = consentRows.length;
+    }
+  }
+
   return jsonResponse(200, {
     application_id: newApp.id,
     candidate_id: candidateId,
     duplicated: false,
     fit_saved: !!parsedFit,
+    consents_persisted: consentsPersisted,
   });
 });
