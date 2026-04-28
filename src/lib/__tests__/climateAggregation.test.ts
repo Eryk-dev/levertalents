@@ -1,17 +1,36 @@
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { aggregateClimateResponses, K_ANONYMITY_THRESHOLD } from '../climateAggregation';
 
-// Wave 3 will implement src/lib/climateAggregation.ts (TS mirror of RPC for unit tests).
-// This file is a Wave 0 stub — failing-by-default until then.
-// TODO Wave 3: remover describe.skip e implementar src/lib/climateAggregation.ts
-describe.skip('climateAggregation k-anon (Wave 3)', () => {
-  it.todo(
-    'count<3 returns { insufficient_data: true } WITHOUT count field [INV-3-09 + Pitfall §3]',
-  );
-  it.todo('count===3 returns { count, avg: numeric, distribution: Record<score, count> }');
-  it.todo(
-    'does NOT auto-aggregate to parent org_unit when child has <3 (Open Question §4 default)',
-  );
-  it.todo(
-    'refuses to compute when caller lacks visible_companies(survey.company_id) — security guard',
-  );
+describe('climateAggregation k-anon (D-10) [INV-3-09]', () => {
+  it('K_ANONYMITY_THRESHOLD = 3', () => {
+    expect(K_ANONYMITY_THRESHOLD).toBe(3);
+  });
+
+  it('count<3 returns { insufficient_data: true } WITHOUT count field', () => {
+    const result = aggregateClimateResponses([
+      { score: 4, org_unit_id: null },
+      { score: 5, org_unit_id: null },
+    ]);
+    expect(result).toEqual({ insufficient_data: true });
+    expect('count' in result).toBe(false); // Pitfall §3
+  });
+
+  it('count===3 returns { count, avg, distribution }', () => {
+    const result = aggregateClimateResponses([
+      { score: 4, org_unit_id: null },
+      { score: 5, org_unit_id: null },
+      { score: 3, org_unit_id: null },
+    ]);
+    expect('insufficient_data' in result).toBe(false);
+    if (!('insufficient_data' in result)) {
+      expect(result.count).toBe(3);
+      expect(result.avg).toBe(4);
+      expect(result.distribution).toMatchObject({ '3': 1, '4': 1, '5': 1 });
+    }
+  });
+
+  it('count===0 returns insufficient_data', () => {
+    const result = aggregateClimateResponses([]);
+    expect(result).toEqual({ insufficient_data: true });
+  });
 });
