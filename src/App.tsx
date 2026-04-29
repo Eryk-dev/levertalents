@@ -127,7 +127,7 @@ const App = () => {
               <Route
                 path="/admin"
                 element={
-                  <ProtectedRoute allowedRoles={["admin", "socio"]}>
+                  <ProtectedRoute allowedRoles={["admin", "socio", "rh"]}>
                     <AdminDashboard />
                   </ProtectedRoute>
                 }
@@ -135,7 +135,7 @@ const App = () => {
               <Route
                 path="/admin/criar-usuario"
                 element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
+                  <ProtectedRoute allowedRoles={["admin", "rh"]}>
                     <CreateUser />
                   </ProtectedRoute>
                 }

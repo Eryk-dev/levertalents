@@ -190,9 +190,7 @@ export function useSidebarGroups(): NavSection[] {
     const adminItems: NavItemProps[] = [
       { to: "/empresas", icon: "building", label: "Empresas" },
       { to: "/times", icon: "users", label: "Times" },
-      // "Pessoas" — no dedicated listing route exists yet; fall back to
-      // `/meu-time` (the closest people-list view available).
-      { to: "/meu-time", icon: "userPlus", label: "Pessoas" },
+      { to: "/admin", icon: "userPlus", label: "Pessoas" },
     ];
     adminItems.push({ to: "/nine-box", icon: "grid", label: "9-Box" });
     sections.push({ label: "Administração", items: adminItems });
