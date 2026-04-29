@@ -1269,10 +1269,14 @@ export type Database = {
       }
       evaluation_cycles: {
         Row: {
+          audience_ids: string[]
+          audience_kind: string
           company_id: string
           created_at: string
+          directions: string[]
           ends_at: string
           id: string
+          include_descendants: boolean
           name: string
           starts_at: string
           status: string
@@ -1281,10 +1285,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience_ids?: string[]
+          audience_kind?: string
           company_id: string
           created_at?: string
+          directions?: string[]
           ends_at: string
           id?: string
+          include_descendants?: boolean
           name: string
           starts_at: string
           status?: string
@@ -1293,10 +1301,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience_ids?: string[]
+          audience_kind?: string
           company_id?: string
           created_at?: string
+          directions?: string[]
           ends_at?: string
           id?: string
+          include_descendants?: boolean
           name?: string
           starts_at?: string
           status?: string
@@ -2982,6 +2994,25 @@ export type Database = {
       is_people_manager: { Args: { _user_id: string }; Returns: boolean }
       normalize_cpf: { Args: { input: string }; Returns: string }
       org_unit_descendants: { Args: { _unit_id: string }; Returns: string[] }
+      preview_cycle_audience: {
+        Args: {
+          p_company_id: string
+          p_audience_kind: string
+          p_audience_ids: string[]
+          p_include_descendants: boolean
+          p_directions: string[]
+        }
+        Returns: Json
+      }
+      resolve_cycle_participants: {
+        Args: {
+          p_company_id: string
+          p_audience_kind: string
+          p_audience_ids: string[]
+          p_include_descendants: boolean
+        }
+        Returns: string[]
+      }
       read_candidate_with_log: {
         Args: { p_candidate_id: string; p_context?: string }
         Returns: {

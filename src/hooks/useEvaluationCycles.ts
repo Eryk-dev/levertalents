@@ -7,12 +7,19 @@ import type { Database } from '@/integrations/supabase/types';
 type CycleRow = Database['public']['Tables']['evaluation_cycles']['Row'];
 type CycleInsert = Database['public']['Tables']['evaluation_cycles']['Insert'];
 
+export type AudienceKind = 'company' | 'org_unit' | 'manual';
+export type EvaluationDirection = 'self' | 'leader_to_member' | 'member_to_leader' | 'peer';
+
 export interface CreateCycleInput {
   company_id: string;
   template_id: string;
   name: string;
   starts_at: string; // ISO
   ends_at: string;   // ISO; must be > starts_at (CHECK enforced in DB and validated here)
+  audience_kind: AudienceKind;
+  audience_ids: string[];
+  include_descendants: boolean;
+  directions: EvaluationDirection[];
 }
 
 /**
@@ -50,6 +57,9 @@ export function useCreateCycle() {
         throw new Error('A data de fim precisa ser depois da data de início.');
       }
       // template_snapshot will be overwritten by the DB trigger; send empty object as placeholder
+      if (input.directions.length === 0) {
+        throw new Error('Selecione ao menos uma direção de avaliação.');
+      }
       const insert: CycleInsert = {
         company_id: input.company_id,
         template_id: input.template_id,
@@ -58,6 +68,10 @@ export function useCreateCycle() {
         ends_at: input.ends_at,
         template_snapshot: {}, // overwritten by trigger tg_freeze_template_snapshot
         status: 'active',
+        audience_kind: input.audience_kind,
+        audience_ids: input.audience_ids,
+        include_descendants: input.include_descendants,
+        directions: input.directions,
       };
       const { data, error } = await supabase
         .from('evaluation_cycles')
