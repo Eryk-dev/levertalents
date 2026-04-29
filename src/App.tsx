@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -78,6 +79,16 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        {/* QUAL-06: Sentry.ErrorBoundary is the outer net — captures render errors
+            into Sentry. The inner <ErrorBoundary> still renders the existing fallback
+            UI (defense-in-depth, preserved UX). */}
+        <Sentry.ErrorBoundary
+          fallback={({ error }) => (
+            <ErrorBoundary>
+              <div style={{ display: "none" }}>{String(error?.message ?? "")}</div>
+            </ErrorBoundary>
+          )}
+        >
         <ErrorBoundary>
         <BrowserRouter>
           <Routes>
@@ -334,6 +345,7 @@ const App = () => {
           </Routes>
         </BrowserRouter>
         </ErrorBoundary>
+        </Sentry.ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
   );

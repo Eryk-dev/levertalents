@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import * as Sentry from '@sentry/react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -203,6 +204,17 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
   const cancelPendingScope = useCallback(() => {
     setPendingScope(null);
   }, []);
+
+  // QUAL-06 — propagate scope identifiers as Sentry tags so events filter per
+  // company/group. scope_id and scope_kind are non-PII (UUIDs + 'company'/'group').
+  // Reactive on scope id/kind changes only; companyIds/name changes don't need
+  // to re-emit the same tags. No-op until scope resolves.
+  useEffect(() => {
+    if (!scope) return;
+    Sentry.setTag('scope_id', scope.id);
+    Sentry.setTag('scope_kind', scope.kind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope?.id, scope?.kind]);
 
   const isFixed = useMemo(() => {
     if (!companies.length) return true;
