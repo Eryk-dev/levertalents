@@ -3,18 +3,24 @@ import { Btn } from '@/components/primitives/LinearKit';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CycleCard } from '@/components/CycleCard';
 import { CreateCycleDialog } from '@/components/CreateCycleDialog';
+import { EvaluationTemplatesTab } from '@/components/EvaluationTemplatesTab';
 import { useEvaluationCycles } from '@/hooks/useEvaluationCycles';
 import { useScope } from '@/app/providers/ScopeProvider';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function EvaluationsPage() {
   const cyclesQuery = useEvaluationCycles();
   const { scope } = useScope();
+  const { userRole } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
 
   const all = cyclesQuery.data ?? [];
   const active = all.filter((c) => c.status === 'active' || c.status === 'draft');
   const closed = all.filter((c) => c.status === 'closed');
+
+  const canManageTemplates =
+    userRole === 'rh' || userRole === 'socio' || userRole === 'admin';
 
   // companyId for create dialog: first company in current scope
   const firstCompanyId =
@@ -41,6 +47,9 @@ export default function EvaluationsPage() {
           <TabsTrigger value="closed">
             Encerrados ({closed.length})
           </TabsTrigger>
+          {canManageTemplates && firstCompanyId && (
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="active">
@@ -83,6 +92,12 @@ export default function EvaluationsPage() {
             ))}
           </div>
         </TabsContent>
+
+        {canManageTemplates && firstCompanyId && (
+          <TabsContent value="templates">
+            <EvaluationTemplatesTab companyId={firstCompanyId} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {firstCompanyId && (

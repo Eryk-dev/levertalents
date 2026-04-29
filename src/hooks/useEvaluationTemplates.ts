@@ -88,6 +88,30 @@ export function useCreateTemplate() {
   });
 }
 
+export function useDeleteTemplate() {
+  const queryClient = useQueryClient();
+  const { scope } = useScope();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from('evaluation_templates')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'evaluation_templates',
+        ],
+      });
+    },
+  });
+}
+
 export function useUpdateTemplate() {
   const queryClient = useQueryClient();
   const { scope } = useScope();
