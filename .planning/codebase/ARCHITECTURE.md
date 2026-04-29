@@ -190,4 +190,27 @@
 
 ---
 
-*Architecture analysis: 2026-04-27*
+## Scope Helpers (post-Migration G, 2026-05-07)
+
+**Canonical scope helper:** `public.visible_companies(uid uuid) RETURNS uuid[]`
+- Used by ALL hiring policies (job_openings, candidates, applications, interviews, decisions, cultural_fit_responses, background_checks, candidate_conversations) and the storage `hiring_bucket` policies (select + insert).
+- Behavior: admin/socio/rh see all companies; lider sees companies via org_unit_members + unit_leaders + socio_company_memberships.
+
+**Deprecated (Phase 1 Migration C, 2026-04-27) → Dropped (Phase 4 Migration G, 2026-05-07):**
+- `public.allowed_companies(uuid)` — the legacy join via teams + team_members; dropped after all consumers (10 hiring policies + 2 storage policies) were migrated to `visible_companies`.
+- `public.allowed_companies_for_user(uuid)` — never existed in this database (the `DROP IF EXISTS` was a defensive no-op).
+
+**Other surviving helpers:**
+- `public.visible_org_units(actor uuid) RETURNS uuid[]` — for performance/clima/1:1 scoping by org_unit_descendants.
+- `public.org_unit_descendants(unit_id uuid) RETURNS uuid[]` — recursive CTE on (company_id, parent_id).
+
+## Migration Ledger
+
+| Date | Migration | Type | Notes |
+|------|-----------|------|-------|
+| 2026-04-27 | C — `socio_memberships_rls_rewrite_and_backfill` | additive + rewrite | Rewrote 10 hiring policies allowed_companies → visible_companies; allowed_companies kept active. |
+| 2026-05-07 | G — `g_contract_drop_legacy` | **CONTRACT (irreversible)** | Reescreveu 2 storage policies que ainda chamavam allowed_companies (recovery do gap deixado por Migration C); dropou `allowed_companies(uuid)` e `allowed_companies_for_user(uuid)`; verificou `pg_cron data_access_log_retention_cleanup`. **Step de NOT NULL em hiring tables foi REMOVIDO** porque as colunas `applications.company_id` e `candidates.company_id` nunca existiram (escopo via JOIN com job_openings; candidates é entidade global). DROP TABLE `teams`/`team_members` ficou COMENTADO (Option A — ~10 leitores em src/). |
+
+---
+
+*Architecture analysis: 2026-04-27 (updated 2026-05-07 — Migration G ledger)*

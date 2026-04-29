@@ -2941,7 +2941,6 @@ export type Database = {
     }
     Functions: {
       admin_hard_delete_user: { Args: { _user_id: string }; Returns: undefined }
-      allowed_companies: { Args: { _profile_id: string }; Returns: string[] }
       anonymize_candidate: {
         Args: { p_candidate_id: string }
         Returns: undefined

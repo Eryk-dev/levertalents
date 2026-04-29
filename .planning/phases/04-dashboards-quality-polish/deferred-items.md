@@ -45,3 +45,22 @@ Items discovered during execution but out-of-scope for the current plan. To be a
 - **Pre-existence:** RHDashboard was NOT touched by Plan 04-05 (which only modifies CmdKPalette). Errors pre-existed and are part of the 179-tsc-error backlog catalogued under Plan 04-01.
 - **Phase 4 contribution from this plan:** Zero. `tsc --noEmit | grep CmdKPalette` returns empty after Plan 04-05.
 - **Suggested owner:** A future polish plan that touches RHDashboard, or Plan 04-08 if the integration suite covers the RH dashboard surface.
+
+---
+
+## From Plan 04-08 (Migration G — Contract)
+
+### Step 2 (NOT NULL em applications/candidates) removido — premissa errada do plano
+
+- **Discovered during:** Task 3 (first `supabase db push` attempt)
+- **Failure:** `column "company_id" does not exist (SQLSTATE 42703)` ao tentar `ALTER TABLE public.candidates ALTER COLUMN company_id SET NOT NULL`
+- **Root cause:** Plan 04-08 assumiu (incorretamente) que `applications.company_id` e `candidates.company_id` existiam. PRE.1 (`perf_pre_company_id_expand`, Phase 3) só adicionou `company_id` em `evaluations`, `one_on_ones`, `climate_surveys` — essas três já receberam SET NOT NULL via PRE.3. `applications` usa escopo via `job_opening_id` JOIN; `candidates` é entidade global (e-mail/CPF únicos podem aplicar em vagas de várias empresas).
+- **Resolution (Rule 1 deviation, applied inline):** Step 2 da migração G foi REMOVIDO; comentário no SQL documenta a remoção e a razão. REQ QUAL-09 exige apenas que Migration G seja a contract phase (drop helpers legacy + sanity guards) — não exige NOT NULL específico em hiring tables.
+- **Suggested owner:** Nenhum follow-up necessário; comportamento atual de hiring tables (escopo via JOIN com job_openings) é correto e está coberto pelas policies hiring rewriten via Migration C.
+
+### `useUserResponseIds` build error (continua pré-existente; não regrediu com Migration G)
+
+- **Discovered during:** Task 3 `npm run build` post-regen
+- **Same as Plan 04-01 entry above** — não foi introduzido nem alterado por Migration G. Confirmado via `git stash` + build com types.ts pre-regen: erro idêntico.
+- **Phase 4 contribution from Plan 04-08:** Zero. types.ts diff foi de exatamente 1 linha (a entrada `allowed_companies` em Functions removida).
+- **Suggested owner:** Continua o mesmo (área de Climate; quem tocar `ClimateAnswerDialog.tsx` decide).

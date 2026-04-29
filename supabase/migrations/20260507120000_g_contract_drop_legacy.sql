@@ -1,5 +1,5 @@
 -- =========================================================================
--- Migration G: CONTRACT — drop legacy helpers + NOT NULL + (deferred) drop teams
+-- Migration G: CONTRACT — drop legacy helpers + storage policy rewrite + cron check
 --
 -- IRREVERSIBLE — runs after 1+ week of Phases 1-3 stable in produção.
 -- Pre-conditions (planner-verified at Plan 04-08 time):
@@ -22,6 +22,14 @@
 --     somente policies em public.* (job_openings, candidates, etc.). Esta migração
 --     fecha o gap reescrevendo as 2 storage policies para public.visible_companies
 --     ANTES do DROP FUNCTION (sem essa reescrita o DROP falharia ou perderia RLS).
+--   • Schema reality check (Rule 1 deviation): applications.company_id e
+--     candidates.company_id NÃO EXISTEM. PRE.1 (perf_pre_company_id_expand) só
+--     adicionou company_id em evaluations / one_on_ones / climate_surveys —
+--     applications usa job_opening_id (escopo via JOIN com job_openings.company_id);
+--     candidates é entidade global (mesmo email/CPF aplica em vagas de várias
+--     empresas). REQ QUAL-09 exige apenas que Migration G seja a contract phase;
+--     não exige NOT NULL específico nessas tabelas. Step 2 (NOT NULL em hiring
+--     tables) REMOVIDO da migração — premissa errada do plano 04-08.
 --
 -- Reversibility: NONE — owner deve PITR se houver regressão pós-apply.
 -- DEPENDENCIES: Phases 1, 2, 3 todas em produção; Plan 04-07 critical tests verdes
@@ -103,36 +111,22 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- Step 2 — SET NOT NULL on company_id where still missing
--- Verify zero NULLs first; abort with RAISE if any remain (operator must
--- backfill manually before re-running this migration).
+-- Step 2 — REMOVED (Rule 1 deviation)
+--
+-- Original plan 04-08 specified ALTER TABLE applications/candidates ALTER COLUMN
+-- company_id SET NOT NULL. Schema audit revealed those columns DO NOT EXIST:
+--   • applications usa job_opening_id (escopo via JOIN com job_openings.company_id)
+--   • candidates é entidade global (mesmo email/CPF aplica em vagas de várias
+--     empresas)
+--   • PRE.1 (perf_pre_company_id_expand) só adicionou company_id em
+--     evaluations / one_on_ones / climate_surveys (Phase 3); essas três já
+--     receberam SET NOT NULL via PRE.3 (Plan 03-04 perf2).
+-- REQ QUAL-09 exige que Migration G seja a contract phase final — NÃO exige
+-- NOT NULL específico em hiring tables. Step removido.
+--
+-- Pre-deviation push-attempt confirmed the failure ('column "company_id" does
+-- not exist (SQLSTATE 42703)' on `public.candidates`).
 -- ---------------------------------------------------------------------------
-
-DO $$
-DECLARE
-  v_apps_null  int;
-  v_cand_null  int;
-BEGIN
-  SELECT COUNT(*) INTO v_apps_null FROM public.applications WHERE company_id IS NULL;
-  SELECT COUNT(*) INTO v_cand_null FROM public.candidates  WHERE company_id IS NULL;
-  IF v_apps_null > 0 OR v_cand_null > 0 THEN
-    RAISE EXCEPTION 'Migration G blocked: applications NULL=% candidates NULL=%. Backfill required before re-run.', v_apps_null, v_cand_null;
-  END IF;
-END $$;
-
-ALTER TABLE public.applications ALTER COLUMN company_id SET NOT NULL;
-ALTER TABLE public.candidates   ALTER COLUMN company_id SET NOT NULL;
-
--- Sanity 2: post-constrain (defense-in-depth)
-DO $$
-DECLARE v_apps_null int; v_cand_null int;
-BEGIN
-  SELECT COUNT(*) INTO v_apps_null FROM public.applications WHERE company_id IS NULL;
-  SELECT COUNT(*) INTO v_cand_null FROM public.candidates  WHERE company_id IS NULL;
-  IF v_apps_null > 0 OR v_cand_null > 0 THEN
-    RAISE EXCEPTION 'Migration G failed post-constrain: applications NULL=% candidates NULL=%', v_apps_null, v_cand_null;
-  END IF;
-END $$;
 
 -- ---------------------------------------------------------------------------
 -- Step 3 — Verify pg_cron retention job is scheduled (read-only sanity)

@@ -277,4 +277,26 @@ Per UX-AUDIT-VAGAS.md (parent directory), the following are known friction point
 
 ---
 
-*Concerns audit: 2026-04-27*
+## Resolved Concerns (Phase 4 — Migration G, 2026-05-07)
+
+**Legacy `allowed_companies` helper dropped:**
+- Migration G removeu `public.allowed_companies(uuid)` da base remota. Anteriormente listado em CONCERNS como dual-path durante o Phase 1; agora resolvido. Antes do drop, a auditoria do plano 04-08 detectou 2 storage policies (`hiring_bucket:select`, `hiring_bucket:insert`) que ainda chamavam `allowed_companies` — Migration C tinha reescrito apenas as policies em `public.*`. Migration G fechou esse gap antes do `DROP FUNCTION`.
+
+**LGPD retention cron job verificado:**
+- `pg_cron data_access_log_retention_cleanup` confirmado scheduled+active no remoto via Migration G Step 3 + pgTAP 012. Listado anteriormente como "validar antes de Migration G"; agora resolvido.
+
+## Outstanding Concerns
+
+**`teams` + `team_members` tables ainda em uso por ~10 arquivos (Option A em vigor):**
+- Files: `src/hooks/useTeams.ts` (CRUD completo), `src/hooks/useCostBreakdown.ts`, `src/components/ManualOneOnOneForm.tsx`, `src/components/ManualPDIForm.tsx`, `src/components/hiring/AdmissionForm.tsx`, `src/pages/GestorDashboard.tsx`, `src/pages/MyTeam.tsx`, `src/pages/CollaboratorProfile.tsx`, `src/pages/Profile.tsx`, `src/pages/OneOnOnes.tsx`, `src/pages/DevelopmentKanban.tsx`, `src/lib/hiring/rlsScope.ts` (lider join).
+- Impact: `DROP TABLE teams + team_members` ficou COMENTADO em Migration G; só será aplicado quando esses readers forem migrados para `org_units` + nova fonte de custo.
+- Suggested follow-up: Plano post-Phase-4 que migra useCostBreakdown para `org_unit_members` + um campo de custo (em `member_costs` ou `profiles.salary_cents`) e refatora os demais consumidores.
+
+**`src/lib/hiring/rlsScope.ts` comentário stale:**
+- File: `src/lib/hiring/rlsScope.ts` linha 5 ainda diz "Mirrors the DB allowed_companies(profile_id) helper" — o helper DB foi dropado em Migration G; o código local continua funcionando porque ele consulta `companies` + `team_members` diretamente, mas o comentário ficou stale.
+- Impact: Documentação interna desatualizada; risco de confundir desenvolvedores.
+- Suggested follow-up: Atualizar comentário para "Mirrors the DB visible_companies(uid) helper" (idêntico ao plano de Phase 4 originalmente — fica para quem tocar o arquivo).
+
+---
+
+*Concerns audit: 2026-04-27 (updated 2026-05-07 — Migration G resolved + outstanding teams readers)*

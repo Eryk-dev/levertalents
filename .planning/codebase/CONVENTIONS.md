@@ -197,4 +197,34 @@
 
 ---
 
-*Convention analysis: 2026-04-27*
+## DB scope helpers (post-Migration G, 2026-05-07)
+
+**Canonical helpers — use these in any new RLS policy or RPC:**
+- `public.visible_companies(uid uuid) RETURNS uuid[]` — single source of truth for "quais empresas o usuário pode ver". Substitui `allowed_companies` (dropado 2026-05-07).
+- `public.visible_org_units(uid uuid) RETURNS uuid[]` — para perf/clima/1:1.
+- `public.org_unit_descendants(unit_id uuid) RETURNS uuid[]` — recursive CTE para herança hierárquica.
+
+**Pattern para RLS policies:**
+```sql
+CREATE POLICY "..."
+  ON public.X FOR SELECT TO authenticated
+  USING (
+    company_id = ANY(public.visible_companies((SELECT auth.uid())))
+  );
+```
+
+**Pattern para RPCs SECURITY DEFINER (re-aplicar RLS):**
+```sql
+v_visible_companies := public.visible_companies(v_actor);
+IF NOT (v_target_companies <@ v_visible_companies) THEN
+  RAISE EXCEPTION 'Sem permissão' USING ERRCODE = '42501';
+END IF;
+```
+
+**Não usar:**
+- `allowed_companies(uuid)` — dropado em Migration G (2026-05-07). Qualquer referência nova quebra a migração.
+- `allowed_companies_for_user(uuid)` — nunca existiu de fato; o `DROP IF EXISTS` foi defensivo.
+
+---
+
+*Convention analysis: 2026-04-27 (updated 2026-05-07 — visible_companies como canonical post-Migration G)*
