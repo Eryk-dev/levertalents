@@ -1,0 +1,4 @@
+{
+  "_note": "PRÉ-CADASTRO — Preencher com emails reais dos sócios e suas empresas antes do supabase db push (Plan 03-05). Formato: socio_email → company_slugs[].",
+  "memberships": []
+}

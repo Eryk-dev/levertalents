@@ -1,0 +1,58 @@
+{
+  "_note": "PRÉ-CADASTRO — UUIDs gerados automaticamente. Completar antes do supabase db push (Plan 03-05): CNPJ, endereço, contato.",
+  "group": {
+    "slug": "grupo-lever",
+    "name": "Grupo Lever"
+  },
+  "companies": [
+    {
+      "id": "2da4f7de-9725-4887-a6d4-f700626b2a3d",
+      "name": "Netair",
+      "slug": "netair",
+      "performance_enabled": true,
+      "rs_enabled": true
+    },
+    {
+      "id": "9c0c5f63-1d21-4061-87ff-9a6ce78ce7b5",
+      "name": "Netparts",
+      "slug": "netparts",
+      "performance_enabled": true,
+      "rs_enabled": true
+    },
+    {
+      "id": "04f6f2fe-5008-4938-9931-6ce7f29ccca9",
+      "name": "Unique",
+      "slug": "unique",
+      "performance_enabled": true,
+      "rs_enabled": true
+    },
+    {
+      "id": "c22d26d7-3b0a-4460-a448-3755f1647800",
+      "name": "Easy Peasy",
+      "slug": "easypeasy",
+      "performance_enabled": true,
+      "rs_enabled": true
+    },
+    {
+      "id": "d33f3c43-43ac-4af7-ac18-7b0f5740306b",
+      "name": "Bellator",
+      "slug": "bellator",
+      "performance_enabled": true,
+      "rs_enabled": true
+    },
+    {
+      "id": "aa82c8d6-41f3-4ae3-bc72-a52f96481928",
+      "name": "141Air",
+      "slug": "141air",
+      "performance_enabled": true,
+      "rs_enabled": true
+    },
+    {
+      "id": "3e920f7d-a412-4e04-a8d6-6bf83629af4f",
+      "name": "Lever Talents",
+      "slug": "lever-talents",
+      "performance_enabled": true,
+      "rs_enabled": true
+    }
+  ]
+}

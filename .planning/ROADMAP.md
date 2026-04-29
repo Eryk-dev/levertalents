@@ -14,7 +14,7 @@ Critério de done global (vide PROJECT.md): *fluxos principais sem erro + dados 
 
 - [x] **Phase 1: Tenancy Backbone** — Modelar empresa única + grupos + RBAC + org_units + scope selector. Migrações A-D. *(completed 2026-04-27)*
 - [ ] **Phase 2: R&S Refactor** — Estabilizar kanban (bug #1), drawer, Banco de Talentos LGPD-compliant, UX-AUDIT wins. Migração F.
-- [ ] **Phase 3: Performance Refactor** — Migrar hooks de Performance para useScopedQuery + ciclos por empresa + 1:1 com Plaud + onboarding WhatsApp. Backfill E.
+- [x] **Phase 3: Performance Refactor** — Migrar hooks de Performance para useScopedQuery + ciclos por empresa + 1:1 com Plaud + onboarding WhatsApp. Backfill E. *(completed 2026-04-28)*
 - [ ] **Phase 4: Dashboards + Quality Polish** — Dashboard de sócio + Sentry + Migração G (contract) + cobertura de testes nos fluxos críticos.
 
 ---
@@ -149,7 +149,15 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
   4. Vitest + RTL + MSW configurados; pgTAP + supabase-test-helpers configurados; `npm test` roda no CI. Cobertura nos 5 fluxos críticos: login + troca de senha; switch de escopo (sem flash); mover candidato no kanban (com cenários conflict/network/permission); salvar avaliação (idempotente); RLS cross-empresa fail-test. Componentes >800 linhas tocados em fases anteriores foram quebrados (CandidateProfile 1169 → componentes menores; JobOpeningForm 854; OneOnOneMeetingForm 909).
   5. Migração G aplicada após 1+ semana de Phases 1-3 estáveis em produção: helpers antigos (`allowed_companies`) dropados; `company_id NOT NULL` onde ausente; tabela `teams` removida se zero leitores; `data_access_log` com retenção pg_cron rodando; documentação `.planning/codebase/` atualizada para refletir o novo modelo.
 
-**Plans**: TBD
+**Plans**: 8 plans across 5 waves
+- [ ] 04-01-sentry-foundation-PLAN.md — Sentry init + scope tags + session replay toggle (Wave 1)
+- [ ] 04-02-payroll-rpc-and-search-extension-PLAN.md — RPC read_payroll_total + global_search scope param + usePayrollTotal hook + useCostBreakdown.companies (Wave 1)
+- [ ] 04-03-schema-push-additive-PLAN.md — [BLOCKING] supabase db push for additive RPC migrations + types regen (Wave 2)
+- [ ] 04-04-socio-dashboard-refactor-PLAN.md — SocioDashboard refactor (financial-only, conditional breakdown company→dept / group→empresas) (Wave 3)
+- [ ] 04-05-cmd-k-palette-refactor-PLAN.md — CmdKPalette refactor (useScopedQuery + D-07 actions + UI-SPEC visuals) (Wave 3)
+- [ ] 04-06-component-splits-PLAN.md — Split CandidateProfile (1169→shell+5) + JobOpeningForm (854→shell+3) (Wave 4)
+- [ ] 04-07-critical-flow-tests-PLAN.md — pgTAP 011 RLS payroll + 4 vitest critical-flow tests + sanity coverage gate (Wave 4)
+- [ ] 04-08-migration-g-contract-PLAN.md — [BLOCKING, IRREVERSIBLE] Migration G (drop allowed_companies, NOT NULL, defer teams drop) + go/no-go checkpoint (Wave 5)
 **UI hint**: yes
 
 **Research flag**: **Dashboard de sócio (DASH-01) requer entrevista de 30 min com owner** sobre KPIs exatos antes de implementar — risco de retrabalho sem essa validação. Calibrar também SLA contratual R&S externo (DIF-08 thresholds: laranja >3d, vermelho >7d) e KPIs específicos (folha total + custo médio + headcount são starters; podem precisar de gráfico de tendência, drill-down por org_unit, comparativo período-a-período). Não iniciar Phase 4 sem essa entrevista agendada.
@@ -163,7 +171,7 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 | 1. Tenancy Backbone | 7/7 | Complete (human-UAT pending) | 2026-04-27 |
 | 2. R&S Refactor | 4/9 | Executing (Wave 0 + Wave 1 + Wave 2 schema push done) | - |
 | 3. Performance Refactor | 0/? | Not started | - |
-| 4. Dashboards + Quality Polish | 0/? | Not started | - |
+| 4. Dashboards + Quality Polish | 0/8 | Planned | - |
 
 ---
 
