@@ -49,7 +49,7 @@ export function useChangePassword() {
     onSuccess: async () => {
       // Pitfall §9: MUST invalidate profile cache so ProtectedRoute re-reads
       // must_change_password=false and stops redirecting to /first-login-change-password.
-      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      await queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
     },
   });
 }

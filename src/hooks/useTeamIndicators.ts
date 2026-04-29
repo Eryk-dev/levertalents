@@ -21,10 +21,15 @@ export function useTeamIndicators(leaderId: string | null | undefined) {
     async (companyIds) => {
       if (!leaderId) throw new Error('leaderId required');
 
-      const { data: members, error: membersError } = await supabase
-        .from('team_members')
-        .select('user_id')
-        .eq('leader_id', leaderId);
+      const { data: ledUnits, error: ledUnitsError } = await supabase
+        .from('unit_leaders')
+        .select('org_unit_id')
+        .eq('user_id', leaderId);
+      if (ledUnitsError) throw handleSupabaseError(ledUnitsError, 'Falha ao carregar time', { silent: true });
+      const orgUnitIds = (ledUnits ?? []).map((u) => u.org_unit_id);
+      const { data: members, error: membersError } = orgUnitIds.length
+        ? await supabase.from('org_unit_members').select('user_id').in('org_unit_id', orgUnitIds)
+        : { data: [], error: null };
       if (membersError) throw handleSupabaseError(membersError, 'Falha ao carregar time', { silent: true });
 
       const memberIds = (members ?? []).map((m) => m.user_id);

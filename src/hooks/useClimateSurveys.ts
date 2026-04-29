@@ -90,7 +90,7 @@ export function useSubmitClimateResponse() {
         p_survey_id: input.survey_id,
         p_question_id: input.question_id,
         p_score: input.score,
-        p_comment: input.comment ?? undefined,
+        p_comment: input.comment ?? null,
       });
       if (error) throw error;
       return { success: true };
@@ -111,8 +111,9 @@ export type ClimateQuestion = {
 };
 
 export const useClimateQuestions = (surveyId: string | undefined) => {
+  const { scope } = useScope();
   return useQuery({
-    queryKey: ['climate_questions', surveyId],
+    queryKey: ['scope', scope?.id ?? '__none__', 'climate_questions', surveyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('climate_questions')

@@ -52,11 +52,8 @@ export function FirstLoginChangePasswordCard({
     change.mutate(
       { newPassword: v.newPassword },
       {
-        onSuccess: async () => {
+        onSuccess: () => {
           toast.success('Senha alterada');
-          // Pitfall §9: useChangePassword.onSuccess already invalidates ['userProfile'].
-          // Brief wait lets the cache invalidation propagate before ProtectedRoute re-checks flag.
-          await new Promise((r) => setTimeout(r, 200));
           navigate('/', { replace: true });
         },
         onError: (e) =>

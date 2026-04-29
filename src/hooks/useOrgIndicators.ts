@@ -32,7 +32,7 @@ export function useOrgIndicators() {
       if (companyIds.length) oneOnOnesQ = oneOnOnesQ.in('company_id', companyIds);
 
       const [teamMembersRes, evaluationsRes, oneOnOnesRes, pendingPdisRes] = await Promise.all([
-        supabase.from('team_members').select('user_id', { count: 'exact' }),
+        supabase.from('org_unit_members').select('user_id', { count: 'exact' }),
         supabase
           .from('evaluations')
           .select('direction, responses, evaluated_user_id, status')

@@ -13,52 +13,61 @@
 -- =========================================================================
 
 -- Step 1 — evaluations: backfill via evaluator_user_id
+-- ROW_NUMBER deterministically picks primary membership (earliest created_at) for multi-company users.
 UPDATE public.evaluations e
    SET company_id = sub.company_id
   FROM (
     SELECT oum.user_id,
-           ou.company_id
+           ou.company_id,
+           ROW_NUMBER() OVER (PARTITION BY oum.user_id ORDER BY oum.created_at) AS rn
       FROM public.org_unit_members oum
       JOIN public.org_units ou ON ou.id = oum.org_unit_id
   ) sub
  WHERE e.company_id IS NULL
-   AND e.evaluator_user_id = sub.user_id;
+   AND e.evaluator_user_id = sub.user_id
+   AND sub.rn = 1;
 
 -- Step 2 — one_on_ones: backfill via leader_id (D-26 mantém current schema; leader é canonical)
 UPDATE public.one_on_ones o
    SET company_id = sub.company_id
   FROM (
     SELECT oum.user_id,
-           ou.company_id
+           ou.company_id,
+           ROW_NUMBER() OVER (PARTITION BY oum.user_id ORDER BY oum.created_at) AS rn
       FROM public.org_unit_members oum
       JOIN public.org_units ou ON ou.id = oum.org_unit_id
   ) sub
  WHERE o.company_id IS NULL
-   AND o.leader_id = sub.user_id;
+   AND o.leader_id = sub.user_id
+   AND sub.rn = 1;
 
 -- Fallback step 2.b — se leader não tem org_unit_membership, tenta collaborator_id
 UPDATE public.one_on_ones o
    SET company_id = sub.company_id
   FROM (
     SELECT oum.user_id,
-           ou.company_id
+           ou.company_id,
+           ROW_NUMBER() OVER (PARTITION BY oum.user_id ORDER BY oum.created_at) AS rn
       FROM public.org_unit_members oum
       JOIN public.org_units ou ON ou.id = oum.org_unit_id
   ) sub
  WHERE o.company_id IS NULL
-   AND o.collaborator_id = sub.user_id;
+   AND o.collaborator_id = sub.user_id
+   AND sub.rn = 1;
 
 -- Step 3 — climate_surveys: backfill via created_by
 UPDATE public.climate_surveys cs
    SET company_id = sub.company_id
   FROM (
     SELECT oum.user_id,
-           ou.company_id
+           ou.company_id,
+           ROW_NUMBER() OVER (PARTITION BY oum.user_id ORDER BY oum.created_at) AS rn
       FROM public.org_unit_members oum
       JOIN public.org_units ou ON ou.id = oum.org_unit_id
   ) sub
  WHERE cs.company_id IS NULL
-   AND cs.created_by = sub.user_id;
+   AND cs.created_by = sub.user_id
+   AND sub.rn = 1;
 
 -- Step 4 — Sanity report (NOTICE only; doesn't fail)
 DO $$

@@ -50,20 +50,20 @@ describe('defineAppAbility', () => {
   it('liderado can read own evaluations only', () => {
     const ability = asAnyAbility(defineAppAbility({ ...baseCtx, role: 'liderado' }));
     expect(
-      ability.can('read', subject('Evaluation', { evaluatee_id: 'user-123' })),
+      ability.can('read', subject('Evaluation', { evaluated_user_id: 'user-123' })),
     ).toBe(true);
     expect(
-      ability.can('read', subject('Evaluation', { evaluatee_id: 'someone-else' })),
+      ability.can('read', subject('Evaluation', { evaluated_user_id: 'someone-else' })),
     ).toBe(false);
   });
 
   it('colaborador (legacy synonym) behaves like liderado', () => {
     const ability = asAnyAbility(defineAppAbility({ ...baseCtx, role: 'colaborador' }));
     expect(
-      ability.can('read', subject('OneOnOne', { liderado_id: 'user-123' })),
+      ability.can('read', subject('OneOnOne', { collaborator_id: 'user-123' })),
     ).toBe(true);
     expect(
-      ability.can('read', subject('OneOnOne', { liderado_id: 'other' })),
+      ability.can('read', subject('OneOnOne', { collaborator_id: 'other' })),
     ).toBe(false);
   });
 });

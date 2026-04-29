@@ -44,8 +44,7 @@ export function useCollaboratorEvolution(userId: string | null | undefined) {
 
       (updates ?? []).forEach((u) => {
         if (!u.plan_id) return;
-        const prev = current[u.plan_id] ?? 0;
-        current[u.plan_id] = Math.max(0, Math.min(100, prev + Number(u.progress_change ?? 0)));
+        current[u.plan_id] = Math.max(0, Math.min(100, Number(u.progress_change ?? 0)));
         events.push({ date: new Date(u.created_at), progressByPlan: { ...current } });
       });
 

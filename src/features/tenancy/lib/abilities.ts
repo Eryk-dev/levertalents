@@ -122,8 +122,8 @@ export function defineAppAbility(ctx: AbilityContext): AppAbility {
   if (ctx.role === 'liderado' || ctx.role === 'colaborador') {
     can('read', 'Company', { id: { $in: ctx.visibleCompanyIds } });
     can('read', 'OrgUnit', { id: { $in: ctx.ownOrgUnitIds } });
-    can('read', 'Evaluation', { evaluatee_id: ctx.userId });
-    can('read', 'OneOnOne', { liderado_id: ctx.userId });
+    can('read', 'Evaluation', { evaluated_user_id: ctx.userId });
+    can('read', 'OneOnOne', { collaborator_id: ctx.userId });
     return build();
   }
 

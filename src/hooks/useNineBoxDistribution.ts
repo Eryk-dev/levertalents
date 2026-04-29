@@ -48,15 +48,23 @@ export function useNineBoxDistribution(nineBoxScope: NineBoxScope, leaderId?: st
       let userIds: string[] = [];
 
       if (nineBoxScope === 'team' && leaderId) {
-        const { data: members, error: membersError } = await supabase
-          .from('team_members')
-          .select('user_id')
-          .eq('leader_id', leaderId);
-        if (membersError) throw handleSupabaseError(membersError, 'Falha ao carregar time', { silent: true });
-        userIds = (members ?? []).map((m) => m.user_id);
+        const { data: ledUnits, error: ledUnitsError } = await supabase
+          .from('unit_leaders')
+          .select('org_unit_id')
+          .eq('user_id', leaderId);
+        if (ledUnitsError) throw handleSupabaseError(ledUnitsError, 'Falha ao carregar time', { silent: true });
+        const orgUnitIds = (ledUnits ?? []).map((u) => u.org_unit_id);
+        if (orgUnitIds.length) {
+          const { data: members, error: membersError } = await supabase
+            .from('org_unit_members')
+            .select('user_id')
+            .in('org_unit_id', orgUnitIds);
+          if (membersError) throw handleSupabaseError(membersError, 'Falha ao carregar time', { silent: true });
+          userIds = [...new Set((members ?? []).map((m) => m.user_id))];
+        }
       } else if (nineBoxScope === 'org') {
         const { data: members, error: membersError } = await supabase
-          .from('team_members')
+          .from('org_unit_members')
           .select('user_id');
         if (membersError) throw handleSupabaseError(membersError, 'Falha ao carregar time', { silent: true });
         userIds = [...new Set((members ?? []).map((m) => m.user_id))];

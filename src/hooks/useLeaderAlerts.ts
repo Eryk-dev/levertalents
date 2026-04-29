@@ -78,13 +78,18 @@ export function useLeaderAlerts(leaderId: string | undefined) {
       }
 
       // Fetch PDIs awaiting approval from team members
-      const { data: teamMembers, error: teamMembersError } = await supabase
-        .from('team_members')
-        .select('user_id')
-        .eq('leader_id', leaderId);
+      const { data: ledUnits, error: ledUnitsError } = await supabase
+        .from('unit_leaders')
+        .select('org_unit_id')
+        .eq('user_id', leaderId);
+      if (ledUnitsError) throw handleSupabaseError(ledUnitsError, 'Falha ao carregar time', { silent: true });
+      const orgUnitIds = (ledUnits ?? []).map((u) => u.org_unit_id);
+      const { data: teamMembers, error: teamMembersError } = orgUnitIds.length
+        ? await supabase.from('org_unit_members').select('user_id').in('org_unit_id', orgUnitIds)
+        : { data: [], error: null };
       if (teamMembersError) throw handleSupabaseError(teamMembersError, 'Falha ao carregar time', { silent: true });
 
-      const teamUserIds = (teamMembers ?? []).map((tm) => tm.user_id);
+      const teamUserIds = [...new Set((teamMembers ?? []).map((tm) => tm.user_id))];
       if (teamUserIds.length > 0) {
         const { data: pendingPDIs, error: pendingPDIsError } = await supabase
           .from('development_plans')
