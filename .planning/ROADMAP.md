@@ -153,8 +153,8 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 - [x] 04-01-sentry-foundation-PLAN.md — Sentry init + scope tags + session replay toggle (Wave 1) *(2026-04-29)*
 - [x] 04-02-payroll-rpc-and-search-extension-PLAN.md — RPC read_payroll_total + global_search scope param + usePayrollTotal hook + useCostBreakdown.companies (Wave 1) *(2026-04-29)*
 - [x] 04-03-schema-push-additive-PLAN.md — [BLOCKING] supabase db push for additive RPC migrations + types regen (Wave 2) *(2026-04-29)*
-- [ ] 04-04-socio-dashboard-refactor-PLAN.md — SocioDashboard refactor (financial-only, conditional breakdown company→dept / group→empresas) (Wave 3)
-- [ ] 04-05-cmd-k-palette-refactor-PLAN.md — CmdKPalette refactor (useScopedQuery + D-07 actions + UI-SPEC visuals) (Wave 3)
+- [x] 04-04-socio-dashboard-refactor-PLAN.md — SocioDashboard refactor (financial-only, conditional breakdown company→dept / group→empresas) (Wave 3) *(2026-04-29)*
+- [x] 04-05-cmd-k-palette-refactor-PLAN.md — CmdKPalette refactor (useScopedQuery + D-07 actions + UI-SPEC visuals) (Wave 3) *(2026-04-29)*
 - [ ] 04-06-component-splits-PLAN.md — Split CandidateProfile (1169→shell+5) + JobOpeningForm (854→shell+3) (Wave 4)
 - [ ] 04-07-critical-flow-tests-PLAN.md — pgTAP 011 RLS payroll + 4 vitest critical-flow tests + sanity coverage gate (Wave 4)
 - [ ] 04-08-migration-g-contract-PLAN.md — [BLOCKING, IRREVERSIBLE] Migration G (drop allowed_companies, NOT NULL, defer teams drop) + go/no-go checkpoint (Wave 5)
@@ -171,7 +171,7 @@ QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-06, QUAL-09
 | 1. Tenancy Backbone | 7/7 | Complete (human-UAT pending) | 2026-04-27 |
 | 2. R&S Refactor | 4/9 | Executing (Wave 0 + Wave 1 + Wave 2 schema push done) | - |
 | 3. Performance Refactor | 0/? | Not started | - |
-| 4. Dashboards + Quality Polish | 3/8 | Executing (Wave 2 complete) | - |
+| 4. Dashboards + Quality Polish | 5/8 | Executing (Wave 3 complete) | - |
 
 ---
 
