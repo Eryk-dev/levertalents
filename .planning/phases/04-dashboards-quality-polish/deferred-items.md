@@ -33,3 +33,15 @@ Items discovered during execution but out-of-scope for the current plan. To be a
 - **Critical paths (`src/integrations/`, `src/lib/`, `src/app/`) remain TS-clean** post-regen — same gating standard established in Plan 02-04.
 - **Pre-existing build break (rollup):** `src/components/ClimateAnswerDialog.tsx` import of `useUserResponseIds` is the same Phase 4 issue logged from Plan 04-01 above; unchanged by Plan 04-03 regen.
 - **CmdKPalette.tsx still calls `global_search` with 2-arg signature** — runtime will fail until Plan 05 refactor lands. Pre-mitigated by threat model T-04-03-03: deploy CmdKPalette refactor before user-facing build.
+
+---
+
+## From Plan 04-05 (CmdK Palette Refactor)
+
+### `src/pages/RHDashboard.tsx` ClimateOverview shape mismatch (~20 tsc errors)
+
+- **Discovered during:** Task 1 typecheck verification
+- **File:** `src/pages/RHDashboard.tsx` lines 141, 142, 147, 150, 176, 177, 285, 286, 289, 290, 292, 300, 302, 303 — references properties (`survey`, `participationRate`, `avgScore`, `distinctRespondents`, `totalEligible`) that no longer exist on the current `ClimateOverview` type (post-Phase-3 climate refactor likely renamed `survey` → `surveys` and removed flat aggregate fields).
+- **Pre-existence:** RHDashboard was NOT touched by Plan 04-05 (which only modifies CmdKPalette). Errors pre-existed and are part of the 179-tsc-error backlog catalogued under Plan 04-01.
+- **Phase 4 contribution from this plan:** Zero. `tsc --noEmit | grep CmdKPalette` returns empty after Plan 04-05.
+- **Suggested owner:** A future polish plan that touches RHDashboard, or Plan 04-08 if the integration suite covers the RH dashboard surface.

@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import {
   Command,
   CommandEmpty,
@@ -13,28 +12,24 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Home,
   Calendar,
-  Target,
   BarChart3,
   Activity,
   Users,
   UserPlus,
-  Building,
   Building2,
   Briefcase,
   UserSearch,
-  LineChart,
-  Sparkles,
-  Kanban,
   ArrowRight,
-  FileText,
   User,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Kbd } from "@/components/primitives/LinearKit";
+import { useScopedQuery } from "@/shared/data/useScopedQuery";
+import { useScope } from "@/app/providers/ScopeProvider";
 import { supabase } from "@/integrations/supabase/client";
 
-type RemoteKind = "candidate" | "job" | "pdi" | "person";
+type RemoteKind = "candidate" | "job" | "person";
 
 interface SearchRow {
   kind: RemoteKind;
@@ -49,17 +44,19 @@ interface Entry {
   label: string;
   sub?: string;
   icon: React.ElementType;
-  group: "Ações" | "Ir para" | "Pessoas";
+  group: "Ações" | "Ir para";
   shortcut?: string;
   action: () => void;
 }
 
+// D-07: Surface 2 ordering — Vagas → Candidatos → Pessoas
 const REMOTE_META: Record<RemoteKind, { label: string; icon: React.ElementType }> = {
-  candidate: { label: "Candidatos", icon: UserSearch },
   job: { label: "Vagas", icon: Briefcase },
-  pdi: { label: "PDIs", icon: FileText },
+  candidate: { label: "Candidatos", icon: UserSearch },
   person: { label: "Pessoas", icon: User },
 };
+
+const REMOTE_ORDER: RemoteKind[] = ["job", "candidate", "person"];
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -73,9 +70,14 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 export function CmdKPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query.trim(), 180);
+  // UI-SPEC: debounce 150ms (was 180ms)
+  const debouncedQuery = useDebouncedValue(query.trim(), 150);
   const navigate = useNavigate();
   const { userRole } = useAuth();
+  // Subscribe to scope so the component re-renders on scope change.
+  // Actual scope.companyIds reach the RPC via the useScopedQuery chokepoint.
+  const { scope: _scope } = useScope();
+  void _scope;
 
   // Register ⌘K and custom open event
   useEffect(() => {
@@ -100,30 +102,29 @@ export function CmdKPalette() {
     if (!open) setQuery("");
   }, [open]);
 
-  const { data: remoteResults = [], isFetching: remoteLoading } = useQuery({
-    queryKey: ["global-search", debouncedQuery],
-    enabled: open && debouncedQuery.length >= 2,
-    staleTime: 30_000,
-    queryFn: async (): Promise<SearchRow[]> => {
+  // D-09: scoped global search via useScopedQuery chokepoint.
+  // queryKey shape becomes ['scope', scope.id, scope.kind, 'global-search', q]
+  // and p_company_ids is forwarded to the RPC so out-of-scope rows
+  // never appear (T-04-05-01).
+  const { data: remoteResults = [], isFetching: remoteLoading } = useScopedQuery<SearchRow[]>(
+    ["global-search", debouncedQuery],
+    async (companyIds) => {
       const { data, error } = await supabase.rpc(
         "global_search" as never,
-        { q: debouncedQuery, max_per_kind: 6 } as never,
+        { q: debouncedQuery, max_per_kind: 6, p_company_ids: companyIds } as never,
       );
       if (error) throw error;
       return (data ?? []) as SearchRow[];
     },
-  });
+    { staleTime: 30_000, enabled: open && debouncedQuery.length >= 2 },
+  );
 
   const remoteGroups = useMemo(() => {
-    const order: RemoteKind[] = ["candidate", "job", "pdi", "person"];
-    const grouped: Record<RemoteKind, SearchRow[]> = {
-      candidate: [],
-      job: [],
-      pdi: [],
-      person: [],
-    };
-    for (const row of remoteResults) grouped[row.kind].push(row);
-    return order
+    const grouped: Record<RemoteKind, SearchRow[]> = { job: [], candidate: [], person: [] };
+    for (const row of remoteResults) {
+      if (row.kind in grouped) grouped[row.kind as RemoteKind].push(row);
+    }
+    return REMOTE_ORDER
       .filter((k) => grouped[k].length > 0)
       .map((k) => ({ kind: k, rows: grouped[k] }));
   }, [remoteResults]);
@@ -137,58 +138,46 @@ export function CmdKPalette() {
     const hasTeamView = canManage || isLeader;
 
     const homeRoute =
-      userRole === "admin"
-        ? "/admin"
-        : userRole === "socio"
-        ? "/socio"
-        : userRole === "lider"
-        ? "/gestor"
-        : userRole === "rh"
-        ? "/rh"
-        : "/colaborador";
+      userRole === "admin" ? "/admin"
+      : userRole === "socio" ? "/socio"
+      : userRole === "lider" ? "/gestor"
+      : userRole === "rh" ? "/rh"
+      : "/colaborador";
 
     const nav = (to: string) => () => {
       setOpen(false);
       navigate(to);
     };
 
+    // D-07 LOCK: Ações = vaga + pessoa só. Trocar escopo fica no header.
     const items: Entry[] = [
-      // Actions
-      { id: "act-pdi", label: "Criar novo PDI", icon: Target, group: "Ações", action: nav("/pdi") },
-      { id: "act-11", label: "Agendar 1:1", icon: Calendar, group: "Ações", action: nav("/11s") },
-      { id: "act-eval", label: "Iniciar avaliação", icon: BarChart3, group: "Ações", action: nav("/avaliacoes") },
       ...(canManage
-        ? [{ id: "act-invite", label: "Convidar pessoa", icon: UserPlus, group: "Ações" as const, action: nav("/criar-usuario") }]
+        ? [
+            { id: "act-job", label: "Criar nova vaga", icon: Briefcase, group: "Ações" as const, action: nav("/hiring/jobs/nova") },
+            { id: "act-invite", label: "Convidar / criar pessoa", icon: UserPlus, group: "Ações" as const, action: nav("/criar-usuario") },
+          ]
         : []),
 
-      // Navigation
-      { id: "go-home", label: "Início", icon: Home, group: "Ir para", shortcut: "G H", action: nav(homeRoute) },
-      { id: "go-pdi", label: "Desenvolvimento", icon: Target, group: "Ir para", shortcut: "G P", action: nav("/pdi") },
-      { id: "go-evals", label: "Avaliações", icon: BarChart3, group: "Ir para", shortcut: "G A", action: nav("/avaliacoes") },
-      { id: "go-climate", label: "Clima", icon: Activity, group: "Ir para", shortcut: "G C", action: nav("/clima") },
-      { id: "go-profile", label: "Meu perfil", icon: UserPlus, group: "Ir para", action: nav("/perfil") },
+      // Ir para
+      { id: "go-home", label: "Início", icon: Home, group: "Ir para" as const, shortcut: "G H", action: nav(homeRoute) },
+      ...(canManage || isLeader
+        ? [{ id: "go-jobs", label: "Vagas", icon: Briefcase, group: "Ir para" as const, shortcut: "G V", action: nav("/hiring/jobs") }]
+        : []),
+      ...(canManage
+        ? [{ id: "go-cand", label: "Candidatos", icon: UserSearch, group: "Ir para" as const, action: nav("/hiring/candidates") }]
+        : []),
+      ...(hasTeamView
+        ? [
+            { id: "go-team", label: "Meu time", icon: Users, group: "Ir para" as const, shortcut: "G T", action: nav("/meu-time") },
+            { id: "go-11s", label: "1:1s", icon: Calendar, group: "Ir para" as const, shortcut: "G 1", action: nav("/11s") },
+          ]
+        : []),
+      { id: "go-evals", label: "Avaliações", icon: BarChart3, group: "Ir para" as const, shortcut: "G A", action: nav("/avaliacoes") },
+      { id: "go-climate", label: "Clima", icon: Activity, group: "Ir para" as const, shortcut: "G C", action: nav("/clima") },
+      ...(canManage
+        ? [{ id: "go-comp", label: "Empresas", icon: Building2, group: "Ir para" as const, action: nav("/empresas") }]
+        : []),
     ];
-
-    if (hasTeamView) {
-      items.push(
-        { id: "go-team", label: "Meu time", icon: Users, group: "Ir para", shortcut: "G T", action: nav("/meu-time") },
-        { id: "go-11s", label: "1:1s", icon: Calendar, group: "Ir para", shortcut: "G 1", action: nav("/11s") },
-        { id: "go-kanban", label: "Kanban de PDIs", icon: Kanban, group: "Ir para", action: nav("/kanban") },
-      );
-    }
-
-    if (canManage || isLeader) {
-      items.push({ id: "go-jobs", label: "Vagas", icon: Briefcase, group: "Ir para", shortcut: "G V", action: nav("/hiring/jobs") });
-    }
-    if (canManage) {
-      items.push(
-        { id: "go-cand", label: "Candidatos", icon: UserSearch, group: "Ir para", action: nav("/hiring/candidates") },
-        { id: "go-fit", label: "Fit Cultural", icon: Sparkles, group: "Ir para", action: nav("/hiring/fit-templates") },
-        { id: "go-hdash", label: "Dashboard de recrutamento", icon: LineChart, group: "Ir para", action: nav("/hiring/dashboard") },
-        { id: "go-teams", label: "Times", icon: Building, group: "Ir para", action: nav("/times") },
-        { id: "go-comp", label: "Empresas", icon: Building2, group: "Ir para", action: nav("/empresas") },
-      );
-    }
 
     return items;
   }, [navigate, userRole]);
@@ -208,21 +197,21 @@ export function CmdKPalette() {
 
   const showEmptyHint = debouncedQuery.length > 0 && debouncedQuery.length < 2;
 
+  // UI-SPEC: CommandItem padding py-2 px-3 (was px-2.5)
+  const itemClass =
+    "gap-2.5 py-2 px-3 text-[13px] data-[selected=true]:bg-bg-subtle data-[selected=true]:text-text cursor-pointer";
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent
-        className="p-0 max-w-[560px] gap-0 overflow-hidden border-border shadow-popup top-[18%] translate-y-0"
-      >
+      <DialogContent className="p-0 max-w-[560px] gap-0 overflow-hidden border-border shadow-popup top-[18%] translate-y-0">
         <DialogTitle className="sr-only">Paleta de comandos</DialogTitle>
-        <Command
-          className="bg-surface"
-          shouldFilter={false}
-        >
-          <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border">
+        <Command className="bg-surface" shouldFilter={false}>
+          {/* UI-SPEC: input row px-4 py-3 (was px-3.5) */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
             <CommandInput
               value={query}
               onValueChange={setQuery}
-              placeholder="Buscar candidatos, vagas, PDIs, pessoas…"
+              placeholder="Buscar vagas, candidatos, pessoas…"
               className="h-auto border-0 text-[14px] placeholder:text-text-subtle px-0"
             />
             {remoteLoading ? (
@@ -246,7 +235,7 @@ export function CmdKPalette() {
                       key={`${kind}-${row.id}`}
                       value={`remote-${kind}-${row.id}`}
                       onSelect={() => selectRemote(row)}
-                      className="gap-2.5 py-2 px-2.5 text-[13px] data-[selected=true]:bg-bg-subtle data-[selected=true]:text-text cursor-pointer"
+                      className={itemClass}
                     >
                       <Icon className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.75} />
                       <div className="flex-1 min-w-0">
@@ -264,9 +253,7 @@ export function CmdKPalette() {
 
             {Object.entries(groups).map(([group, list]) => {
               const filtered = debouncedQuery
-                ? list.filter((e) =>
-                    e.label.toLowerCase().includes(debouncedQuery.toLowerCase()),
-                  )
+                ? list.filter((e) => e.label.toLowerCase().includes(debouncedQuery.toLowerCase()))
                 : list;
               if (filtered.length === 0) return null;
               return (
@@ -278,7 +265,7 @@ export function CmdKPalette() {
                         key={e.id}
                         value={e.id}
                         onSelect={e.action}
-                        className="gap-2.5 py-2 px-2.5 text-[13px] data-[selected=true]:bg-bg-subtle data-[selected=true]:text-text cursor-pointer"
+                        className={itemClass}
                       >
                         <Icon className="w-3.5 h-3.5 text-text-muted" strokeWidth={1.75} />
                         <div className="flex-1 min-w-0">

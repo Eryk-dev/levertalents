@@ -198,10 +198,14 @@ describe('CmdKPalette (DASH-04)', () => {
     await waitFor(() => expect(rpcMock).toHaveBeenCalled(), { timeout: 1000 });
 
     const cache = client.getQueryCache().getAll();
+    // The debounced 'react' query is the one whose key contains both
+    // 'global-search' AND 'react'. There may also be an idle entry for the
+    // empty initial query — we want the active fetched one.
     const target = cache.find(
       (q) =>
         Array.isArray(q.queryKey) &&
-        (q.queryKey as readonly unknown[]).includes('global-search'),
+        (q.queryKey as readonly unknown[]).includes('global-search') &&
+        (q.queryKey as readonly unknown[]).includes('react'),
     );
     expect(target).toBeDefined();
     const key = target!.queryKey as readonly unknown[];
