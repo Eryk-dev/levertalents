@@ -52,6 +52,7 @@ import {
   LinearAvatar,
   LinearEmpty,
 } from "@/components/primitives/LinearKit";
+import { SessionReplayToggle } from "@/components/admin/SessionReplayToggle";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -558,6 +559,14 @@ export default function AdminDashboard() {
           </div>
         )}
       </Card>
+
+      {/* QUAL-06: Observabilidade — toggle de Session Replay (default OFF). */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">
+          Observabilidade
+        </h2>
+        <SessionReplayToggle />
+      </section>
 
       <AlertDialog open={!!confirmRemoveUserId} onOpenChange={() => setConfirmRemoveUserId(null)}>
         <AlertDialogContent>
