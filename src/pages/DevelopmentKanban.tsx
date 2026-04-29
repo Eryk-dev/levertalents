@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
+import { useDeleteDevelopmentPlan } from "@/hooks/useDevelopmentPlans";
 import {
   DndContext,
   DragEndEvent,
@@ -51,7 +51,7 @@ export default function DevelopmentKanban() {
   const [activePlan, setActivePlan] = useState<KanbanPlan | null>(null);
   const [personFilters, setPersonFilters] = useState<Set<string>>(new Set());
   const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set());
-  const { deletePlan } = useDevelopmentPlans();
+  const deletePlan = useDeleteDevelopmentPlan();
 
   const togglePerson = (id: string) =>
     setPersonFilters((prev) => {
@@ -331,7 +331,10 @@ export default function DevelopmentKanban() {
             <AlertDialogAction
               onClick={() => {
                 if (deleteDialog) {
-                  deletePlan(deleteDialog);
+                  deletePlan.mutate(deleteDialog, {
+                    onSuccess: () => toast.success("PDI excluído"),
+                    onError: (err) => toast.error("Erro: " + (err as Error).message),
+                  });
                   setDeleteDialog(null);
                 }
               }}

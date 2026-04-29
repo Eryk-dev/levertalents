@@ -1,5 +1,11 @@
 import { useState, useMemo } from "react";
-import { useDevelopmentPlans } from "@/hooks/useDevelopmentPlans";
+import {
+  useDevelopmentPlans,
+  useCreateDevelopmentPlan,
+  useUpdateDevelopmentPlan,
+  useDeleteDevelopmentPlan,
+} from "@/hooks/useDevelopmentPlans";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -59,7 +65,10 @@ export default function DevelopmentPlans() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlanTabValue>("active");
-  const { plans, isLoading, createPlan, updatePlan, deletePlan } = useDevelopmentPlans();
+  const { data: plans = [], isLoading } = useDevelopmentPlans();
+  const createPlan = useCreateDevelopmentPlan();
+  const updatePlan = useUpdateDevelopmentPlan();
+  const deletePlan = useDeleteDevelopmentPlan();
   const { userRole } = useAuth();
   const isLeaderOrRHSocio = userRole === "lider" || userRole === "rh" || userRole === "socio";
 
@@ -88,28 +97,37 @@ export default function DevelopmentPlans() {
   // inconsistências em updates posteriores — os cards lêem preferencialmente
   // do bloco `main_objective` quando presente.
   const handleSubmitNew = (data: PDIFormData) => {
-    createPlan({
-      title: `PDI - ${data.main_objective.substring(0, 60)}`,
-      main_objective: data.main_objective,
-      committed_actions: data.committed_actions,
-      required_support: data.required_support,
-      success_metrics: data.success_metrics,
-      anticipated_challenges: data.anticipated_challenges,
-      deadline: data.deadline || null,
-      development_area: "Objetivo",
-      // Legacy columns intentionally left null — preserved only for retro imports (ManualPDIForm).
-      description: null,
-      goals: null,
-      action_items: null,
-      timeline: data.deadline || "",
-      status: "in_progress",
-      progress_percentage: 0,
-    } as any);
+    createPlan.mutate(
+      {
+        title: `PDI - ${data.main_objective.substring(0, 60)}`,
+        main_objective: data.main_objective,
+        committed_actions: data.committed_actions,
+        required_support: data.required_support,
+        success_metrics: data.success_metrics,
+        anticipated_challenges: data.anticipated_challenges,
+        deadline: data.deadline || null,
+        development_area: "Objetivo",
+        // Legacy columns intentionally left null — preserved only for retro imports (ManualPDIForm).
+        description: null,
+        goals: null,
+        action_items: null,
+        timeline: data.deadline || "",
+        status: "in_progress",
+        progress_percentage: 0,
+      } as any,
+      {
+        onSuccess: () => toast.success("PDI criado"),
+        onError: (err) => toast.error("Erro ao criar PDI: " + (err as Error).message),
+      },
+    );
     setShowForm(false);
   };
 
   const handleDelete = (id: string) => {
-    deletePlan(id);
+    deletePlan.mutate(id, {
+      onSuccess: () => toast.success("PDI excluído"),
+      onError: (err) => toast.error("Erro ao excluir: " + (err as Error).message),
+    });
     setDeleteDialog(null);
     setSelectedPlan(null);
   };
@@ -361,10 +379,17 @@ export default function DevelopmentPlans() {
                   {selectedPlan && selectedPlan.status !== "completed" && (
                     <DropdownMenuItem
                       onClick={() => {
-                        updatePlan({
-                          id: selectedPlan.id,
-                          input: { status: "completed", progress_percentage: 100 },
-                        });
+                        updatePlan.mutate(
+                          {
+                            id: selectedPlan.id,
+                            input: { status: "completed", progress_percentage: 100 },
+                          },
+                          {
+                            onSuccess: () => toast.success("PDI concluído"),
+                            onError: (err) =>
+                              toast.error("Erro: " + (err as Error).message),
+                          },
+                        );
                         setSelectedPlan(null);
                       }}
                     >
@@ -375,7 +400,14 @@ export default function DevelopmentPlans() {
                   {selectedPlan && selectedPlan.status !== "cancelled" && selectedPlan.status !== "completed" && (
                     <DropdownMenuItem
                       onClick={() => {
-                        updatePlan({ id: selectedPlan.id, input: { status: "cancelled" } });
+                        updatePlan.mutate(
+                          { id: selectedPlan.id, input: { status: "cancelled" } },
+                          {
+                            onSuccess: () => toast.success("PDI cancelado"),
+                            onError: (err) =>
+                              toast.error("Erro: " + (err as Error).message),
+                          },
+                        );
                         setSelectedPlan(null);
                       }}
                     >
