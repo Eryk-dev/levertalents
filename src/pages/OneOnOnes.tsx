@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useOneOnOnes, OneOnOne } from "@/hooks/useOneOnOnes";
+import { useOneOnOnes, useCreateOneOnOne, useDeleteOneOnOne, type OneOnOne } from "@/hooks/useOneOnOnes";
+import { useScope } from "@/app/providers/ScopeProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -39,7 +40,10 @@ export default function OneOnOnes() {
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingFormOneOnOne, setMeetingFormOneOnOne] = useState<OneOnOne | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
-  const { oneOnOnes, isLoading, createOneOnOne, deleteOneOnOne } = useOneOnOnes();
+  const { data: oneOnOnes = [], isLoading } = useOneOnOnes();
+  const createOneOnOne = useCreateOneOnOne();
+  const deleteOneOnOne = useDeleteOneOnOne();
+  const { scope } = useScope();
   const { hasPDIForOneOnOne } = usePDIIntegrated();
 
   useEffect(() => {
@@ -122,14 +126,30 @@ export default function OneOnOnes() {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+    const companyId = scope?.companyIds[0];
+    if (!companyId) {
+      toast.error("Selecione uma empresa no topo da página antes de agendar.");
+      return;
+    }
     const scheduledDate = new Date(formData.scheduled_date).toISOString();
-    createOneOnOne({ ...formData, scheduled_date: scheduledDate });
-    setShowForm(false);
-    setFormData({ collaborator_id: "", scheduled_date: "", duration_minutes: 60, agenda: "" });
+    createOneOnOne.mutate(
+      { ...formData, company_id: companyId, scheduled_date: scheduledDate },
+      {
+        onSuccess: () => {
+          toast.success("1:1 agendada");
+          setShowForm(false);
+          setFormData({ collaborator_id: "", scheduled_date: "", duration_minutes: 60, agenda: "" });
+        },
+        onError: (err) => toast.error("Erro ao agendar: " + (err as Error).message),
+      },
+    );
   };
 
   const handleDelete = (id: string) => {
-    deleteOneOnOne(id);
+    deleteOneOnOne.mutate(id, {
+      onSuccess: () => toast.success("1:1 excluída"),
+      onError: (err) => toast.error("Erro ao excluir: " + (err as Error).message),
+    });
     setDeleteDialog(null);
   };
 

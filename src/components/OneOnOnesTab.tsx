@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useOneOnOnes } from "@/hooks/useOneOnOnes";
+import { useOneOnOnes, useDeleteOneOnOne } from "@/hooks/useOneOnOnes";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,8 @@ export function OneOnOnesTab({
   isCollaborator,
   currentUserId,
 }: OneOnOnesTabProps) {
-  const { oneOnOnes, isLoading, deleteOneOnOne } = useOneOnOnes();
+  const { data: oneOnOnes = [], isLoading } = useOneOnOnes();
+  const deleteOneOnOne = useDeleteOneOnOne();
   const [showManualForm, setShowManualForm] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
 
@@ -56,7 +58,10 @@ export function OneOnOnesTab({
     : oneOnOnes;
 
   const handleDelete = (id: string) => {
-    deleteOneOnOne(id);
+    deleteOneOnOne.mutate(id, {
+      onSuccess: () => toast.success("1:1 excluída"),
+      onError: (err) => toast.error("Erro ao excluir: " + (err as Error).message),
+    });
     setDeleteDialog(null);
   };
 

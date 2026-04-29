@@ -6,6 +6,16 @@ import type { Database, Json } from '@/integrations/supabase/types';
 
 type OneOnOneRow = Database['public']['Tables']['one_on_ones']['Row'];
 
+type ProfileLite = { id: string; full_name: string | null; avatar_url: string | null };
+
+export type OneOnOne = Omit<OneOnOneRow, 'meeting_structure'> & {
+  meeting_structure?:
+    | (Record<string, unknown> & { transcricao?: string; resumo?: string })
+    | null;
+  leader?: ProfileLite | null;
+  collaborator?: ProfileLite | null;
+};
+
 export interface OneOnOneFilters {
   leaderId?: string;
   collaboratorId?: string;
@@ -21,13 +31,17 @@ export interface OneOnOneFilters {
  * D-14: meeting_structure JSONB includes transcricao_plaud + resumo_plaud fields.
  */
 export function useOneOnOnes(filters: OneOnOneFilters = {}) {
-  return useScopedQuery<OneOnOneRow[]>(
+  return useScopedQuery<OneOnOne[]>(
     ['one_on_ones', filters],
     async (companyIds) => {
-      if (!companyIds.length) return [] as OneOnOneRow[];
+      if (!companyIds.length) return [] as OneOnOne[];
       let q = supabase
         .from('one_on_ones')
-        .select('*')
+        .select(`
+          *,
+          leader:profiles!one_on_ones_leader_id_fkey(id, full_name, avatar_url),
+          collaborator:profiles!one_on_ones_collaborator_id_fkey(id, full_name, avatar_url)
+        `)
         .in('company_id', companyIds)
         .order('scheduled_date', { ascending: false });
       if (filters.leaderId)       q = q.eq('leader_id', filters.leaderId);
@@ -37,7 +51,7 @@ export function useOneOnOnes(filters: OneOnOneFilters = {}) {
       if (filters.toDate)         q = q.lte('scheduled_date', filters.toDate);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as OneOnOneRow[];
+      return (data ?? []) as unknown as OneOnOne[];
     },
   );
 }
