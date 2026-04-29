@@ -21,3 +21,15 @@ Items discovered during execution but out-of-scope for the current plan. To be a
 - **Source:** Same backlog documented in STATE.md after Plan 02-04 (`38 latent tsc errors revealed by regen ... documented in deferred-items.md with owners (Plans 02-05 to 02-09). Were latent before (masked by declaration merging)`). The number has grown since to 179 — Plans 03-XX added more files.
 - **Phase 4 contribution:** Zero. Plan 04-01 added no new tsc errors (verified: `tsc --noEmit -p tsconfig.app.json | grep -E "main\.tsx|logger\.ts"` returns empty).
 - **Why deferred:** Out of scope for foundation plan; Plans 04-04 (SocioDashboard refactor), 04-06 (component splits), and 04-07 (test infra) will likely retire many of these as they touch the relevant files.
+
+---
+
+## From Plan 04-03 (Schema Push Additive)
+
+### types.ts regen produced ZERO net new tsc errors (104 → 104)
+
+- **Discovered during:** Task 1 build verification post-regen
+- **Verification:** `git stash && tsc --noEmit | grep -cE "error TS"` returned **104** pre-regen; post-regen returned **104**. Net delta = 0.
+- **Critical paths (`src/integrations/`, `src/lib/`, `src/app/`) remain TS-clean** post-regen — same gating standard established in Plan 02-04.
+- **Pre-existing build break (rollup):** `src/components/ClimateAnswerDialog.tsx` import of `useUserResponseIds` is the same Phase 4 issue logged from Plan 04-01 above; unchanged by Plan 04-03 regen.
+- **CmdKPalette.tsx still calls `global_search` with 2-arg signature** — runtime will fail until Plan 05 refactor lands. Pre-mitigated by threat model T-04-03-03: deploy CmdKPalette refactor before user-facing build.

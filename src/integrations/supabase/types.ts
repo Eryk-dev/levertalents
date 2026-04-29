@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       application_stage_history: {
@@ -2930,7 +2955,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       global_search: {
-        Args: { max_per_kind?: number; q: string }
+        Args: { max_per_kind?: number; p_company_ids?: string[]; q: string }
         Returns: {
           id: string
           kind: string
@@ -2984,6 +3009,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      read_payroll_total: { Args: { p_company_ids?: string[] }; Returns: Json }
       resolve_default_scope: { Args: { _uid: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -3211,6 +3237,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       anonymization_reason_enum: ["solicitacao", "retencao_expirada"],
