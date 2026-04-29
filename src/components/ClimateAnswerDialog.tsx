@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { EmptyState } from "@/components/EmptyState";
-import { useClimateSurveys, useClimateQuestions, useUserResponseIds } from "@/hooks/useClimateSurveys";
+import { useClimateQuestions, useUserResponseIds, useSubmitClimateResponse } from "@/hooks/useClimateSurveys";
 import { handleSupabaseError } from "@/lib/supabaseError";
 
 interface Props {
@@ -30,7 +30,7 @@ const SCORE_LABELS: Record<number, string> = {
 };
 
 export function ClimateAnswerDialog({ open, onOpenChange, surveyId, surveyTitle }: Props) {
-  const { submitResponses, isSubmitting } = useClimateSurveys();
+  const submitMutation = useSubmitClimateResponse();
   const { data: questions = [], isLoading } = useClimateQuestions(open ? surveyId : undefined);
   const { data: answeredIds = [] } = useUserResponseIds(open ? surveyId : undefined);
 
@@ -73,7 +73,9 @@ export function ClimateAnswerDialog({ open, onOpenChange, surveyId, surveyTitle 
       return;
     }
     try {
-      await submitResponses(payload);
+      for (const item of payload) {
+        await submitMutation.mutateAsync(item);
+      }
       onOpenChange(false);
     } catch (err) {
       handleSupabaseError(err as Error, "Erro ao enviar respostas", { silent: true });
@@ -142,8 +144,8 @@ export function ClimateAnswerDialog({ open, onOpenChange, surveyId, surveyTitle 
         {questions.length > 0 && !allAnswered && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={missingScore || !hasAnyAnswer || isSubmitting}>
-              {isSubmitting ? "Enviando..." : "Enviar respostas"}
+            <Button onClick={handleSubmit} disabled={missingScore || !hasAnyAnswer || submitMutation.isPending}>
+              {submitMutation.isPending ? "Enviando..." : "Enviar respostas"}
             </Button>
           </DialogFooter>
         )}

@@ -110,6 +110,12 @@ export type ClimateQuestion = {
   question_order: number;
 };
 
+export function useUserResponseIds(_surveyId: string | undefined) {
+  // user_id was dropped from climate_responses (migration 03-05) for anonymity.
+  // Cannot track per-user answered questions — always show all questions.
+  return { data: [] as string[] };
+}
+
 export const useClimateQuestions = (surveyId: string | undefined) => {
   const { scope } = useScope();
   return useQuery({
