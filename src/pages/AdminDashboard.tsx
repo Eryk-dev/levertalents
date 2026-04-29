@@ -114,7 +114,7 @@ export default function AdminDashboard() {
     }
     const { error: insertError } = await supabase
       .from("user_roles")
-      .insert({ user_id: userId, role: role as any });
+      .insert({ user_id: userId, role });
     if (insertError) {
       handleSupabaseError(insertError, "Erro ao atribuir papel");
       return;
@@ -129,8 +129,9 @@ export default function AdminDashboard() {
       if (error) throw error;
       toast.success("Papel removido");
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-    } catch (error: any) {
-      toast.error(`Erro ao remover: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      toast.error(`Erro ao remover: ${message}`);
     } finally {
       setConfirmRemoveUserId(null);
     }
@@ -240,7 +241,7 @@ export default function AdminDashboard() {
             onClick={() => {
               const rows = filteredUsers.map((u) => ({
                 nome: u.full_name || "",
-                email: u.email || "",
+                usuario: u.username || "",
                 papel: u.role || "sem-papel",
               }));
               const date = new Date().toISOString().slice(0, 10);
@@ -380,7 +381,7 @@ export default function AdminDashboard() {
             <div className="surface-paper">
               <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5">
                 <div>Pessoa</div>
-                <div>Email</div>
+                <div>Usuário</div>
                 <div>Papel</div>
                 <div className="text-right">Ações</div>
               </div>
@@ -395,7 +396,7 @@ export default function AdminDashboard() {
                     <LinearAvatar name={user.full_name || "?"} size={24} />
                     <span className="font-medium truncate">{user.full_name || "Sem nome"}</span>
                   </div>
-                  <div className="text-text-muted truncate">{user.email}</div>
+                  <div className="text-text-muted truncate">{user.username}</div>
                   <div>
                     <RoleCell
                       user={user}
@@ -469,7 +470,7 @@ export default function AdminDashboard() {
                       <div className="text-[12.5px] font-medium text-text truncate">
                         {user.full_name || "Sem nome"}
                       </div>
-                      <div className="text-[11px] text-text-subtle truncate">{user.email}</div>
+                      <div className="text-[11px] text-text-subtle truncate">{user.username}</div>
                     </div>
                     <RoleCell
                       user={user}
@@ -517,7 +518,7 @@ export default function AdminDashboard() {
           <div>
             <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5">
               <div>Pessoa</div>
-              <div>Email</div>
+              <div>Usuário</div>
               <div>Papel</div>
               <div className="text-right">Ações</div>
             </div>
@@ -532,7 +533,7 @@ export default function AdminDashboard() {
                   <LinearAvatar name={user.full_name || "?"} size={24} />
                   <span className="font-medium truncate">{user.full_name || "Sem nome"}</span>
                 </div>
-                <div className="text-text-muted truncate">{user.email}</div>
+                <div className="text-text-muted truncate">{user.username}</div>
                 <div>
                   <RoleCell
                     user={user}
@@ -598,7 +599,7 @@ export default function AdminDashboard() {
             <AlertDialogDescription>
               <span className="block">
                 <strong className="text-text">
-                  {userBeingDeleted?.full_name || userBeingDeleted?.email || "Este usuário"}
+                  {userBeingDeleted?.full_name || userBeingDeleted?.username || "Este usuário"}
                 </strong>{" "}
                 será removido definitivamente — conta de acesso, perfil, papel, vínculos
                 com times e histórico. Essa ação é irreversível.

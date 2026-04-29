@@ -3,9 +3,9 @@
 //
 // Flow:
 //   1. Verify caller (admin/rh) via JWT
-//   2. Validate body (email, fullName, role, companyId, orgUnitId)
+//   2. Validate body (username, fullName, role, companyId, orgUnitId)
 //   3. Generate 8-char temp password (Web Crypto)
-//   4. auth.admin.createUser({ password, email_confirm: true })
+//   4. auth.admin.createUser({ internal email, password, email_confirm: true })
 //   5. UPDATE profiles SET must_change_password=true, temp_password_expires_at=NOW()+24h
 //   6. INSERT org_unit_members (if orgUnitId provided)
 //   7. Return plaintext password ONCE to RH caller (never log)
@@ -31,10 +31,21 @@ function generateTempPassword(): string {
 
 interface CreateUserBody {
   fullName: string;
-  email: string;
+  username: string;
   role: 'admin' | 'rh' | 'socio' | 'lider' | 'liderado';
   companyId?: string;
   orgUnitId?: string;
+}
+
+function normalizeUsername(input: unknown): string {
+  return String(input ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '');
+}
+
+function usernameToAuthEmail(username: string): string {
+  return `${username}@users.levertalents.com`;
 }
 
 serve(async (req) => {
@@ -79,8 +90,8 @@ serve(async (req) => {
 
     // 3. Parse + validate body
     const body = (await req.json()) as Partial<CreateUserBody>;
-    if (!body.email || !body.fullName || !body.role) {
-      return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, fullName, role' }), {
+    if (!body.username || !body.fullName || !body.role) {
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios: username, fullName, role' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -90,8 +101,14 @@ serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const email = body.email.toLowerCase().trim();
+    const username = normalizeUsername(body.username);
+    if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)) {
+      return new Response(JSON.stringify({ error: 'Usuário inválido' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const fullName = body.fullName.trim();
+    const email = usernameToAuthEmail(username);
 
     // 4. Service-role client for admin ops
     const supabaseAdmin = createClient(
@@ -104,16 +121,28 @@ serve(async (req) => {
     const tempPassword = generateTempPassword();
     const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
 
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+    if (existingProfileError) throw existingProfileError;
+    if (existingProfile) {
+      return new Response(JSON.stringify({ error: 'duplicate_username' }), {
+        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { full_name: fullName, role: body.role },
+      user_metadata: { full_name: fullName, username, role: body.role },
     });
     if (createError) {
-      // D-20: Idempotency — detect duplicate email
+      // D-20: Idempotency — detect duplicate auth email derived from username
       if (/already.*registered|exists/i.test(createError.message)) {
-        return new Response(JSON.stringify({ error: 'duplicate_email' }), {
+        return new Response(JSON.stringify({ error: 'duplicate_username' }), {
           status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -129,6 +158,7 @@ serve(async (req) => {
       .from('profiles')
       .update({
         full_name: fullName,
+        username,
         must_change_password: true,
         temp_password_expires_at: expiresAt,
       })
@@ -136,6 +166,11 @@ serve(async (req) => {
     if (profileError) {
       // Best-effort cleanup: delete the auth user to avoid orphan
       await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (/duplicate|unique/i.test(profileError.message)) {
+        return new Response(JSON.stringify({ error: 'duplicate_username' }), {
+          status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ error: 'Falha ao atualizar perfil: ' + profileError.message }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -67,11 +67,11 @@ serve(async (req) => {
     const ids = authUsers.map((u) => u.id)
 
     const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabaseAdmin.from('profiles').select('id, full_name').in('id', ids),
+      supabaseAdmin.from('profiles').select('id, full_name, username').in('id', ids),
       supabaseAdmin.from('user_roles').select('user_id, role').in('user_id', ids),
     ])
 
-    const profileById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]))
+    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]))
     const rolesByUserId = new Map<string, string[]>()
     for (const r of roles ?? []) {
       const list = rolesByUserId.get(r.user_id) ?? []
@@ -82,7 +82,8 @@ serve(async (req) => {
     const users = authUsers.map((u) => ({
       id: u.id,
       email: u.email ?? '',
-      full_name: profileById.get(u.id) ?? u.email ?? '',
+      username: profileById.get(u.id)?.username ?? '',
+      full_name: profileById.get(u.id)?.full_name ?? u.email ?? '',
       role: pickHighestRole(rolesByUserId.get(u.id) ?? []),
     }))
 

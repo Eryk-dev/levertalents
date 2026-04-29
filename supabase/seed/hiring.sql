@@ -26,13 +26,13 @@ DECLARE
   gestor_a_id UUID := '00000000-0000-0000-0000-00000000a004';
   gestor_b_id UUID := '00000000-0000-0000-0000-00000000a005';
 BEGIN
-  INSERT INTO public.profiles (id, full_name)
+  INSERT INTO public.profiles (id, full_name, username)
   VALUES
-    (rh_id, 'RH Demo'),
-    (socio_id, 'Sócio Demo'),
-    (admin_id, 'Admin Demo'),
-    (gestor_a_id, 'Gestor Alpha'),
-    (gestor_b_id, 'Gestor Bravo')
+    (rh_id, 'RH Demo', 'rh-demo'),
+    (socio_id, 'Sócio Demo', 'socio-demo'),
+    (admin_id, 'Admin Demo', 'admin-demo'),
+    (gestor_a_id, 'Gestor Alpha', 'gestor-alpha'),
+    (gestor_b_id, 'Gestor Bravo', 'gestor-bravo')
   ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO public.user_roles (user_id, role)

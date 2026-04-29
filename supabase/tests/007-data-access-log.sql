@@ -13,8 +13,8 @@ insert into public.companies (id, name) values
   ('ffffffff-0000-0000-0000-000000000010', 'Test F2 Co')
   on conflict (id) do nothing;
 
-insert into public.profiles (id, full_name, email) values
-  ('ffffffff-0000-0000-0000-000000000011', 'RH F2', 'rh+f2@example.com')
+insert into public.profiles (id, full_name, username) values
+  ('ffffffff-0000-0000-0000-000000000011', 'RH F2', 'rh-f2')
   on conflict (id) do nothing;
 
 -- Garante role 'rh' para que is_people_manager retorne true

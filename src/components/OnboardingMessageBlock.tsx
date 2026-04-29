@@ -5,7 +5,7 @@ import { Check, Copy } from 'lucide-react';
 
 export interface OnboardingMessageBlockProps {
   fullName: string;
-  email: string;
+  username: string;
   tempPassword: string;
   expiresAt: string;
   rhFullName: string;
@@ -16,7 +16,7 @@ function buildMessage(props: OnboardingMessageBlockProps): string {
   // D-20 LOCKED template — copy VERBATIM, only interpolate the 4 placeholders
   return `Oi ${props.fullName}! Bem-vindo à Lever.
 Acesse: https://app.levertalents.com/login
-Login: ${props.email}
+Usuário: ${props.username}
 Senha temporária: ${props.tempPassword}
 Expira em 24h.
 

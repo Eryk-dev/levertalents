@@ -24,12 +24,16 @@ import { useTeams } from "@/hooks/useTeams";
 import { useCreateUserWithTempPassword } from "@/hooks/useCreateUserWithTempPassword";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { OnboardingMessageBlock } from "@/components/OnboardingMessageBlock";
+import { normalizeUsername, usernameSchemaMessage } from "@/lib/username";
 
 const LEADER_ROLES = new Set(["lider", "socio", "admin"]);
 
 const createUserSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("Email inválido"),
+  username: z
+    .string()
+    .transform(normalizeUsername)
+    .pipe(z.string().regex(/^[a-z0-9][a-z0-9._-]{2,39}$/, usernameSchemaMessage)),
   // password field removed — Edge Function generates temp password (AUTH-02/D-21)
   role: z.enum(["admin", "socio", "lider", "rh", "liderado"], {
     required_error: "Selecione um papel",
@@ -43,7 +47,7 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 
 interface OnboardingResult {
   fullName: string;
-  email: string;
+  username: string;
   tempPassword: string;
   expiresAt: string;
 }
@@ -92,7 +96,7 @@ export default function CreateUser() {
     setDuplicateError(false);
     const payload = {
       ...data,
-      email: data.email.toLowerCase().trim(),
+      username: data.username,
       fullName: data.fullName.trim(),
       companyId: selectedCompanyId || undefined,
       orgUnitId: selectedTeamId || undefined,
@@ -103,7 +107,7 @@ export default function CreateUser() {
         // Pitfall §12: store only in local state, clear on Concluir
         setResult({
           fullName: payload.fullName,
-          email: payload.email,
+          username: payload.username,
           tempPassword: res.tempPassword,
           expiresAt: res.expiresAt,
         });
@@ -114,7 +118,7 @@ export default function CreateUser() {
         toast.success("Pessoa cadastrada");
       },
       onError: (e) => {
-        if (e.message === "duplicate_email") {
+        if (e.message === "duplicate_username") {
           setDuplicateError(true);
         } else {
           toast.error("Não foi possível cadastrar", { description: e.message });
@@ -129,7 +133,7 @@ export default function CreateUser() {
       <div className="p-5 lg:p-7 max-w-[720px] mx-auto">
         <OnboardingMessageBlock
           fullName={result.fullName}
-          email={result.email}
+          username={result.username}
           tempPassword={result.tempPassword}
           expiresAt={result.expiresAt}
           rhFullName={rhProfile?.full_name ?? "RH"}
@@ -167,16 +171,17 @@ export default function CreateUser() {
           <Input id="fullName" {...register("fullName")} placeholder="João Silva" />
         </CreateField>
 
-        <CreateField label="E-mail *" htmlFor="email" error={errors.email?.message}>
+        <CreateField label="Usuário *" htmlFor="username" error={errors.username?.message}>
           <Input
-            id="email"
-            type="email"
-            {...register("email")}
-            placeholder="joao.silva@exemplo.com"
+            id="username"
+            type="text"
+            autoComplete="username"
+            {...register("username")}
+            placeholder="joao.silva"
           />
           {duplicateError && (
             <p className="text-[12px] text-status-red mt-1">
-              Já existe uma pessoa com este e-mail nesta empresa. Verifique antes de criar uma duplicada.
+              Já existe uma pessoa com este usuário. Verifique antes de criar uma duplicada.
             </p>
           )}
         </CreateField>

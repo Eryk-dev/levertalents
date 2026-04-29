@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type UserWithRole = {
   id: string;
   email: string;
+  username: string;
   full_name: string;
   role: string | null;
 };

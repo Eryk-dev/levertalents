@@ -9,7 +9,7 @@ export interface CreateUserResult {
 
 export interface CreateUserInput {
   fullName: string;
-  email: string;
+  username: string;
   role: 'admin' | 'rh' | 'socio' | 'lider' | 'liderado';
   companyId?: string;
   orgUnitId?: string;
@@ -22,7 +22,7 @@ export interface CreateUserInput {
  *   - sets profiles.must_change_password + temp_password_expires_at
  * Returns { userId, tempPassword, expiresAt } for display in WhatsApp message copy UI.
  *
- * Throws 'duplicate_email' error string on 409 conflict.
+ * Throws 'duplicate_username' error string on 409 conflict.
  */
 export function useCreateUserWithTempPassword() {
   return useMutation({
@@ -32,16 +32,16 @@ export function useCreateUserWithTempPassword() {
         { body: input },
       );
       if (error) {
-        // Detect duplicate email (409) from Edge Function error or response body
+        // Detect duplicate username (409) from Edge Function error or response body
         const errMsg = error.message ?? '';
         const bodyErr = (data as { error?: string } | null)?.error ?? '';
         if (
           errMsg.includes('409') ||
-          bodyErr === 'duplicate_email' ||
+          bodyErr === 'duplicate_username' ||
           errMsg.toLowerCase().includes('duplicate') ||
           errMsg.toLowerCase().includes('already exists')
         ) {
-          throw new Error('duplicate_email');
+          throw new Error('duplicate_username');
         }
         throw error;
       }

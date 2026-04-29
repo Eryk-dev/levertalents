@@ -11,7 +11,7 @@ describe('OnboardingMessageBlock (D-20) [INV-3-16]', () => {
 
   const props = {
     fullName: 'Maria Silva',
-    email: 'maria@example.com',
+    username: 'maria.silva',
     tempPassword: 'Abc23xYz',
     expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
     rhFullName: 'João RH',
@@ -20,7 +20,7 @@ describe('OnboardingMessageBlock (D-20) [INV-3-16]', () => {
   it('renders D-20 locked template with interpolations', () => {
     render(<OnboardingMessageBlock {...props} />);
     expect(screen.getByText(/Oi Maria Silva! Bem-vindo à Lever/)).toBeInTheDocument();
-    expect(screen.getByText(/Login: maria@example\.com/)).toBeInTheDocument();
+    expect(screen.getByText(/Usuário: maria\.silva/)).toBeInTheDocument();
     expect(screen.getByText(/Senha temporária: Abc23xYz/)).toBeInTheDocument();
     expect(screen.getByText(/— João RH/)).toBeInTheDocument();
     expect(screen.getByText(/Expira em 24h/)).toBeInTheDocument();

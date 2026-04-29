@@ -17,8 +17,8 @@ select is(
 
 -- TEST 2: Manual run da query DELETE remove rows >36 meses
 -- Setup: profile + insercao manual de 1 row antiga (37 meses) + 1 recente (35 meses)
-insert into public.profiles (id, full_name, email) values
-  ('ffffffff-0000-0000-0000-000000000020', 'Old Actor F2 Cron', 'old-actor+cron@example.com')
+insert into public.profiles (id, full_name, username) values
+  ('ffffffff-0000-0000-0000-000000000020', 'Old Actor F2 Cron', 'old-actor-cron')
   on conflict (id) do nothing;
 
 -- Inserts via service role (sem RLS bloqueando)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,20 +9,52 @@ import { LeverArrow } from "@/components/primitives/LeverArrow";
 import wordmarkDark from "@/assets/lever-wordmark-dark.svg";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
+import { normalizeUsername, usernameSchemaMessage, usernameToAuthEmail } from "@/lib/username";
 
 const authSchema = z.object({
-  email: z.string().trim().email({ message: "Email inválido" }),
+  username: z
+    .string()
+    .transform(normalizeUsername)
+    .pipe(z.string().regex(/^[a-z0-9][a-z0-9._-]{2,39}$/, { message: usernameSchemaMessage })),
   password: z.string().min(6, { message: "Senha deve ter no mínimo 6 caracteres" }),
   full_name: z.string().trim().min(2, { message: "Nome deve ter no mínimo 2 caracteres" }).optional(),
 });
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const getUserRole = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return data?.role || "colaborador";
+  }, []);
+
+  const redirectByRole = useCallback((role: string) => {
+    switch (role) {
+      case "socio":
+        navigate("/socio");
+        break;
+      case "lider":
+        navigate("/gestor");
+        break;
+      case "rh":
+        navigate("/rh");
+        break;
+      case "admin":
+        navigate("/admin");
+        break;
+      default:
+        navigate("/colaborador");
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -42,35 +74,7 @@ export default function Auth() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  const getUserRole = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-    return data?.role || "colaborador";
-  };
-
-  const redirectByRole = (role: string) => {
-    switch (role) {
-      case "socio":
-        navigate("/socio");
-        break;
-      case "lider":
-        navigate("/gestor");
-        break;
-      case "rh":
-        navigate("/rh");
-        break;
-      case "admin":
-        navigate("/admin");
-        break;
-      default:
-        navigate("/colaborador");
-    }
-  };
+  }, [getUserRole, redirectByRole]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,24 +82,35 @@ export default function Auth() {
 
     try {
       const validationData = isLogin
-        ? { email, password }
-        : { email, password, full_name: fullName };
+        ? { username, password }
+        : { username, password, full_name: fullName };
 
       const validated = authSchema.parse(validationData);
 
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: validated.email,
-          password: validated.password,
+        const { data, error } = await supabase.functions.invoke("sign-in-with-username", {
+          body: {
+            username: validated.username,
+            password: validated.password,
+          },
         });
         if (error) throw error;
+        const session = data?.session;
+        if (!session?.access_token || !session?.refresh_token) {
+          throw new Error("Credenciais inválidas");
+        }
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
+        if (sessionError) throw sessionError;
         toast.success("Bem-vindo de volta.");
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email: validated.email,
+          email: usernameToAuthEmail(validated.username),
           password: validated.password,
           options: {
-            data: { full_name: validated.full_name },
+            data: { full_name: validated.full_name, username: validated.username },
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
@@ -197,17 +212,17 @@ export default function Auth() {
                 )}
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
-                    Email
+                  <Label htmlFor="username" className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+                    Usuário
                   </Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
-                    placeholder="voce@empresa.com"
-                    autoComplete="email"
+                    placeholder="nome.sobrenome"
+                    autoComplete="username"
                     className="h-9 text-[13px]"
                   />
                 </div>

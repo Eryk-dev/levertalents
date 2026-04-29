@@ -35,7 +35,7 @@ describe('CreateUserPage (AUTH-01/AUTH-02) [INV-3-16]', () => {
   it('renders form with required fields and no password field', () => {
     render(<CreateUser />, { wrapper });
     expect(screen.getByLabelText('Nome completo *')).toBeInTheDocument();
-    expect(screen.getByLabelText('E-mail *')).toBeInTheDocument();
+    expect(screen.getByLabelText('Usuário *')).toBeInTheDocument();
     expect(screen.queryByLabelText(/senha/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Cadastrar e gerar mensagem/i }),
@@ -56,8 +56,8 @@ describe('CreateUserPage (AUTH-01/AUTH-02) [INV-3-16]', () => {
     fireEvent.change(screen.getByLabelText('Nome completo *'), {
       target: { value: 'Maria Silva' },
     });
-    fireEvent.change(screen.getByLabelText('E-mail *'), {
-      target: { value: 'maria@example.com' },
+    fireEvent.change(screen.getByLabelText('Usuário *'), {
+      target: { value: 'maria.silva' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Cadastrar e gerar mensagem/i }));
 

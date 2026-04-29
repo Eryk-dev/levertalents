@@ -18,8 +18,8 @@ insert into public.candidates (id, full_name, email) values
   on conflict (id) do nothing;
 
 -- Garantir que existe um profile para requested_by
-insert into public.profiles (id, full_name, email) values
-  ('ffffffff-0000-0000-0000-000000000099', 'Test Requester F1', 'requester+f1@example.com')
+insert into public.profiles (id, full_name, username) values
+  ('ffffffff-0000-0000-0000-000000000099', 'Test Requester F1', 'requester-f1')
   on conflict (id) do nothing;
 
 insert into public.job_openings (id, company_id, requested_by, title) values

@@ -2261,6 +2261,7 @@ export type Database = {
           phone: string | null
           temp_password_expires_at: string | null
           updated_at: string | null
+          username: string
         }
         Insert: {
           avatar_url?: string | null
@@ -2274,6 +2275,7 @@ export type Database = {
           phone?: string | null
           temp_password_expires_at?: string | null
           updated_at?: string | null
+          username: string
         }
         Update: {
           avatar_url?: string | null
@@ -2287,6 +2289,7 @@ export type Database = {
           phone?: string | null
           temp_password_expires_at?: string | null
           updated_at?: string | null
+          username?: string
         }
         Relationships: []
       }
