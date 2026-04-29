@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CycleCard } from '@/components/CycleCard';
 import { CreateCycleDialog } from '@/components/CreateCycleDialog';
+import { CycleResultsDrawer } from '@/components/CycleResultsDrawer';
 import { EvaluationTemplatesTab } from '@/components/EvaluationTemplatesTab';
 import { useEvaluationCycles, useDeleteCycle } from '@/hooks/useEvaluationCycles';
 import { useScope } from '@/app/providers/ScopeProvider';
@@ -32,6 +33,7 @@ export default function EvaluationsPage() {
   const active = all.filter((c) => c.status === 'active' || c.status === 'draft');
   const closed = all.filter((c) => c.status === 'closed');
   const confirming = all.find((c) => c.id === confirmDeleteId) ?? null;
+  const selectedCycle = all.find((c) => c.id === selectedCycleId) ?? null;
 
   const canDelete =
     userRole === 'rh' || userRole === 'socio' || userRole === 'admin';
@@ -142,6 +144,12 @@ export default function EvaluationsPage() {
           companyId={firstCompanyId}
         />
       )}
+
+      <CycleResultsDrawer
+        cycle={selectedCycle}
+        open={!!selectedCycle}
+        onOpenChange={(open) => (!open ? setSelectedCycleId(null) : undefined)}
+      />
 
       <AlertDialog
         open={!!confirmDeleteId}
