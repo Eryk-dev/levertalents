@@ -1,26 +1,15 @@
-import {
-  Users,
-  DollarSign,
-  Building2,
-  Target,
-  Calendar,
-  Download,
-  TrendingUp,
-  Activity,
-  ArrowRight,
-  Briefcase,
-  LineChart,
-  ChevronRight,
-} from "lucide-react";
+// P4-V06 — import only the icons actually rendered below.
+// Acceptable set: Users, DollarSign, TrendingUp, Download.
+// Forbidden (flagged dead by PATTERNS.md): Activity, Target, LineChart, ArrowRight, ChevronRight, Briefcase.
+import { Users, DollarSign, TrendingUp, Download } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo } from "react";
 import { handleSupabaseError } from "@/lib/supabaseError";
 import { LoadingState } from "@/components/primitives/LoadingState";
 import { useCostBreakdown } from "@/hooks/useCostBreakdown";
-import { useOrgIndicators } from "@/hooks/useOrgIndicators";
-import { useClimateOverview } from "@/hooks/useClimateOverview";
+import { usePayrollTotal } from "@/hooks/usePayrollTotal";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useScope } from "@/app/providers/ScopeProvider";
 import {
   Btn,
   Row,
@@ -60,329 +49,172 @@ function downloadCSV(rows: Record<string, unknown>[], filename: string) {
 }
 
 export default function SocioDashboard() {
-  const navigate = useNavigate();
+  const { scope } = useScope();
   const { data: profile } = useUserProfile();
+  const { data: payroll, isLoading: isLoadingPayroll, error: payrollError } = usePayrollTotal();
   const { data: cost, isLoading: isLoadingCost, error: costError } = useCostBreakdown();
-  const { data: org, error: orgError } = useOrgIndicators();
-  const { data: climate } = useClimateOverview();
 
+  useEffect(() => {
+    if (payrollError) handleSupabaseError(payrollError, "Falha ao carregar folha");
+  }, [payrollError]);
   useEffect(() => {
     if (costError) handleSupabaseError(costError, "Falha ao carregar custos");
   }, [costError]);
-  useEffect(() => {
-    if (orgError) handleSupabaseError(orgError, "Falha ao carregar indicadores");
-  }, [orgError]);
 
   const firstName = (profile?.full_name || "").split(" ")[0] || "Sócio";
   const hour = new Date().getHours();
   const greeting = hour < 6 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  const topTeams = (cost?.teams || []).slice(0, 6);
-  const maxTeamCost = Math.max(0, ...topTeams.map((t) => t.totalCost));
+  const isGroup = scope?.kind === "group";
+  const breakdownTitle = isGroup ? "Custo por empresa" : "Custo por departamento";
+  const breakdownDetailLabel = isGroup ? "empresas" : "departamentos";
 
-  const alertsCount = (org?.lowScoreCollaborators ?? 0) + (org?.pendingApprovalPdis ?? 0);
-  const heroTitle =
-    (org?.lowScoreCollaborators ?? 0) > 0
-      ? `${org?.lowScoreCollaborators} ${(org?.lowScoreCollaborators ?? 0) === 1 ? "pessoa abaixo" : "pessoas abaixo"} de 3,0 na última avaliação`
-      : (org?.pendingApprovalPdis ?? 0) > 0
-      ? `${org?.pendingApprovalPdis} ${(org?.pendingApprovalPdis ?? 0) === 1 ? "PDI aguarda" : "PDIs aguardam"} aprovação da liderança`
-      : null;
+  // D-05 LOCK (P4-V04): in group scope, do NOT filter out zero-cost empresas.
+  // useCostBreakdown.companies is already seeded from scope.companyIds (every empresa appears).
+  const breakdownRows = useMemo(() => {
+    if (isGroup) {
+      return (cost?.companies ?? []).map((c) => ({
+        id: c.companyId,
+        name: c.companyName,
+        sub: null as string | null,
+        headcount: c.memberCount,
+        totalCost: c.totalCost,
+        avgCost: c.avgCost,
+      }));
+    }
+    return [...(cost?.teams ?? [])]
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, 6)
+      .map((t) => ({
+        id: t.teamId,
+        name: t.teamName,
+        sub: t.companyName,
+        headcount: t.memberCount,
+        totalCost: t.totalCost,
+        avgCost: t.avgCost,
+      }));
+  }, [isGroup, cost?.companies, cost?.teams]);
 
-  const heroSubtitle =
-    (org?.lowScoreCollaborators ?? 0) > 0
-      ? "Performance crítica — alinhar com RH para plano de ação"
-      : (org?.pendingApprovalPdis ?? 0) > 0
-      ? "Desenvolvimento parado — revisar com os líderes"
-      : "";
+  const maxRowCost = Math.max(0, ...breakdownRows.map((r) => r.totalCost));
 
-  const shortcuts = [
-    {
-      label: "Gerenciar usuários",
-      detail: `${org?.totalCollaborators ?? 0} pessoas`,
-      icon: <Users className="w-4 h-4" strokeWidth={1.75} />,
-      onClick: () => navigate("/admin"),
-    },
-    {
-      label: "Empresas & times",
-      detail: `${cost?.teams?.length ?? 0} times ativos`,
-      icon: <Building2 className="w-4 h-4" strokeWidth={1.75} />,
-      onClick: () => navigate("/empresas"),
-    },
-    {
-      label: "Ciclos de avaliação",
-      detail: `${org?.completedEvaluations ?? 0} concluídas`,
-      icon: <Target className="w-4 h-4" strokeWidth={1.75} />,
-      onClick: () => navigate("/avaliacoes"),
-    },
-    {
-      label: "Recrutamento",
-      detail: "Pipeline de vagas",
-      icon: <Briefcase className="w-4 h-4" strokeWidth={1.75} />,
-      onClick: () => navigate("/recrutamento"),
-    },
-  ];
+  const headcountDetail = isGroup
+    ? `${cost?.companies?.length ?? 0} ${breakdownDetailLabel}`
+    : `${cost?.teams?.length ?? 0} ${breakdownDetailLabel}`;
+
+  const subtitleParts = [
+    payroll?.total_cost != null ? `Folha de ${formatBRL(payroll.total_cost)}` : null,
+    payroll?.headcount != null ? `${payroll.headcount} pessoas` : null,
+    `${(isGroup ? cost?.companies?.length : cost?.teams?.length) ?? 0} ${breakdownDetailLabel}`,
+  ].filter(Boolean);
+
+  const handleExport = () => {
+    const date = new Date().toISOString().slice(0, 10);
+    const filename = isGroup
+      ? `custo-por-empresa-${date}.csv`
+      : `custo-por-departamento-${date}.csv`;
+    const rows = breakdownRows.map((r) => ({
+      [isGroup ? "Empresa" : "Departamento"]: r.name,
+      Pessoas: r.headcount,
+      "Custo total": r.totalCost,
+      "Custo médio": r.avgCost,
+    }));
+    downloadCSV(rows, filename);
+  };
+
+  // Render zero-cost cell as "—" em-dash for legibility; non-zero uses formatBRL.
+  const renderCost = (value: number) =>
+    value > 0 ? formatBRL(value) : <span className="text-text-subtle">—</span>;
 
   return (
-    <div className="p-5 lg:p-7 font-sans text-text max-w-[1400px] mx-auto animate-fade-in">
+    <div className="animate-fade-in p-5 lg:p-7 mx-auto max-w-[1400px] font-sans text-text">
       {/* Header */}
-      <div className="flex items-baseline justify-between">
-        <div>
-          <div className="text-[10.5px] uppercase tracking-[0.08em] text-text-subtle font-semibold mb-0.5">
-            Visão executiva
-          </div>
-          <h1 className="text-[20px] font-semibold tracking-[-0.02em] m-0">
+      <div className="mb-7">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+          Visão executiva
+        </div>
+        <Row className="mt-1" justify="between">
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] text-text m-0">
             {greeting}, {firstName}
           </h1>
-          <div className="text-[13px] text-text-muted mt-0.5">
-            {cost?.totalCost != null
-              ? `Folha de ${formatBRL(cost.totalCost)} · ${org?.totalCollaborators ?? 0} pessoas · ${cost?.teams?.length ?? 0} times`
-              : "Operação consolidada · custo, pessoas e clima"}
-          </div>
-        </div>
-        <Row gap={6}>
           <Btn
             variant="secondary"
             size="sm"
             icon={<Download className="w-3.5 h-3.5" strokeWidth={1.75} />}
-            onClick={() => {
-              const teams = cost?.teams || [];
-              const rows = teams.map((t) => ({
-                time: t.teamName,
-                empresa: t.companyName || "",
-                pessoas: t.memberCount,
-                custo_total_brl: t.totalCost,
-                custo_medio_brl: t.avgCost,
-              }));
-              const date = new Date().toISOString().slice(0, 10);
-              downloadCSV(rows, `custo-por-time-${date}.csv`);
-            }}
+            onClick={handleExport}
           >
             Relatório
           </Btn>
         </Row>
+        <p className="mt-1 text-[13px] text-text-muted m-0">{subtitleParts.join(" · ")}</p>
       </div>
 
-      {/* Next action hero (executivo) */}
-      {heroTitle && (
-        <div className="mt-4 mb-5 surface-paper border-l-[3px] border-l-accent p-3.5 flex items-center gap-3.5">
-          <div className="w-9 h-9 rounded-lg bg-accent-soft text-accent-text grid place-items-center shrink-0">
-            <LineChart className="w-[18px] h-[18px]" strokeWidth={1.75} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <Row gap={6} className="mb-0.5">
-              <span className="text-[10.5px] uppercase tracking-[0.08em] text-accent-text font-semibold">
-                Próxima ação
-              </span>
-              <span className="text-[10.5px] text-text-subtle">·</span>
-              <span className="text-[10.5px] text-text-subtle">
-                {alertsCount} {alertsCount === 1 ? "ponto de atenção" : "pontos de atenção"}
-              </span>
-            </Row>
-            <div className="text-[15px] font-medium tracking-[-0.01em] truncate">{heroTitle}</div>
-            {heroSubtitle && (
-              <div className="text-[12px] text-text-muted mt-0.5 line-clamp-1">{heroSubtitle}</div>
-            )}
-          </div>
-          <Row gap={6}>
-            <Btn
-              variant="accent"
-              size="sm"
-              iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
-              onClick={() =>
-                navigate((org?.lowScoreCollaborators ?? 0) > 0 ? "/avaliacoes" : "/pdi")
-              }
-            >
-              Revisar
-            </Btn>
-          </Row>
-        </div>
-      )}
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
+      {/* KPI Tiles — exactly 3 financial */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-7">
         <KpiTile
           label="Folha"
-          value={cost?.totalCost != null ? formatBRL(cost.totalCost) : "—"}
+          value={payroll?.total_cost != null && payroll.total_cost > 0 ? formatBRL(payroll.total_cost) : "—"}
           detail="mês corrente"
           icon={<DollarSign className="w-4 h-4" strokeWidth={1.75} />}
         />
         <KpiTile
           label="Pessoas ativas"
-          value={String(org?.totalCollaborators ?? 0)}
-          detail={`${cost?.teams?.length ?? 0} times`}
+          value={
+            payroll?.headcount != null && payroll.headcount > 0 ? String(payroll.headcount) : "—"
+          }
+          detail={headcountDetail}
           icon={<Users className="w-4 h-4" strokeWidth={1.75} />}
         />
         <KpiTile
           label="Custo médio"
-          value={
-            cost?.totalCost != null && (org?.totalCollaborators ?? 0) > 0
-              ? formatBRL(cost.totalCost / (org?.totalCollaborators ?? 1))
-              : "—"
-          }
-          detail="por pessoa/mês"
+          value={payroll?.avg_cost != null ? formatBRL(payroll.avg_cost) : "—"}
+          detail="por pessoa / mês"
           icon={<TrendingUp className="w-4 h-4" strokeWidth={1.75} />}
         />
-        <KpiTile
-          label="Performance"
-          value={org?.avgPerformanceScore != null ? org.avgPerformanceScore.toFixed(1) : "—"}
-          detail="média do ciclo"
-          icon={<Target className="w-4 h-4" strokeWidth={1.75} />}
-          delta={
-            org?.avgPerformanceScore != null
-              ? org.avgPerformanceScore >= 4
-                ? "good"
-                : org.avgPerformanceScore < 3
-                ? "bad"
-                : undefined
-              : undefined
-          }
-        />
-        <KpiTile
-          label="Clima"
-          value={climate?.avgScore != null ? climate.avgScore.toFixed(1) : "—"}
-          detail={climate?.survey?.title || "sem pesquisa"}
-          icon={<Activity className="w-4 h-4" strokeWidth={1.75} />}
-          delta={
-            climate?.avgScore != null
-              ? climate.avgScore >= 4
-                ? "good"
-                : climate.avgScore < 3.5
-                ? "bad"
-                : undefined
-              : undefined
-          }
-        />
       </div>
 
-      {/* Custo por time + Indicadores consolidados */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-        <div>
-          <SectionHeader
-            title="Custo por time"
-            right={
-              topTeams.length > 0 ? (
-                <button onClick={() => navigate("/empresas")} className="link-accent text-[11.5px]">
-                  Ver todos →
-                </button>
-              ) : null
-            }
-          />
-          <Card contentClassName="p-0">
-            {isLoadingCost ? (
-              <div className="p-5">
-                <LoadingState variant="spinner" />
-              </div>
-            ) : topTeams.length === 0 ? (
-              <div className="p-5">
-                <LinearEmpty
-                  icon={<Building2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
-                  title="Nenhum dado de custo"
-                  description="Configure os custos por time para visualizar essa análise."
-                />
-              </div>
-            ) : (
-              topTeams.map((team, i) => (
-                <div
-                  key={team.teamId}
-                  className={`px-3.5 py-2.5 ${i < topTeams.length - 1 ? "border-b border-border" : ""}`}
-                >
-                  <Row justify="between" className="mb-1.5">
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium truncate">{team.teamName}</div>
-                      {team.companyName && (
-                        <div className="text-[11px] text-text-subtle truncate">{team.companyName}</div>
-                      )}
-                    </div>
-                    <span className="text-[13px] tabular font-semibold shrink-0">
-                      {formatBRL(team.totalCost)}
-                    </span>
-                  </Row>
-                  <ProgressBar value={maxTeamCost > 0 ? (team.totalCost / maxTeamCost) * 100 : 0} color="hsl(var(--accent))" />
-                  <div className="text-[11px] text-text-muted mt-1 tabular">
-                    {team.memberCount} {team.memberCount === 1 ? "pessoa" : "pessoas"} ·{" "}
-                    {formatBRL(team.avgCost)}/pessoa
+      {/* Breakdown Table */}
+      <Card contentClassName="p-0">
+        <div className="px-3.5 pt-2.5">
+          <SectionHeader title={breakdownTitle} className="mt-0" />
+        </div>
+        {isLoadingPayroll || isLoadingCost ? (
+          <div className="p-5">
+            <LoadingState variant="spinner" />
+          </div>
+        ) : breakdownRows.length === 0 ? (
+          <div className="p-5">
+            <LinearEmpty
+              icon={<Users className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+              title="Nenhum dado de folha"
+              description="Adicione colaboradores com salário cadastrado para ver os indicadores."
+            />
+          </div>
+        ) : (
+          <ul className="divide-y divide-border m-0 p-0 list-none">
+            {breakdownRows.map((r) => (
+              <li key={r.id} className="px-3.5 py-2.5 hover:bg-bg-subtle transition-colors">
+                <Row className="gap-3" justify="between">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] text-text">{r.name}</div>
+                    {r.sub ? (
+                      <div className="text-[11px] text-text-subtle truncate">{r.sub}</div>
+                    ) : null}
                   </div>
-                </div>
-              ))
-            )}
-          </Card>
-        </div>
-
-        <div>
-          <SectionHeader title="Indicadores consolidados" />
-          <Card contentClassName="p-0">
-            {[
-              {
-                label: "PDIs ativos",
-                value:
-                  org?.pendingApprovalPdis != null
-                    ? String(org.pendingApprovalPdis)
-                    : "—",
-                hint: "aguardando aprovação",
-              },
-              {
-                label: "Avaliações concluídas",
-                value: String(org?.completedEvaluations ?? 0),
-                hint: "no ciclo atual",
-              },
-              {
-                label: "1:1s (30d)",
-                value: String(org?.completedOneOnOnesLast30d ?? 0),
-                hint: "realizadas com o time",
-              },
-              {
-                label: "Participação clima",
-                value:
-                  climate?.participationRate != null
-                    ? `${Math.round(climate.participationRate * 100)}%`
-                    : "—",
-                hint: climate?.survey?.title || "sem pesquisa ativa",
-              },
-              {
-                label: "Pessoas em risco",
-                value: String(org?.lowScoreCollaborators ?? 0),
-                hint: "score abaixo de 3,0",
-              },
-            ].map((item, i, arr) => (
-              <div
-                key={item.label}
-                className={`flex items-baseline justify-between px-3.5 py-2.5 ${
-                  i < arr.length - 1 ? "border-b border-border" : ""
-                }`}
-              >
-                <div className="min-w-0">
-                  <div className="text-[12.5px] font-medium text-text truncate">{item.label}</div>
-                  <div className="text-[11.5px] text-text-muted truncate">{item.hint}</div>
-                </div>
-                <div className="text-[18px] font-semibold tabular tracking-[-0.015em] shrink-0">
-                  {item.value}
-                </div>
-              </div>
+                  <div className="text-[11px] text-text-muted shrink-0 tabular">
+                    {r.headcount} {r.headcount === 1 ? "pessoa" : "pessoas"}
+                  </div>
+                  <div className="w-24 hidden md:block">
+                    <ProgressBar value={maxRowCost > 0 ? (r.totalCost / maxRowCost) * 100 : 0} />
+                  </div>
+                  <div className="text-[13px] font-semibold tabular shrink-0 w-28 text-right">
+                    {renderCost(r.totalCost)}
+                  </div>
+                </Row>
+              </li>
             ))}
-          </Card>
-        </div>
-      </div>
-
-      {/* Atalhos */}
-      <SectionHeader title="Atalhos" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {shortcuts.map((s) => (
-          <button
-            key={s.label}
-            onClick={s.onClick}
-            className="surface-paper p-3.5 text-left hover:bg-bg-subtle transition-colors group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted group-hover:text-accent-text transition-colors">
-                {s.icon}
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 text-text-subtle" strokeWidth={1.75} />
-            </div>
-            <div className="text-[13px] font-medium text-text mt-2.5">{s.label}</div>
-            <div className="text-[11.5px] text-text-muted mt-0.5">{s.detail}</div>
-          </button>
-        ))}
-      </div>
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }
@@ -392,18 +224,16 @@ function KpiTile({
   value,
   detail,
   icon,
-  delta,
 }: {
   label: string;
   value: string;
   detail: string;
   icon: React.ReactNode;
-  delta?: "good" | "bad";
 }) {
   return (
-    <div className="surface-paper p-3.5">
+    <div className="surface-paper p-4 rounded-md border border-border bg-surface">
       <div className="flex items-center justify-between">
-        <div className="text-[11px] uppercase tracking-[0.05em] text-text-subtle font-semibold">
+        <div className="text-[11px] uppercase tracking-[0.06em] text-text-subtle font-semibold">
           {label}
         </div>
         <span className="text-text-muted">{icon}</span>
@@ -411,13 +241,7 @@ function KpiTile({
       <div className="text-[26px] font-semibold tabular tracking-[-0.02em] mt-2 leading-[1.05]">
         {value}
       </div>
-      <div
-        className={`text-[11.5px] mt-1 ${
-          delta === "good" ? "text-status-green" : delta === "bad" ? "text-status-red" : "text-text-muted"
-        }`}
-      >
-        {detail}
-      </div>
+      <div className="text-[11px] mt-1 text-text-muted">{detail}</div>
     </div>
   );
 }
