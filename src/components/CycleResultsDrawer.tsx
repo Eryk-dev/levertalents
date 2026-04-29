@@ -124,10 +124,11 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
   );
 
   const includesSelf = directions.includes('self');
+  const userInAudience = !!user && audience.some((a) => a.id === user.id);
   const targets = useMemo(() => {
-    if (!user) return [] as AudienceUser[];
+    if (!user || !userInAudience) return [] as AudienceUser[];
     const list: AudienceUser[] = [];
-    if (includesSelf && audience.some((a) => a.id === user.id)) {
+    if (includesSelf) {
       const me = audience.find((a) => a.id === user.id)!;
       list.push(me);
     }
@@ -136,7 +137,7 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
       list.push(a);
     }
     return list;
-  }, [audience, user, includesSelf]);
+  }, [audience, user, includesSelf, userInAudience]);
 
   const myExistingFor = (targetId: string) =>
     myEvaluations.find((e) => e.evaluated_user_id === targetId);
