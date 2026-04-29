@@ -1,23 +1,53 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Btn } from '@/components/primitives/LinearKit';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CycleCard } from '@/components/CycleCard';
 import { CreateCycleDialog } from '@/components/CreateCycleDialog';
 import { EvaluationTemplatesTab } from '@/components/EvaluationTemplatesTab';
-import { useEvaluationCycles } from '@/hooks/useEvaluationCycles';
+import { useEvaluationCycles, useDeleteCycle } from '@/hooks/useEvaluationCycles';
 import { useScope } from '@/app/providers/ScopeProvider';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function EvaluationsPage() {
   const cyclesQuery = useEvaluationCycles();
+  const deleteCycle = useDeleteCycle();
   const { scope } = useScope();
   const { userRole } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const all = cyclesQuery.data ?? [];
   const active = all.filter((c) => c.status === 'active' || c.status === 'draft');
   const closed = all.filter((c) => c.status === 'closed');
+  const confirming = all.find((c) => c.id === confirmDeleteId) ?? null;
+
+  const canDelete =
+    userRole === 'rh' || userRole === 'socio' || userRole === 'admin';
+
+  const handleDelete = () => {
+    if (!confirming) return;
+    deleteCycle.mutate(confirming.id, {
+      onSuccess: () => {
+        toast.success('Ciclo excluído');
+        if (selectedCycleId === confirming.id) setSelectedCycleId(null);
+        setConfirmDeleteId(null);
+      },
+      onError: (e) =>
+        toast.error('Não foi possível excluir', { description: e.message }),
+    });
+  };
 
   const canManageTemplates =
     userRole === 'rh' || userRole === 'socio' || userRole === 'admin';
@@ -79,6 +109,7 @@ export default function EvaluationsPage() {
                   cycle={c}
                   selected={selectedCycleId === c.id}
                   onClick={() => setSelectedCycleId(c.id)}
+                  onDelete={canDelete ? () => setConfirmDeleteId(c.id) : undefined}
                 />
               ))}
             </div>
@@ -88,7 +119,11 @@ export default function EvaluationsPage() {
         <TabsContent value="closed">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
             {closed.map((c) => (
-              <CycleCard key={c.id} cycle={c} />
+              <CycleCard
+                key={c.id}
+                cycle={c}
+                onDelete={canDelete ? () => setConfirmDeleteId(c.id) : undefined}
+              />
             ))}
           </div>
         </TabsContent>
@@ -107,6 +142,32 @@ export default function EvaluationsPage() {
           companyId={firstCompanyId}
         />
       )}
+
+      <AlertDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(open) => (!open ? setConfirmDeleteId(null) : undefined)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir ciclo de avaliação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirming
+                ? `"${confirming.name}" e todas as avaliações ligadas a ele serão removidos. Esta ação não pode ser desfeita.`
+                : 'Esta ação não pode ser desfeita.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteCycle.isPending}
+              className="bg-status-red text-white hover:bg-status-red/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
