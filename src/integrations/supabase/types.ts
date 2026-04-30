@@ -2980,6 +2980,14 @@ export type Database = {
       }
       hiring_supabase_url: { Args: never; Returns: string }
       is_people_manager: { Args: { _user_id: string }; Returns: boolean }
+      my_cycle_evaluation_assignments: {
+        Args: { _cycle_id: string }
+        Returns: {
+          direction: string
+          evaluated_user_id: string
+          evaluator_user_id: string
+        }[]
+      }
       normalize_cpf: { Args: { input: string }; Returns: string }
       normalize_username: { Args: { input: string }; Returns: string }
       org_unit_descendants: { Args: { _unit_id: string }; Returns: string[] }
@@ -3353,4 +3361,3 @@ export const Constants = {
     },
   },
 } as const
-

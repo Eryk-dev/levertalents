@@ -7,7 +7,7 @@ import type { Database } from '@/integrations/supabase/types';
 type EvaluationRow = Database['public']['Tables']['evaluations']['Row'];
 type EvaluationInsert = Database['public']['Tables']['evaluations']['Insert'];
 
-export type EvaluationDirection = 'leader_to_member' | 'member_to_leader';
+export type EvaluationDirection = 'self' | 'leader_to_member' | 'member_to_leader' | 'peer';
 
 export interface CreateEvaluationInput {
   cycle_id: string;
@@ -15,6 +15,12 @@ export interface CreateEvaluationInput {
   evaluated_user_id: string;
   direction: EvaluationDirection;
   responses: Record<string, unknown>; // shape derived from template_snapshot
+}
+
+export interface CycleEvaluationAssignment {
+  evaluator_user_id: string;
+  evaluated_user_id: string;
+  direction: EvaluationDirection;
 }
 
 /**
@@ -34,6 +40,21 @@ export function useEvaluations(cycleId: string | null) {
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as EvaluationRow[];
+    },
+    { enabled: cycleId != null },
+  );
+}
+
+export function useMyCycleEvaluationAssignments(cycleId: string | null) {
+  return useScopedQuery<CycleEvaluationAssignment[]>(
+    ['my-cycle-evaluation-assignments', cycleId],
+    async () => {
+      if (!cycleId) return [] as CycleEvaluationAssignment[];
+      const { data, error } = await supabase.rpc('my_cycle_evaluation_assignments', {
+        _cycle_id: cycleId,
+      });
+      if (error) throw error;
+      return (data ?? []) as CycleEvaluationAssignment[];
     },
     { enabled: cycleId != null },
   );

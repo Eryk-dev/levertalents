@@ -25,7 +25,11 @@ import {
 } from '@/components/ui/accordion';
 import { Btn, Chip, LinearAvatar } from '@/components/primitives/LinearKit';
 import { supabase } from '@/integrations/supabase/client';
-import { useEvaluations, type EvaluationDirection } from '@/hooks/useEvaluations';
+import {
+  useEvaluations,
+  useMyCycleEvaluationAssignments,
+  type EvaluationDirection,
+} from '@/hooks/useEvaluations';
 import { useCycleAudienceUsers, type AudienceUser } from '@/hooks/useCycleAudienceUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { EvaluationForm } from '@/components/EvaluationForm';
@@ -39,6 +43,8 @@ import type { Database } from '@/integrations/supabase/types';
 
 type CycleRow = Database['public']['Tables']['evaluation_cycles']['Row'];
 type EvaluationRow = Database['public']['Tables']['evaluations']['Row'];
+
+type AssignmentTarget = AudienceUser & { direction: EvaluationDirection };
 
 export interface CycleResultsDrawerProps {
   cycle: CycleRow | null;
@@ -56,11 +62,13 @@ const directionLabel: Record<string, string> = {
 export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDrawerProps) {
   const { user } = useAuth();
   const evaluationsQuery = useEvaluations(cycle?.id ?? null);
+  const assignmentsQuery = useMyCycleEvaluationAssignments(cycle?.id ?? null);
   const audienceQuery = useCycleAudienceUsers(cycle);
   const evaluations = evaluationsQuery.data ?? [];
+  const assignments = assignmentsQuery.data ?? [];
   const audience = audienceQuery.data ?? [];
 
-  const [evaluating, setEvaluating] = useState<AudienceUser | null>(null);
+  const [evaluating, setEvaluating] = useState<AssignmentTarget | null>(null);
 
   // Resolve profiles for evaluator/evaluated names that aren't in the audience
   // (e.g. evaluator could be outside the audience for member→leader cycles).
@@ -108,40 +116,54 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
   const submitted = evaluations.filter((e) => e.status === 'submitted');
   const draft = evaluations.filter((e) => e.status !== 'submitted');
 
-  // Direction defaults: prefer the first non-self direction; fallback to self.
-  const directions = (cycle?.directions ?? []) as EvaluationDirection[];
-  const defaultDirection: EvaluationDirection =
-    directions.find((d) => d !== 'self') ?? directions[0] ?? 'leader_to_member';
-
-  // Who the current user still needs to evaluate (audience minus self,
-  // minus people they already evaluated).
+  // Who the current user still needs to evaluate, based on DB-resolved
+  // directional assignments.
   const myEvaluations = useMemo(
     () => evaluations.filter((e) => e.evaluator_user_id === user?.id),
     [evaluations, user?.id],
   );
   const myEvaluatedSet = useMemo(
-    () => new Set(myEvaluations.map((e) => e.evaluated_user_id)),
+    () => new Set(myEvaluations.filter((e) => e.status === 'submitted').map((e) => `${e.evaluated_user_id}:${e.direction}`)),
     [myEvaluations],
   );
 
-  const includesSelf = directions.includes('self');
-  const userInAudience = !!user && audience.some((a) => a.id === user.id);
-  const targets = useMemo(() => {
-    if (!user || !userInAudience) return [] as AudienceUser[];
-    const list: AudienceUser[] = [];
-    if (includesSelf) {
-      const me = audience.find((a) => a.id === user.id)!;
-      list.push(me);
-    }
-    for (const a of audience) {
-      if (a.id === user.id) continue;
-      list.push(a);
-    }
-    return list;
-  }, [audience, user, includesSelf, userInAudience]);
+  const assignmentTargetIds = useMemo(
+    () => Array.from(new Set(assignments.map((a) => a.evaluated_user_id))),
+    [assignments],
+  );
 
-  const myExistingFor = (targetId: string) =>
-    myEvaluations.find((e) => e.evaluated_user_id === targetId);
+  const assignmentProfilesQuery = useQuery({
+    queryKey: ['assignment-target-profiles', assignmentTargetIds.sort().join(',')],
+    enabled: assignmentTargetIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', assignmentTargetIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const assignmentProfileMap = useMemo(() => {
+    const m = new Map<string, AudienceUser>();
+    for (const p of audience) m.set(p.id, p);
+    for (const p of assignmentProfilesQuery.data ?? []) m.set(p.id, p);
+    return m;
+  }, [audience, assignmentProfilesQuery.data]);
+
+  const targets = useMemo(() => {
+    return assignments
+      .map((a) => {
+        const profile = assignmentProfileMap.get(a.evaluated_user_id);
+        if (!profile) return null;
+        return { ...profile, direction: a.direction } as AssignmentTarget;
+      })
+      .filter((t): t is AssignmentTarget => t !== null);
+  }, [assignments, assignmentProfileMap]);
+
+  const myExistingFor = (targetId: string, direction: EvaluationDirection) =>
+    myEvaluations.find((e) => e.evaluated_user_id === targetId && e.direction === direction);
 
   const scaleAverages = useMemo(() => {
     const out: { question: TemplateQuestion; avg: number; count: number }[] = [];
@@ -174,12 +196,6 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
     }
     return Array.from(map.entries());
   }, [evaluations]);
-
-  // Direction inferred when the user clicks Avaliar on a target
-  const directionFor = (targetId: string): EvaluationDirection => {
-    if (targetId === user?.id && includesSelf) return 'self';
-    return defaultDirection === 'self' ? 'leader_to_member' : defaultDirection;
-  };
 
   return (
     <>
@@ -229,12 +245,12 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                     </header>
                     <ul className="divide-y divide-border rounded-md border border-border bg-card overflow-hidden">
                       {targets.map((t) => {
-                        const existing = myExistingFor(t.id);
+                        const existing = myExistingFor(t.id, t.direction);
                         const done = existing?.status === 'submitted';
                         const isMe = t.id === user?.id;
                         return (
                           <li
-                            key={t.id}
+                            key={`${t.id}:${t.direction}`}
                             className="flex items-center gap-3 px-3 py-2.5"
                           >
                             <LinearAvatar name={t.full_name} size={26} />
@@ -246,6 +262,9 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                                     (você mesmo)
                                   </span>
                                 )}
+                              </p>
+                              <p className="text-[11px] text-text-muted">
+                                {directionLabel[t.direction] ?? t.direction}
                               </p>
                               {existing && !done && (
                                 <p className="text-[11px] text-text-muted">Rascunho salvo</p>
@@ -410,7 +429,7 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                   Avaliar {evaluating.id === user.id ? 'você mesmo' : evaluating.full_name}
                 </DialogTitle>
                 <DialogDescription className="text-[12px] text-text-muted">
-                  {cycle.name} · {directionLabel[directionFor(evaluating.id)]}
+                  {cycle.name} · {directionLabel[evaluating.direction]}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -419,10 +438,10 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                   templateSnapshot={snapshot}
                   evaluatorUserId={user.id}
                   evaluatedUserId={evaluating.id}
-                  direction={directionFor(evaluating.id) as 'leader_to_member' | 'member_to_leader'}
-                  existingEvaluationId={myExistingFor(evaluating.id)?.id}
+                  direction={evaluating.direction}
+                  existingEvaluationId={myExistingFor(evaluating.id, evaluating.direction)?.id}
                   initialResponses={
-                    (myExistingFor(evaluating.id)?.responses as Record<string, unknown>) ?? undefined
+                    (myExistingFor(evaluating.id, evaluating.direction)?.responses as Record<string, unknown>) ?? undefined
                   }
                   onSaved={() => setEvaluating(null)}
                 />
