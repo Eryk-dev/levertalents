@@ -84,6 +84,7 @@ export function useCreateEvaluation() {
         evaluated_user_id: input.evaluated_user_id,
         direction: input.direction,
         responses: input.responses as Database['public']['Tables']['evaluations']['Insert']['responses'],
+        status: 'submitted',
         company_id: cycle.company_id,
       };
       const { data, error } = await supabase
@@ -105,6 +106,14 @@ export function useCreateEvaluation() {
           vars.cycle_id,
         ],
       });
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'pending-tasks',
+        ],
+      });
     },
   });
 }
@@ -122,6 +131,7 @@ export function useUpdateEvaluation() {
         .from('evaluations')
         .update({
           responses: vars.responses as Database['public']['Tables']['evaluations']['Update']['responses'],
+          status: 'submitted',
           updated_at: new Date().toISOString(),
         })
         .eq('id', vars.id)
@@ -138,6 +148,14 @@ export function useUpdateEvaluation() {
           scope?.kind ?? '__none__',
           'evaluations',
           vars.cycle_id,
+        ],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'pending-tasks',
         ],
       });
     },

@@ -129,6 +129,9 @@ describe('useCreateEvaluation — idempotent (QUAL-03 fluxo 4) [INV-04-07-04]', 
     });
 
     expect(insertChain.insert).toHaveBeenCalledTimes(1);
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'submitted' }),
+    );
     expect(insertSingleMock).toHaveBeenCalledTimes(1);
   });
 
