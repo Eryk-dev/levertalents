@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       application_stage_history: {
@@ -1277,6 +1252,7 @@ export type Database = {
           ends_at: string
           id: string
           include_descendants: boolean
+          kind: string
           name: string
           starts_at: string
           status: string
@@ -1293,6 +1269,7 @@ export type Database = {
           ends_at: string
           id?: string
           include_descendants?: boolean
+          kind?: string
           name: string
           starts_at: string
           status?: string
@@ -1309,6 +1286,7 @@ export type Database = {
           ends_at?: string
           id?: string
           include_descendants?: boolean
+          kind?: string
           name?: string
           starts_at?: string
           status?: string
@@ -1346,6 +1324,7 @@ export type Database = {
           created_at: string
           id: string
           is_default: boolean
+          kind: string
           name: string
           schema_json: Json
           updated_at: string
@@ -1355,6 +1334,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_default?: boolean
+          kind?: string
           name: string
           schema_json: Json
           updated_at?: string
@@ -1364,6 +1344,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_default?: boolean
+          kind?: string
           name?: string
           schema_json?: Json
           updated_at?: string
@@ -2960,6 +2941,10 @@ export type Database = {
         Args: { p_candidate_id: string }
         Returns: undefined
       }
+      expected_evaluations_for_user: {
+        Args: { _cycle_id: string; _user_id: string }
+        Returns: number
+      }
       get_climate_aggregate: {
         Args: { p_org_unit_id?: string; p_survey_id: string }
         Returns: Json
@@ -2996,25 +2981,17 @@ export type Database = {
       hiring_supabase_url: { Args: never; Returns: string }
       is_people_manager: { Args: { _user_id: string }; Returns: boolean }
       normalize_cpf: { Args: { input: string }; Returns: string }
+      normalize_username: { Args: { input: string }; Returns: string }
       org_unit_descendants: { Args: { _unit_id: string }; Returns: string[] }
       preview_cycle_audience: {
         Args: {
-          p_company_id: string
-          p_audience_kind: string
           p_audience_ids: string[]
-          p_include_descendants: boolean
+          p_audience_kind: string
+          p_company_id: string
           p_directions: string[]
+          p_include_descendants: boolean
         }
         Returns: Json
-      }
-      resolve_cycle_participants: {
-        Args: {
-          p_company_id: string
-          p_audience_kind: string
-          p_audience_ids: string[]
-          p_include_descendants: boolean
-        }
-        Returns: string[]
       }
       read_candidate_with_log: {
         Args: { p_candidate_id: string; p_context?: string }
@@ -3043,6 +3020,21 @@ export type Database = {
         }
       }
       read_payroll_total: { Args: { p_company_ids?: string[] }; Returns: Json }
+      resolve_cycle_audience: {
+        Args: { _cycle_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
+      resolve_cycle_participants: {
+        Args: {
+          p_audience_ids: string[]
+          p_audience_kind: string
+          p_company_id: string
+          p_include_descendants: boolean
+        }
+        Returns: string[]
+      }
       resolve_default_scope: { Args: { _uid: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -3270,9 +3262,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       anonymization_reason_enum: ["solicitacao", "retencao_expirada"],
@@ -3364,3 +3353,4 @@ export const Constants = {
     },
   },
 } as const
+

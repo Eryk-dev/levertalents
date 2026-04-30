@@ -9,6 +9,7 @@ type CycleInsert = Database['public']['Tables']['evaluation_cycles']['Insert'];
 
 export type AudienceKind = 'company' | 'org_unit' | 'manual';
 export type EvaluationDirection = 'self' | 'leader_to_member' | 'member_to_leader' | 'peer';
+export type CycleKind = 'custom' | 'nine_box';
 
 export interface CreateCycleInput {
   company_id: string;
@@ -20,6 +21,12 @@ export interface CreateCycleInput {
   audience_ids: string[];
   include_descendants: boolean;
   directions: EvaluationDirection[];
+  /**
+   * Cycle flavor. 'nine_box' cycles use the fixed 2-question template (perf+pot
+   * scale 1-3) and feed the 9box matrix. 'custom' is the existing flexible flow.
+   * Defaults to 'custom' for backward compatibility.
+   */
+  kind?: CycleKind;
 }
 
 /**
@@ -60,7 +67,7 @@ export function useCreateCycle() {
       if (input.directions.length === 0) {
         throw new Error('Selecione ao menos uma direção de avaliação.');
       }
-      const insert: CycleInsert = {
+      const insert = {
         company_id: input.company_id,
         template_id: input.template_id,
         name: input.name,
@@ -72,7 +79,9 @@ export function useCreateCycle() {
         audience_ids: input.audience_ids,
         include_descendants: input.include_descendants,
         directions: input.directions,
-      };
+        // kind column added by migration NINE.1; cast until generated types catch up
+        ...(input.kind ? { kind: input.kind } : {}),
+      } as CycleInsert;
       const { data, error } = await supabase
         .from('evaluation_cycles')
         .insert(insert)

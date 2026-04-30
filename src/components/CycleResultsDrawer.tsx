@@ -29,6 +29,7 @@ import { useEvaluations, type EvaluationDirection } from '@/hooks/useEvaluations
 import { useCycleAudienceUsers, type AudienceUser } from '@/hooks/useCycleAudienceUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { EvaluationForm } from '@/components/EvaluationForm';
+import { NineBoxComparison } from '@/components/NineBoxComparison';
 import {
   templateSnapshotSchema,
   type TemplateSnapshot,
@@ -288,7 +289,7 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                 {/* Resultados */}
                 {evaluations.length > 0 && (
                   <>
-                    {scaleAverages.length > 0 && (
+                    {(cycle as { kind?: string }).kind !== 'nine_box' && scaleAverages.length > 0 && (
                       <section>
                         <header className="flex items-baseline justify-between mb-3">
                           <h3 className="text-[14px] font-semibold text-text">Médias gerais</h3>
@@ -327,42 +328,60 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
 
                     <section>
                       <h3 className="text-[14px] font-semibold text-text mb-3">
-                        Avaliações por pessoa
+                        {(cycle as { kind?: string }).kind === 'nine_box'
+                          ? 'Comparativo líder × auto-avaliação'
+                          : 'Avaliações por pessoa'}
                       </h3>
-                      <Accordion type="multiple" className="space-y-2">
-                        {grouped.map(([evaluatedId, items]) => {
-                          const evaluated = profileMap.get(evaluatedId);
-                          return (
-                            <AccordionItem
-                              key={evaluatedId}
-                              value={evaluatedId}
-                              className="border border-border rounded-md bg-card px-3"
-                            >
-                              <AccordionTrigger className="hover:no-underline py-3">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <LinearAvatar name={evaluated?.full_name ?? '—'} size={22} />
-                                  <span className="text-[13px] font-semibold text-text truncate">
-                                    {evaluated?.full_name ?? 'Pessoa removida'}
-                                  </span>
-                                  <span className="text-[11px] text-text-muted ml-1">
-                                    {items.length} {items.length === 1 ? 'avaliação' : 'avaliações'}
-                                  </span>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="pb-3 space-y-3">
-                                {items.map((ev) => (
-                                  <EvaluationDetails
-                                    key={ev.id}
-                                    evaluation={ev}
-                                    evaluator={profileMap.get(ev.evaluator_user_id)}
-                                    questions={questions}
-                                  />
-                                ))}
-                              </AccordionContent>
-                            </AccordionItem>
-                          );
-                        })}
-                      </Accordion>
+                      {(cycle as { kind?: string }).kind === 'nine_box' ? (
+                        <ul className="space-y-3">
+                          {grouped.map(([evaluatedId, items]) => {
+                            const evaluated = profileMap.get(evaluatedId);
+                            return (
+                              <li key={evaluatedId}>
+                                <NineBoxComparison
+                                  evaluatedName={evaluated?.full_name ?? 'Pessoa removida'}
+                                  evaluations={items}
+                                />
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <Accordion type="multiple" className="space-y-2">
+                          {grouped.map(([evaluatedId, items]) => {
+                            const evaluated = profileMap.get(evaluatedId);
+                            return (
+                              <AccordionItem
+                                key={evaluatedId}
+                                value={evaluatedId}
+                                className="border border-border rounded-md bg-card px-3"
+                              >
+                                <AccordionTrigger className="hover:no-underline py-3">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <LinearAvatar name={evaluated?.full_name ?? '—'} size={22} />
+                                    <span className="text-[13px] font-semibold text-text truncate">
+                                      {evaluated?.full_name ?? 'Pessoa removida'}
+                                    </span>
+                                    <span className="text-[11px] text-text-muted ml-1">
+                                      {items.length} {items.length === 1 ? 'avaliação' : 'avaliações'}
+                                    </span>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pb-3 space-y-3">
+                                  {items.map((ev) => (
+                                    <EvaluationDetails
+                                      key={ev.id}
+                                      evaluation={ev}
+                                      evaluator={profileMap.get(ev.evaluator_user_id)}
+                                      questions={questions}
+                                    />
+                                  ))}
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                        </Accordion>
+                      )}
                     </section>
                   </>
                 )}

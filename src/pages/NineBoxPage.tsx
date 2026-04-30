@@ -1,10 +1,11 @@
-import { useMemo } from "react";
-import { BarChart3, Download } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
-import { useNineBoxDistribution } from "@/hooks/useNineBoxDistribution";
+import { useNineBoxCycles, useNineBoxDistribution } from "@/hooks/useNineBoxDistribution";
 import { NineBoxMatrix } from "@/components/NineBoxMatrix";
 import { LoadingState } from "@/components/primitives/LoadingState";
 import { Btn, Card, Row, SectionHeader } from "@/components/primitives/LinearKit";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const QUADRANTS = [
   { label: "Estrela", tone: "text-status-green", summary: "Alta entrega + alto potencial" },
@@ -39,7 +40,10 @@ function downloadCSV(rows: Record<string, unknown>[], filename: string) {
 }
 
 export default function NineBoxPage() {
-  const { data: nineBox, isLoading } = useNineBoxDistribution("org");
+  const { data: cycles } = useNineBoxCycles();
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  const effectiveCycleId = selectedCycleId ?? cycles?.[0]?.id ?? null;
+  const { data: nineBox, isLoading } = useNineBoxDistribution("org", null, effectiveCycleId);
 
   const total = nineBox?.totalEvaluated ?? 0;
 
@@ -70,6 +74,24 @@ export default function NineBoxPage() {
           </div>
         </div>
         <Row gap={6}>
+          {cycles && cycles.length > 0 && (
+            <Select
+              value={effectiveCycleId ?? ''}
+              onValueChange={(v) => setSelectedCycleId(v || null)}
+            >
+              <SelectTrigger className="h-8 min-w-[220px]">
+                <SelectValue placeholder="Selecionar ciclo 9box" />
+              </SelectTrigger>
+              <SelectContent>
+                {cycles.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.status === 'closed' ? ' · encerrado' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Btn
             variant="ghost"
             size="sm"

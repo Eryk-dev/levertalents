@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Users, Building2, UserSearch, Search, Check, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Users, Building2, UserSearch, Search, Check, X, BarChart3, ListChecks } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import { useEvaluationTemplates } from '@/hooks/useEvaluationTemplates';
 import {
   useCreateCycle,
   type AudienceKind,
+  type CycleKind,
   type EvaluationDirection,
 } from '@/hooks/useEvaluationCycles';
 import { useOrgUnits } from '@/features/org-structure/hooks/useOrgUnits';
@@ -72,7 +73,8 @@ export function CreateCycleDialog({
 
   const [step, setStep] = useState<Step>(1);
 
-  // Step 1: template + name + dates
+  // Step 1: cycle kind + template + name + dates
+  const [kind, setKind] = useState<CycleKind>('custom');
   const [templateId, setTemplateId] = useState<string>('');
   const [name, setName] = useState('');
   const [startsAt, setStartsAt] = useState('');
@@ -84,15 +86,35 @@ export function CreateCycleDialog({
   const [includeDescendants, setIncludeDescendants] = useState(true);
   const [peopleQuery, setPeopleQuery] = useState('');
 
-  // Step 3: directions
+  // Step 3: directions — locked to ['self','leader_to_member'] when kind='nine_box'
   const [directions, setDirections] = useState<EvaluationDirection[]>([
     'self',
     'leader_to_member',
   ]);
 
-  const filteredTemplates = (templates.data ?? []).filter(
+  // Templates from DB carry a `kind` column (added by migration NINE.1).
+  // Until generated types catch up, read it via cast.
+  const allCompanyTemplates = (templates.data ?? []).filter(
     (t) => t.company_id === companyId,
   );
+  const nineBoxTemplate = allCompanyTemplates.find(
+    (t) => (t as { kind?: string }).kind === 'nine_box',
+  );
+  const customTemplates = allCompanyTemplates.filter(
+    (t) => (t as { kind?: string }).kind !== 'nine_box',
+  );
+  const filteredTemplates = kind === 'nine_box' ? (nineBoxTemplate ? [nineBoxTemplate] : []) : customTemplates;
+
+  // Auto-pick the 9box template once it loads, and force directions lock.
+  useEffect(() => {
+    if (kind === 'nine_box') {
+      if (nineBoxTemplate && templateId !== nineBoxTemplate.id) {
+        setTemplateId(nineBoxTemplate.id);
+      }
+      setDirections(['self', 'leader_to_member']);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, nineBoxTemplate?.id]);
   const orgUnitList = orgUnits.data ?? [];
   const peopleList = useMemo(() => people.data ?? [], [people.data]);
 
@@ -117,6 +139,7 @@ export function CreateCycleDialog({
 
   const reset = () => {
     setStep(1);
+    setKind('custom');
     setTemplateId('');
     setName('');
     setStartsAt('');
@@ -170,6 +193,7 @@ export function CreateCycleDialog({
         audience_ids: audienceKind === 'company' ? [] : audienceIds,
         include_descendants: includeDescendants,
         directions,
+        kind,
       },
       {
         onSuccess: () => {
@@ -198,35 +222,70 @@ export function CreateCycleDialog({
 
         {step === 1 && (
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-[12px] font-medium text-text-muted">Template</Label>
-              <Select value={templateId} onValueChange={setTemplateId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredTemplates.length === 0 ? (
-                    <div className="px-2 py-1.5 text-[12px] text-text-muted">
-                      Nenhum template ainda. Crie um na aba Templates.
-                    </div>
-                  ) : (
-                    filteredTemplates.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                        {t.is_default ? ' (padrão)' : ''}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-medium text-text-muted">Tipo do ciclo</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <CycleKindOption
+                  active={kind === 'nine_box'}
+                  onClick={() => setKind('nine_box')}
+                  icon={BarChart3}
+                  label="9box (rápido)"
+                  description="2 perguntas (desempenho + potencial). Líder avalia liderado, liderado se autoavalia. Cai direto na matriz."
+                  disabled={!nineBoxTemplate}
+                  disabledHint={!nineBoxTemplate ? 'Template 9box ainda não está disponível para esta empresa.' : undefined}
+                />
+                <CycleKindOption
+                  active={kind === 'custom'}
+                  onClick={() => setKind('custom')}
+                  icon={ListChecks}
+                  label="Personalizado"
+                  description="Você monta as perguntas. Útil para clima, feedback estruturado, avaliações 360º."
+                />
+              </div>
             </div>
+
+            {kind === 'custom' ? (
+              <div className="space-y-1">
+                <Label className="text-[12px] font-medium text-text-muted">Template</Label>
+                <Select value={templateId} onValueChange={setTemplateId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredTemplates.length === 0 ? (
+                      <div className="px-2 py-1.5 text-[12px] text-text-muted">
+                        Nenhum template ainda. Crie um na aba Templates.
+                      </div>
+                    ) : (
+                      filteredTemplates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                          {t.is_default ? ' (padrão)' : ''}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="rounded-md border border-border bg-bg-subtle/30 p-3 text-[12px] text-text-muted">
+                <p className="text-text font-medium text-[12.5px]">
+                  Template 9box · Desempenho × Potencial
+                </p>
+                <p className="mt-1">
+                  Padronizado para todas as empresas — 2 perguntas (1-3) + comentário opcional.
+                  Direções fixas: <span className="font-medium text-text">auto-avaliação</span> e{' '}
+                  <span className="font-medium text-text">líder → liderado</span>.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label className="text-[12px] font-medium text-text-muted">Nome do ciclo</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Q1 2026"
+                placeholder={kind === 'nine_box' ? '9box · Q2 2026' : 'Q1 2026'}
               />
             </div>
 
@@ -397,26 +456,48 @@ export function CreateCycleDialog({
               <Label className="text-[12px] font-medium text-text-muted">
                 Direções de avaliação
               </Label>
+              {kind === 'nine_box' && (
+                <p className="text-[11.5px] text-text-muted">
+                  Ciclos 9box usam direções fixas — auto-avaliação e líder → liderado — para alimentar a matriz.
+                </p>
+              )}
               <ul className="grid grid-cols-1 gap-2">
-                {(Object.keys(DIRECTION_META) as EvaluationDirection[]).map((d) => (
-                  <li key={d}>
-                    <label className="flex items-start gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-bg-subtle/40">
-                      <Checkbox
-                        checked={directions.includes(d)}
-                        onCheckedChange={() => toggleDirection(d)}
-                        className="mt-0.5"
-                      />
-                      <div>
-                        <p className="text-[13px] font-medium text-text">
-                          {DIRECTION_META[d].label}
-                        </p>
-                        <p className="text-[11.5px] text-text-muted">
-                          {DIRECTION_META[d].description}
-                        </p>
-                      </div>
-                    </label>
-                  </li>
-                ))}
+                {(Object.keys(DIRECTION_META) as EvaluationDirection[]).map((d) => {
+                  const locked = kind === 'nine_box';
+                  const lockedActive = locked && (d === 'self' || d === 'leader_to_member');
+                  const lockedDisabled = locked && !lockedActive;
+                  return (
+                    <li key={d}>
+                      <label
+                        className={
+                          lockedDisabled
+                            ? 'flex items-start gap-2 rounded-md border border-border bg-bg-subtle/30 px-3 py-2 opacity-50 cursor-not-allowed'
+                            : 'flex items-start gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-bg-subtle/40'
+                        }
+                      >
+                        <Checkbox
+                          checked={directions.includes(d)}
+                          onCheckedChange={() => !locked && toggleDirection(d)}
+                          disabled={locked}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="text-[13px] font-medium text-text">
+                            {DIRECTION_META[d].label}
+                            {lockedActive && (
+                              <span className="ml-2 text-[10.5px] uppercase tracking-wide text-accent-text">
+                                fixo
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11.5px] text-text-muted">
+                            {DIRECTION_META[d].description}
+                          </p>
+                        </div>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -531,6 +612,51 @@ function AudienceOption({
         <p className="text-[11.5px] text-text-muted">{description}</p>
       </div>
     </label>
+  );
+}
+
+interface CycleKindOptionProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  description: string;
+  disabled?: boolean;
+  disabledHint?: string;
+}
+
+function CycleKindOption({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  description,
+  disabled,
+  disabledHint,
+}: CycleKindOptionProps) {
+  const base = 'flex items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors';
+  const cls = disabled
+    ? `${base} border border-border bg-bg-subtle/30 opacity-60 cursor-not-allowed`
+    : active
+      ? `${base} border-2 border-accent bg-accent-soft/30 cursor-pointer`
+      : `${base} border border-border bg-card cursor-pointer hover:bg-bg-subtle/40`;
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onClick}
+      aria-pressed={active}
+      disabled={disabled}
+      className={cls}
+    >
+      <Icon className="mt-0.5 h-4 w-4 text-text-muted shrink-0" />
+      <div>
+        <p className="text-[13px] font-medium text-text">{label}</p>
+        <p className="text-[11.5px] text-text-muted">{description}</p>
+        {disabled && disabledHint && (
+          <p className="text-[11px] text-status-amber mt-1">{disabledHint}</p>
+        )}
+      </div>
+    </button>
   );
 }
 
