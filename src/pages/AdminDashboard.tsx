@@ -13,7 +13,9 @@ import {
   Briefcase,
   UserCog,
   UserX,
+  KeyRound,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -38,7 +40,9 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUsers } from "@/hooks/useUsers";
 import { useDeleteUser } from "@/hooks/useDeleteUser";
+import { useResetUserPassword } from "@/hooks/useResetUserPassword";
 import { useAuth } from "@/hooks/useAuth";
+import { OnboardingMessageBlock } from "@/components/OnboardingMessageBlock";
 import { useOrgIndicators } from "@/hooks/useOrgIndicators";
 import { useClimateOverview } from "@/hooks/useClimateOverview";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -67,8 +71,16 @@ export default function AdminDashboard() {
 
   const { user: currentAuthUser } = useAuth();
   const deleteUser = useDeleteUser();
+  const resetPassword = useResetUserPassword();
   const [confirmRemoveUserId, setConfirmRemoveUserId] = useState<string | null>(null);
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
+  const [confirmResetUserId, setConfirmResetUserId] = useState<string | null>(null);
+  const [resetResult, setResetResult] = useState<{
+    fullName: string;
+    username: string;
+    tempPassword: string;
+    expiresAt: string;
+  } | null>(null);
   const ROLE_OPTIONS = ["socio", "lider", "rh", "colaborador", "sem-papel"] as const;
   type AssignableRole = Exclude<(typeof ROLE_OPTIONS)[number], "sem-papel">;
   type RoleFilter = (typeof ROLE_OPTIONS)[number];
@@ -143,7 +155,30 @@ export default function AdminDashboard() {
     });
   };
 
+  const handleResetPassword = (userId: string) => {
+    resetPassword.mutate(
+      { userId },
+      {
+        onSuccess: (res) => {
+          setResetResult({
+            fullName: res.fullName,
+            username: res.username,
+            tempPassword: res.tempPassword,
+            expiresAt: res.expiresAt,
+          });
+          setConfirmResetUserId(null);
+          toast.success("Nova senha gerada");
+        },
+        onError: (err: Error) => {
+          toast.error("Não foi possível redefinir a senha", { description: err.message });
+          setConfirmResetUserId(null);
+        },
+      },
+    );
+  };
+
   const userBeingDeleted = users.find((u) => u.id === confirmDeleteUserId);
+  const userBeingReset = users.find((u) => u.id === confirmResetUserId);
 
   const firstName = (profile?.full_name || "").split(" ")[0] || "Admin";
   const hour = new Date().getHours();
@@ -379,7 +414,7 @@ export default function AdminDashboard() {
             />
           ) : (
             <div className="surface-paper">
-              <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5">
+              <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_96px] gap-5">
                 <div>Pessoa</div>
                 <div>Usuário</div>
                 <div>Papel</div>
@@ -388,7 +423,7 @@ export default function AdminDashboard() {
               {recentUsers.map((user, idx) => (
                 <div
                   key={user.id}
-                  className={`grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5 items-center px-3.5 py-2 text-[13px] ${
+                  className={`grid grid-cols-[2fr_1.4fr_1fr_96px] gap-5 items-center px-3.5 py-2 text-[13px] ${
                     idx < recentUsers.length - 1 ? "border-b border-border" : ""
                   }`}
                 >
@@ -404,19 +439,31 @@ export default function AdminDashboard() {
                       onRequestRemoveRole={setConfirmRemoveUserId}
                     />
                   </div>
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end gap-1">
                     {user.id !== currentAuthUser?.id && (
-                      <Btn
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setConfirmDeleteUserId(user.id)}
-                        className="text-status-red hover:bg-status-red-soft"
-                        icon={<UserX className="w-3 h-3" strokeWidth={1.75} />}
-                        aria-label="Excluir usuário"
-                        title="Excluir usuário"
-                      >
-                        <span className="sr-only">Excluir usuário</span>
-                      </Btn>
+                      <>
+                        <Btn
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setConfirmResetUserId(user.id)}
+                          icon={<KeyRound className="w-3 h-3" strokeWidth={1.75} />}
+                          aria-label="Redefinir senha"
+                          title="Redefinir senha"
+                        >
+                          <span className="sr-only">Redefinir senha</span>
+                        </Btn>
+                        <Btn
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setConfirmDeleteUserId(user.id)}
+                          className="text-status-red hover:bg-status-red-soft"
+                          icon={<UserX className="w-3 h-3" strokeWidth={1.75} />}
+                          aria-label="Excluir usuário"
+                          title="Excluir usuário"
+                        >
+                          <span className="sr-only">Excluir usuário</span>
+                        </Btn>
+                      </>
                     )}
                   </div>
                 </div>
@@ -516,7 +563,7 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div>
-            <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5">
+            <div className="cell-header grid grid-cols-[2fr_1.4fr_1fr_96px] gap-5">
               <div>Pessoa</div>
               <div>Usuário</div>
               <div>Papel</div>
@@ -525,7 +572,7 @@ export default function AdminDashboard() {
             {filteredUsers.map((user, idx) => (
               <div
                 key={user.id}
-                className={`grid grid-cols-[2fr_1.4fr_1fr_60px] gap-5 items-center px-3.5 py-2 text-[13px] ${
+                className={`grid grid-cols-[2fr_1.4fr_1fr_96px] gap-5 items-center px-3.5 py-2 text-[13px] ${
                   idx < filteredUsers.length - 1 ? "border-b border-border" : ""
                 }`}
               >
@@ -541,18 +588,31 @@ export default function AdminDashboard() {
                     onRequestRemoveRole={setConfirmRemoveUserId}
                   />
                 </div>
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-end gap-1">
                   {user.id !== currentAuthUser?.id && (
-                    <Btn
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setConfirmDeleteUserId(user.id)}
-                      className="text-status-red hover:bg-status-red-soft"
-                      icon={<UserX className="w-3 h-3" strokeWidth={1.75} />}
-                      title="Excluir usuário"
-                    >
-                      {""}
-                    </Btn>
+                    <>
+                      <Btn
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setConfirmResetUserId(user.id)}
+                        icon={<KeyRound className="w-3 h-3" strokeWidth={1.75} />}
+                        aria-label="Redefinir senha"
+                        title="Redefinir senha"
+                      >
+                        <span className="sr-only">Redefinir senha</span>
+                      </Btn>
+                      <Btn
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setConfirmDeleteUserId(user.id)}
+                        className="text-status-red hover:bg-status-red-soft"
+                        icon={<UserX className="w-3 h-3" strokeWidth={1.75} />}
+                        aria-label="Excluir usuário"
+                        title="Excluir usuário"
+                      >
+                        <span className="sr-only">Excluir usuário</span>
+                      </Btn>
+                    </>
                   )}
                 </div>
               </div>
@@ -622,6 +682,65 @@ export default function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Confirmar redefinir senha */}
+      <AlertDialog
+        open={!!confirmResetUserId}
+        onOpenChange={(open) => !open && !resetPassword.isPending && setConfirmResetUserId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redefinir a senha de acesso?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="block">
+                Vamos gerar uma nova senha temporária para{" "}
+                <strong className="text-text">
+                  {userBeingReset?.full_name || userBeingReset?.username || "este usuário"}
+                </strong>
+                . A senha atual deixa de funcionar imediatamente.
+              </span>
+              <span className="block mt-2 text-text-muted">
+                A nova senha aparece UMA vez na tela seguinte. Copie a mensagem do WhatsApp e envie
+                para a pessoa — ela vai precisar trocar a senha no próximo login.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetPassword.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resetPassword.isPending}
+              onClick={() => confirmResetUserId && handleResetPassword(confirmResetUserId)}
+            >
+              {resetPassword.isPending ? "Gerando…" : "Gerar nova senha"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Resultado: nova senha + mensagem WhatsApp (Pitfall §12: senha em local state, limpa no Concluir) */}
+      <Dialog
+        open={!!resetResult}
+        onOpenChange={(open) => {
+          if (!open) setResetResult(null);
+        }}
+      >
+        <DialogContent className="max-w-[640px]">
+          <DialogHeader>
+            <DialogTitle>Nova senha gerada</DialogTitle>
+          </DialogHeader>
+          {resetResult && (
+            <OnboardingMessageBlock
+              mode="reset"
+              fullName={resetResult.fullName}
+              username={resetResult.username}
+              tempPassword={resetResult.tempPassword}
+              expiresAt={resetResult.expiresAt}
+              rhFullName={profile?.full_name ?? "RH"}
+              onComplete={() => setResetResult(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

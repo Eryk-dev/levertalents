@@ -9,10 +9,22 @@ export interface OnboardingMessageBlockProps {
   tempPassword: string;
   expiresAt: string;
   rhFullName: string;
+  /** 'create' = boas-vindas (default, D-20). 'reset' = senha redefinida pelo admin/rh. */
+  mode?: 'create' | 'reset';
   onComplete?: () => void;
 }
 
 function buildMessage(props: OnboardingMessageBlockProps): string {
+  if (props.mode === 'reset') {
+    return `Oi ${props.fullName}! Geramos uma nova senha temporária pro seu acesso à Lever.
+Acesse: https://app.levertalents.com/login
+Usuário: ${props.username}
+Senha temporária: ${props.tempPassword}
+Expira em 24h.
+
+Qualquer dúvida, fala comigo!
+— ${props.rhFullName}`;
+  }
   // D-20 LOCKED template — copy VERBATIM, only interpolate the 4 placeholders
   return `Oi ${props.fullName}! Bem-vindo à Lever.
 Acesse: https://app.levertalents.com/login
@@ -38,9 +50,13 @@ export function OnboardingMessageBlock(props: OnboardingMessageBlockProps) {
     }
   }, [message]);
 
+  const isReset = props.mode === 'reset';
+
   return (
     <Card className="bg-bg-subtle border-border">
-      <p className="text-sm font-semibold mb-1">Pessoa cadastrada</p>
+      <p className="text-sm font-semibold mb-1">
+        {isReset ? 'Senha redefinida' : 'Pessoa cadastrada'}
+      </p>
       <p className="text-sm text-text-subtle mb-3">
         Copie a mensagem abaixo e envie pelo seu WhatsApp para {props.fullName}.
       </p>
@@ -64,7 +80,9 @@ export function OnboardingMessageBlock(props: OnboardingMessageBlockProps) {
           )}
         </Btn>
         {props.onComplete && (
-          <Btn variant="ghost" onClick={props.onComplete}>Concluir cadastro</Btn>
+          <Btn variant="ghost" onClick={props.onComplete}>
+            {isReset ? 'Concluir' : 'Concluir cadastro'}
+          </Btn>
         )}
       </div>
     </Card>
