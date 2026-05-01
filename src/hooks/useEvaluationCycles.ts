@@ -127,3 +127,35 @@ export function useDeleteCycle() {
     },
   });
 }
+
+export function useCloseCycle() {
+  const queryClient = useQueryClient();
+  const { scope } = useScope();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from('evaluation_cycles')
+        .update({ status: 'closed', updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'evaluation_cycles',
+        ],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'pending-tasks',
+        ],
+      });
+    },
+  });
+}

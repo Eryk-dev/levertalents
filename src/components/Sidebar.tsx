@@ -48,12 +48,12 @@ const ROLE_LABEL: Record<AppRole, string> = {
 };
 
 const ROLE_HOME: Record<AppRole, string> = {
-  admin: "/admin",
-  socio: "/socio",
-  lider: "/gestor",
-  rh: "/rh",
-  colaborador: "/colaborador",
-  liderado: "/colaborador",
+  admin: "/dashboard",
+  socio: "/dashboard",
+  lider: "/dashboard",
+  rh: "/dashboard",
+  colaborador: "/dashboard",
+  liderado: "/dashboard",
 };
 
 const VIEW_AS_ORDER: AppRole[] = ["admin", "socio", "lider", "rh", "colaborador", "liderado"];

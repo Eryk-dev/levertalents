@@ -32,6 +32,17 @@ import {
 } from "@/components/primitives/LinearKit";
 import { cn } from "@/lib/utils";
 
+function hasMeetingStructureContent(meetingStructure: OneOnOne["meeting_structure"]) {
+  if (!meetingStructure) return false;
+  return Object.values(meetingStructure).some((value) => {
+    if (value == null) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.keys(value).length > 0;
+    return true;
+  });
+}
+
 export default function OneOnOnes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -183,7 +194,7 @@ export default function OneOnOnes() {
     (o) =>
       o.status === "scheduled" &&
       new Date(o.scheduled_date) < new Date() &&
-      !o.meeting_structure,
+      !hasMeetingStructureContent(o.meeting_structure),
   );
 
   const showPending = !bucketFilter.length || bucketFilter.includes("pending");
@@ -426,16 +437,17 @@ export default function OneOnOnes() {
         </DialogContent>
       </Dialog>
 
-      {meetingFormOneOnOne && (
-        <OneOnOneMeetingForm
-          oneOnOne={meetingFormOneOnOne}
-          open={showMeetingForm}
-          onOpenChange={(open) => {
-            setShowMeetingForm(open);
-            if (!open) setMeetingFormOneOnOne(null);
-          }}
-        />
-      )}
+      <Dialog
+        open={showMeetingForm && !!meetingFormOneOnOne}
+        onOpenChange={(open) => {
+          setShowMeetingForm(open);
+          if (!open) setMeetingFormOneOnOne(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          {meetingFormOneOnOne && <OneOnOneMeetingForm meeting={meetingFormOneOnOne} />}
+        </DialogContent>
+      </Dialog>
 
       {/* Read-only details */}
       <Dialog open={!!selectedOneOnOne} onOpenChange={() => setSelectedOneOnOne(null)}>

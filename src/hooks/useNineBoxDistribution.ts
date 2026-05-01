@@ -52,7 +52,7 @@ function emptyByCell(): Record<NineBoxCell, NineBoxUser[]> {
  * Matrix scoring contract (NINE.1 schema):
  *   - cycle.kind = 'nine_box'
  *   - direction = 'leader_to_member' (the leader's official rating; auto-assessment is anexa)
- *   - status = 'completed'
+ *   - status = 'submitted' (or legacy 'completed')
  *   - responses.performance ∈ [1,3]  → x-axis
  *   - responses.potential   ∈ [1,3]  → y-axis
  *
@@ -151,7 +151,7 @@ export function useNineBoxDistribution(
           .select('evaluated_user_id, responses, status')
           .eq('cycle_id', resolvedCycleId)
           .eq('direction', 'leader_to_member')
-          .eq('status', 'completed')
+          .in('status', ['submitted', 'completed'])
           .in('evaluated_user_id', userIds),
         supabase.from('profiles').select('id, full_name, avatar_url').in('id', userIds),
       ]);

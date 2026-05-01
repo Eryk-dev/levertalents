@@ -18,13 +18,12 @@ import { handleSupabaseError } from "@/lib/supabaseError";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useCollaboratorEvolution } from "@/hooks/useCollaboratorEvolution";
 import { usePendingTasks } from "@/hooks/usePendingTasks";
+import { getPendingTaskRoute } from "@/lib/pendingTaskRoutes";
 import {
   Btn,
   Chip,
   Row,
-  Col,
   Card,
   SectionHeader,
   PriorityDot,
@@ -43,25 +42,6 @@ const PRIORITY_LABEL: Record<PriorityFilter, string> = {
   med: "Média",
   low: "Sem prazo",
 };
-
-function taskTypeToRoute(type: string) {
-  switch (type) {
-    case "pdi":
-    case "development_plan":
-      return "/pdi";
-    case "one_on_one":
-    case "1on1":
-      return "/11s";
-    case "evaluation":
-    case "self_evaluation":
-      return "/avaliacoes";
-    case "climate":
-    case "climate_survey":
-      return "/clima";
-    default:
-      return "/colaborador";
-  }
-}
 
 const Index = () => {
   const { user } = useAuth();
@@ -158,6 +138,18 @@ const Index = () => {
   const restTasks = filteredPendingTasks.slice(1, 6);
   const totalPending = pendingTasks.length;
   const visiblePending = filteredPendingTasks.length;
+  const evaluationPending = pendingTasks.filter((t) =>
+    ["evaluation", "self_evaluation"].includes(t.task_type),
+  ).length;
+  const pdiPending = pendingTasks.filter((t) =>
+    ["pdi", "development_plan", "pdi_approval", "pdi_update"].includes(t.task_type),
+  ).length;
+  const climatePending = pendingTasks.filter((t) =>
+    ["climate", "climate_survey"].includes(t.task_type),
+  ).length;
+  const oneOnOnePending = pendingTasks.filter((t) =>
+    ["one_on_one", "1on1", "action_item"].includes(t.task_type),
+  ).length;
 
   const averageProgress = activePDIs.length
     ? Math.round(activePDIs.reduce((acc, pdi) => acc + (pdi.progress_percentage || 0), 0) / activePDIs.length)
@@ -268,13 +260,54 @@ const Index = () => {
               variant="accent"
               size="sm"
               iconRight={<ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />}
-              onClick={() => navigate(taskTypeToRoute(nextTask.task_type))}
+              onClick={() => navigate(getPendingTaskRoute(nextTask))}
             >
               Começar
             </Btn>
           </Row>
         </div>
       )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-5 mb-6">
+        <ActionStatusCard
+          label="Avaliações"
+          value={evaluationPending ? String(evaluationPending) : "Em dia"}
+          detail={evaluationPending ? "resposta pendente" : "sem resposta pendente"}
+          icon={<CheckCircle2 className="w-4 h-4" strokeWidth={1.75} />}
+          urgent={evaluationPending > 0}
+          onClick={() => navigate("/avaliacoes")}
+        />
+        <ActionStatusCard
+          label="PDI"
+          value={pdiPending ? String(pdiPending) : activePDIs.length ? `${averageProgress}%` : "Criar"}
+          detail={pdiPending ? "ação a tomar" : activePDIs.length ? "progresso médio" : "sem PDI ativo"}
+          icon={<Target className="w-4 h-4" strokeWidth={1.75} />}
+          urgent={pdiPending > 0}
+          onClick={() => navigate("/pdi")}
+        />
+        <ActionStatusCard
+          label="Clima"
+          value={climatePending ? String(climatePending) : "Em dia"}
+          detail={climatePending ? "pesquisa para responder" : "sem pesquisa pendente"}
+          icon={<Sparkles className="w-4 h-4" strokeWidth={1.75} />}
+          urgent={climatePending > 0}
+          onClick={() => navigate("/clima")}
+        />
+        <ActionStatusCard
+          label="1:1"
+          value={oneOnOnePending ? String(oneOnOnePending) : nextOneOnOne ? "Marcada" : "Sem agenda"}
+          detail={
+            oneOnOnePending
+              ? "item pendente"
+              : nextOneOnOne
+              ? getDueLabel(nextOneOnOne.scheduled_date)
+              : "agende com sua liderança"
+          }
+          icon={<Calendar className="w-4 h-4" strokeWidth={1.75} />}
+          urgent={oneOnOnePending > 0}
+          onClick={() => navigate("/11s")}
+        />
+      </div>
 
       {/* Inbox de ações */}
       <SectionHeader
@@ -326,7 +359,7 @@ const Index = () => {
                   "flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-bg-subtle transition-colors",
                   i < restTasks.length - 1 && "border-b border-border",
                 )}
-                onClick={() => navigate(taskTypeToRoute(t.task_type))}
+                onClick={() => navigate(getPendingTaskRoute(t))}
               >
                 <PriorityDot level={prio} />
                 <div className="flex-1 min-w-0">
@@ -467,6 +500,44 @@ const Index = () => {
     </div>
   );
 };
+
+function ActionStatusCard({
+  label,
+  value,
+  detail,
+  icon,
+  urgent,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: React.ReactNode;
+  urgent?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "surface-paper p-3.5 text-left transition-colors hover:bg-bg-subtle",
+        urgent && "border-l-[3px] border-l-accent",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] uppercase tracking-[0.05em] text-text-subtle font-semibold">
+          {label}
+        </div>
+        <span className={urgent ? "text-accent-text" : "text-text-muted"}>{icon}</span>
+      </div>
+      <div className="text-[22px] font-semibold tabular tracking-[-0.02em] mt-2 leading-[1.05]">
+        {value}
+      </div>
+      <div className="text-[11.5px] text-text-muted mt-1 truncate">{detail}</div>
+    </button>
+  );
+}
 
 function MiniKpi({
   label,

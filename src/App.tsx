@@ -6,13 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Auth from "./pages/Auth";
-import Index from "./pages/Index";
-import GestorDashboard from "./pages/GestorDashboard";
-import RHDashboard from "./pages/RHDashboard";
-import SocioDashboard from "./pages/SocioDashboard";
+import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import CreateUser from "./pages/CreateUser";
 import Evaluations from "./pages/Evaluations";
+import EvaluationCycleDetail from "./pages/EvaluationCycleDetail";
 import OneOnOnes from "./pages/OneOnOnes";
 import Climate from "./pages/Climate";
 import DevelopmentPlans from "./pages/DevelopmentPlans";
@@ -45,7 +43,7 @@ import { AppProviders } from "@/app/providers";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { user, loading, userRole } = useAuth();
+  const { user, loading } = useAuth();
   const isAuthenticated = !!user;
 
   if (loading) {
@@ -59,19 +57,7 @@ const App = () => {
 
   const getDefaultRoute = () => {
     if (!isAuthenticated) return "/auth";
-
-    switch (userRole) {
-      case 'admin':
-        return '/admin';
-      case 'socio':
-        return '/socio';
-      case 'lider':
-        return '/gestor';
-      case 'rh':
-        return '/rh';
-      default:
-        return '/colaborador';
-    }
+    return "/dashboard";
   };
 
   return (
@@ -99,12 +85,20 @@ const App = () => {
                 AppProviders mounts INSIDE BrowserRouter (Pitfall #1) and AFTER
                 auth resolves. Public routes below stay outside the providers. */}
             <Route element={isAuthenticated ? <AppProviders><Layout /></AppProviders> : <Navigate to="/auth" replace />}>
-              <Route path="/colaborador" element={<Index />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/colaborador" element={<Navigate to="/dashboard" replace />} />
               <Route
                 path="/gestor"
                 element={
                   <ProtectedRoute allowedRoles={["lider", "socio", "admin"]}>
-                    <GestorDashboard />
+                    <Navigate to="/dashboard" replace />
                   </ProtectedRoute>
                 }
               />
@@ -112,7 +106,7 @@ const App = () => {
                 path="/rh"
                 element={
                   <ProtectedRoute allowedRoles={["rh", "socio", "admin"]}>
-                    <RHDashboard />
+                    <Navigate to="/dashboard" replace />
                   </ProtectedRoute>
                 }
               />
@@ -120,7 +114,7 @@ const App = () => {
                 path="/socio"
                 element={
                   <ProtectedRoute allowedRoles={["socio", "admin"]}>
-                    <SocioDashboard />
+                    <Navigate to="/dashboard" replace />
                   </ProtectedRoute>
                 }
               />
@@ -145,6 +139,14 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
                     <Evaluations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/avaliacoes/:cycleId"
+                element={
+                  <ProtectedRoute allowedRoles={["colaborador", "lider", "rh", "socio", "admin"]}>
+                    <EvaluationCycleDetail />
                   </ProtectedRoute>
                 }
               />

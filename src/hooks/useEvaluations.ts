@@ -114,6 +114,24 @@ export function useCreateEvaluation() {
           'pending-tasks',
         ],
       });
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'evaluation_cycles',
+        ],
+      });
+      for (const key of ['nine-box', 'nine-box-cycles', 'org-indicators', 'team-indicators', 'leader-alerts']) {
+        queryClient.invalidateQueries({
+          queryKey: [
+            'scope',
+            scope?.id ?? '__none__',
+            scope?.kind ?? '__none__',
+            key,
+          ],
+        });
+      }
     },
   });
 }
@@ -158,6 +176,24 @@ export function useUpdateEvaluation() {
           'pending-tasks',
         ],
       });
+      queryClient.invalidateQueries({
+        queryKey: [
+          'scope',
+          scope?.id ?? '__none__',
+          scope?.kind ?? '__none__',
+          'evaluation_cycles',
+        ],
+      });
+      for (const key of ['nine-box', 'nine-box-cycles', 'org-indicators', 'team-indicators', 'leader-alerts']) {
+        queryClient.invalidateQueries({
+          queryKey: [
+            'scope',
+            scope?.id ?? '__none__',
+            scope?.kind ?? '__none__',
+            key,
+          ],
+        });
+      }
     },
   });
 }

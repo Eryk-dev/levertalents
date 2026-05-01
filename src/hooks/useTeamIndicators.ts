@@ -67,7 +67,7 @@ export function useTeamIndicators(leaderId: string | null | undefined) {
           .from('evaluations')
           .select('direction, responses, status')
           .in('evaluated_user_id', memberIds)
-          .eq('status', 'completed'),
+          .in('status', ['submitted', 'completed']),
         scopedOneOnOnesQuery,
         supabase
           .from('development_plans')

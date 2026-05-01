@@ -3,13 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Check, ChevronRight } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +46,11 @@ export interface CycleResultsDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
+export interface CycleResultsContentProps {
+  cycle: CycleRow | null;
+  className?: string;
+}
+
 const directionLabel: Record<string, string> = {
   self: 'Autoavaliação',
   leader_to_member: 'Líder → liderado',
@@ -59,7 +58,7 @@ const directionLabel: Record<string, string> = {
   peer: 'Entre pares',
 };
 
-export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDrawerProps) {
+export function CycleResultsContent({ cycle, className }: CycleResultsContentProps) {
   const { user } = useAuth();
   const evaluationsQuery = useEvaluations(cycle?.id ?? null);
   const assignmentsQuery = useMyCycleEvaluationAssignments(cycle?.id ?? null);
@@ -199,22 +198,17 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-[640px] overflow-y-auto p-0"
-        >
-          {cycle && (
-            <>
-              <SheetHeader className="px-6 py-5 border-b border-border bg-surface text-left space-y-1">
-                <SheetTitle className="text-[16px] font-semibold tracking-[-0.01em]">
+      {cycle && (
+        <section className={className ?? 'overflow-hidden rounded-lg border border-border bg-surface'}>
+              <header className="px-6 py-5 border-b border-border bg-surface text-left space-y-1">
+                <h2 className="text-[16px] font-semibold tracking-[-0.01em]">
                   {cycle.name}
-                </SheetTitle>
-                <SheetDescription className="text-[12px] text-text-muted">
+                </h2>
+                <p className="text-[12px] text-text-muted">
                   {format(new Date(cycle.starts_at), "dd 'de' MMM", { locale: ptBR })}
                   {' → '}
                   {format(new Date(cycle.ends_at), "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
-                </SheetDescription>
+                </p>
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Chip
                     size="sm"
@@ -231,7 +225,7 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                     </Chip>
                   )}
                 </div>
-              </SheetHeader>
+              </header>
 
               <div className="px-6 py-5 space-y-8">
                 {/* CTA: pessoas para o usuário avaliar */}
@@ -411,10 +405,8 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
                   </p>
                 )}
               </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+        </section>
+      )}
 
       {/* Evaluation form dialog */}
       <Dialog
@@ -451,6 +443,16 @@ export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDr
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+export function CycleResultsDrawer({ cycle, open, onOpenChange }: CycleResultsDrawerProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-[640px] overflow-y-auto p-0">
+        <CycleResultsContent cycle={cycle} className="min-h-full bg-surface" />
+      </SheetContent>
+    </Sheet>
   );
 }
 

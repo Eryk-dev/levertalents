@@ -85,26 +85,28 @@ export function NineBoxComparison({ evaluatedName, evaluations }: NineBoxCompari
         </div>
       </header>
 
-      <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-3 gap-y-2 items-center">
-        <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold">Eixo</div>
-        <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold text-center">Auto</div>
-        <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold text-center">Líder</div>
-        <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold text-right">Δ</div>
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[460px] grid-cols-[minmax(120px,1fr)_112px_112px_32px] gap-x-3 gap-y-2 items-center">
+          <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold">Eixo</div>
+          <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold text-center">Auto</div>
+          <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold text-center">Líder</div>
+          <div className="text-[10.5px] uppercase tracking-wide text-text-subtle font-semibold text-right">Δ</div>
 
-        <Row
-          axis="Desempenho"
-          self={selfPerf}
-          leader={leaderPerf}
-          delta={perfDelta}
-          labels={PERF_LABEL}
-        />
-        <Row
-          axis="Potencial"
-          self={selfPot}
-          leader={leaderPot}
-          delta={potDelta}
-          labels={POT_LABEL}
-        />
+          <Row
+            axis="Desempenho"
+            self={selfPerf}
+            leader={leaderPerf}
+            delta={perfDelta}
+            labels={PERF_LABEL}
+          />
+          <Row
+            axis="Potencial"
+            self={selfPot}
+            leader={leaderPot}
+            delta={potDelta}
+            labels={POT_LABEL}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border">

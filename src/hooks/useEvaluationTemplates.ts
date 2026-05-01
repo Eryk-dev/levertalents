@@ -21,7 +21,7 @@ export type TemplateSnapshot = {
     questions: Array<{
       id: string;
       label: string;
-      type: 'scale_1_5' | 'text' | 'choice';
+      type: 'scale_1_5' | 'scale_1_3' | 'text' | 'choice';
       required: boolean;
       options?: string[];
     }>;

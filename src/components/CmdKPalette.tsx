@@ -137,12 +137,7 @@ export function CmdKPalette() {
     const canManage = isAdmin || isRH || isSocio;
     const hasTeamView = canManage || isLeader;
 
-    const homeRoute =
-      userRole === "admin" ? "/admin"
-      : userRole === "socio" ? "/socio"
-      : userRole === "lider" ? "/gestor"
-      : userRole === "rh" ? "/rh"
-      : "/colaborador";
+    const homeRoute = "/dashboard";
 
     const nav = (to: string) => () => {
       setOpen(false);

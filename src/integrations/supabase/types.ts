@@ -1060,7 +1060,7 @@ export type Database = {
       }
       development_plans: {
         Row: {
-          action_items: string
+          action_items: string | null
           anticipated_challenges: string | null
           approved_at: string | null
           approved_by: string | null
@@ -1070,7 +1070,7 @@ export type Database = {
           deadline: string | null
           description: string | null
           development_area: string
-          goals: string
+          goals: string | null
           id: string
           main_objective: string | null
           one_on_one_id: string | null
@@ -1084,7 +1084,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          action_items: string
+          action_items?: string | null
           anticipated_challenges?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -1094,7 +1094,7 @@ export type Database = {
           deadline?: string | null
           description?: string | null
           development_area: string
-          goals: string
+          goals?: string | null
           id?: string
           main_objective?: string | null
           one_on_one_id?: string | null
@@ -1108,7 +1108,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          action_items?: string
+          action_items?: string | null
           anticipated_challenges?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -1118,7 +1118,7 @@ export type Database = {
           deadline?: string | null
           description?: string | null
           development_area?: string
-          goals?: string
+          goals?: string | null
           id?: string
           main_objective?: string | null
           one_on_one_id?: string | null

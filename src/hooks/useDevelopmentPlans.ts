@@ -41,12 +41,18 @@ export function useCreateDevelopmentPlan() {
   const queryClient = useQueryClient();
   const { scope } = useScope();
   return useMutation({
-    mutationFn: async (input: Partial<PlanRow> & { title: string; description: string; development_area: string; goals: string; action_items: string; timeline: string }) => {
+    mutationFn: async (input: Partial<PlanRow> & { title: string; development_area: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Não autenticado');
+      const insert = {
+        ...input,
+        user_id: user.id,
+        goals: input.goals ?? input.main_objective ?? input.title,
+        action_items: input.action_items ?? input.committed_actions ?? '',
+      };
       const { data, error } = await supabase
         .from('development_plans')
-        .insert({ ...input, user_id: user.id })
+        .insert(insert)
         .select()
         .single();
       if (error) throw error;

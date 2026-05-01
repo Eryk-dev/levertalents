@@ -37,23 +37,8 @@ export default function Auth() {
     return data?.role || "colaborador";
   }, []);
 
-  const redirectByRole = useCallback((role: string) => {
-    switch (role) {
-      case "socio":
-        navigate("/socio");
-        break;
-      case "lider":
-        navigate("/gestor");
-        break;
-      case "rh":
-        navigate("/rh");
-        break;
-      case "admin":
-        navigate("/admin");
-        break;
-      default:
-        navigate("/colaborador");
-    }
+  const redirectByRole = useCallback((_role: string) => {
+    navigate("/dashboard");
   }, [navigate]);
 
   useEffect(() => {

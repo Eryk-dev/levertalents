@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getPendingTaskRoute } from "@/lib/pendingTaskRoutes";
 
 const TASK_ICONS: Record<string, typeof Bell> = {
   evaluation: FileCheck,
@@ -45,23 +46,6 @@ const TASK_ICONS: Record<string, typeof Bell> = {
   hiring_admission_followup: UserPlus,
   hiring_fit_cultural_received: Sparkles,
   hiring_fit_cultural_expired: SparkleIcon,
-};
-
-const TASK_ROUTES: Record<string, (task: PendingTask) => string> = {
-  evaluation: () => "/avaliacoes",
-  one_on_one: () => "/11s",
-  climate_survey: () => "/clima",
-  pdi_approval: () => "/pdi",
-  pdi_update: () => "/pdi",
-  action_item: () => "/11s",
-  hiring_job_approval: (task) => task.related_id ? `/hiring/jobs/${task.related_id}` : "/hiring/jobs",
-  hiring_job_review: () => "/hiring/jobs",
-  hiring_candidate_stage_change: (task) => task.related_id ? `/hiring/candidates/${task.related_id}` : "/hiring/candidates",
-  hiring_interview_reminder: (task) => task.related_id ? `/hiring/candidates/${task.related_id}` : "/hiring/candidates",
-  hiring_final_decision: (task) => task.related_id ? `/hiring/candidates/${task.related_id}` : "/hiring/candidates",
-  hiring_admission_followup: (task) => task.related_id ? `/hiring/candidates/${task.related_id}` : "/hiring/candidates",
-  hiring_fit_cultural_received: (task) => task.related_id ? `/hiring/candidates/${task.related_id}` : "/hiring/candidates",
-  hiring_fit_cultural_expired: (task) => task.related_id ? `/hiring/candidates/${task.related_id}` : "/hiring/candidates",
 };
 
 function TaskItem({ task, onNavigate }: { task: PendingTask; onNavigate: () => void }) {
@@ -139,9 +123,7 @@ export function PendingTasksDropdown() {
                 key={task.id}
                 task={task}
                 onNavigate={() => {
-                  const resolver = TASK_ROUTES[task.task_type];
-                  const route = resolver ? resolver(task) : "/";
-                  navigate(route);
+                  navigate(getPendingTaskRoute(task));
                 }}
               />
             ))

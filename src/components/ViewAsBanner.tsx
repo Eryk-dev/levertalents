@@ -21,7 +21,7 @@ export function ViewAsBanner() {
   const handleExit = () => {
     setViewAsRole(null);
     toast.success("Voltou à visualização de Administrador");
-    navigate("/admin");
+    navigate("/dashboard");
   };
 
   return (

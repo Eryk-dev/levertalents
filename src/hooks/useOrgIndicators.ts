@@ -36,7 +36,7 @@ export function useOrgIndicators() {
         supabase
           .from('evaluations')
           .select('direction, responses, evaluated_user_id, status')
-          .eq('status', 'completed'),
+          .in('status', ['submitted', 'completed']),
         oneOnOnesQ,
         supabase
           .from('development_plans')

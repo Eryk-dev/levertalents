@@ -4,6 +4,7 @@ export type RouteCrumb = {
 };
 
 const LABELS: Record<string, string> = {
+  "/dashboard": "Início",
   "/colaborador": "Início",
   "/gestor": "Dashboard",
   "/rh": "Dashboard Executivo",

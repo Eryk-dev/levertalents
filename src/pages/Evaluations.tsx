@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Btn } from '@/components/primitives/LinearKit';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -14,26 +15,24 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CycleCard } from '@/components/CycleCard';
 import { CreateCycleDialog } from '@/components/CreateCycleDialog';
-import { CycleResultsDrawer } from '@/components/CycleResultsDrawer';
 import { EvaluationTemplatesTab } from '@/components/EvaluationTemplatesTab';
 import { useEvaluationCycles, useDeleteCycle } from '@/hooks/useEvaluationCycles';
 import { useScope } from '@/app/providers/ScopeProvider';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function EvaluationsPage() {
+  const navigate = useNavigate();
   const cyclesQuery = useEvaluationCycles();
   const deleteCycle = useDeleteCycle();
   const { scope } = useScope();
   const { userRole } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const all = cyclesQuery.data ?? [];
   const active = all.filter((c) => c.status === 'active' || c.status === 'draft');
   const closed = all.filter((c) => c.status === 'closed');
   const confirming = all.find((c) => c.id === confirmDeleteId) ?? null;
-  const selectedCycle = all.find((c) => c.id === selectedCycleId) ?? null;
 
   const canDelete =
     userRole === 'rh' || userRole === 'socio' || userRole === 'admin';
@@ -43,7 +42,6 @@ export default function EvaluationsPage() {
     deleteCycle.mutate(confirming.id, {
       onSuccess: () => {
         toast.success('Ciclo excluído');
-        if (selectedCycleId === confirming.id) setSelectedCycleId(null);
         setConfirmDeleteId(null);
       },
       onError: (e) =>
@@ -109,8 +107,7 @@ export default function EvaluationsPage() {
                 <CycleCard
                   key={c.id}
                   cycle={c}
-                  selected={selectedCycleId === c.id}
-                  onClick={() => setSelectedCycleId(c.id)}
+                  onClick={() => navigate(`/avaliacoes/${c.id}`)}
                   onDelete={canDelete ? () => setConfirmDeleteId(c.id) : undefined}
                 />
               ))}
@@ -124,6 +121,7 @@ export default function EvaluationsPage() {
               <CycleCard
                 key={c.id}
                 cycle={c}
+                onClick={() => navigate(`/avaliacoes/${c.id}`)}
                 onDelete={canDelete ? () => setConfirmDeleteId(c.id) : undefined}
               />
             ))}
@@ -144,12 +142,6 @@ export default function EvaluationsPage() {
           companyId={firstCompanyId}
         />
       )}
-
-      <CycleResultsDrawer
-        cycle={selectedCycle}
-        open={!!selectedCycle}
-        onOpenChange={(open) => (!open ? setSelectedCycleId(null) : undefined)}
-      />
 
       <AlertDialog
         open={!!confirmDeleteId}

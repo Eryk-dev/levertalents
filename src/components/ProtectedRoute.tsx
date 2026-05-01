@@ -38,14 +38,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   // Role-based access control (Phase 1 behaviour — preserved)
   if (allowedRoles && allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
-    const redirectPath =
-      userRole === 'admin' ? '/admin' :
-      userRole === 'socio' ? '/socio' :
-      userRole === 'lider' ? '/gestor' :
-      userRole === 'rh' ? '/rh' :
-      '/colaborador';
-
-    return <Navigate to={redirectPath} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -8,7 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useClimateSurveys } from "@/hooks/useClimateSurveys";
+import { useCreateClimateSurvey } from "@/hooks/useClimateSurveys";
+import { useScope } from "@/app/providers/ScopeProvider";
 import { handleSupabaseError } from "@/lib/supabaseError";
 import { Btn, Col, Row } from "@/components/primitives/LinearKit";
 
@@ -23,12 +24,29 @@ interface Props {
  * (labels uppercase caps 10.5px, inputs densos).
  */
 export function ClimateSurveyFormDialog({ open, onOpenChange, onCreated }: Props) {
-  const { createSurveyAsync, isCreatingSurvey } = useClimateSurveys();
+  const createSurvey = useCreateClimateSurvey();
+  const { scope, visibleCompanies } = useScope();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState<"draft" | "active">("draft");
+  const [companyId, setCompanyId] = useState("");
+
+  const scopeCompanies = useMemo(() => {
+    if (!scope) return [];
+    const allowed = new Set(scope.companyIds);
+    return visibleCompanies.filter((company) => allowed.has(company.id));
+  }, [scope, visibleCompanies]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (scope?.companyIds.length === 1) {
+      setCompanyId(scope.companyIds[0]);
+      return;
+    }
+    setCompanyId("");
+  }, [open, scope]);
 
   const reset = () => {
     setTitle("");
@@ -36,17 +54,23 @@ export function ClimateSurveyFormDialog({ open, onOpenChange, onCreated }: Props
     setStartDate("");
     setEndDate("");
     setStatus("draft");
+    setCompanyId(scope?.companyIds.length === 1 ? scope.companyIds[0] : "");
   };
 
   const handleSubmit = async () => {
     if (!title || !startDate || !endDate) return;
+    if (!companyId) {
+      toast.error("Selecione a empresa da pesquisa.");
+      return;
+    }
     if (startDate > endDate) {
       toast.error("A data de início deve ser anterior ou igual à data de fim.");
       return;
     }
     try {
-      const created = await createSurveyAsync({
-        title,
+      const created = await createSurvey.mutateAsync({
+        company_id: companyId,
+        title: title.trim(),
         description: description || undefined,
         start_date: startDate,
         end_date: endDate,
@@ -91,6 +115,24 @@ export function ClimateSurveyFormDialog({ open, onOpenChange, onCreated }: Props
               className={inputBase}
             />
           </FieldLabel>
+
+          {scopeCompanies.length > 1 && (
+            <FieldLabel label="Empresa" htmlFor="survey-company">
+              <select
+                id="survey-company"
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+                className={`${inputBase} appearance-none cursor-pointer`}
+              >
+                <option value="">Selecione a empresa</option>
+                {scopeCompanies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </FieldLabel>
+          )}
 
           <FieldLabel label="Descrição" htmlFor="survey-desc" optional>
             <textarea
@@ -145,9 +187,9 @@ export function ClimateSurveyFormDialog({ open, onOpenChange, onCreated }: Props
             variant="primary"
             size="md"
             onClick={handleSubmit}
-            disabled={!title || !startDate || !endDate || isCreatingSurvey}
+            disabled={!title.trim() || !startDate || !endDate || !companyId || createSurvey.isPending}
           >
-            {isCreatingSurvey ? "Criando…" : "Criar pesquisa"}
+            {createSurvey.isPending ? "Criando…" : "Criar pesquisa"}
           </Btn>
         </DialogFooter>
       </DialogContent>

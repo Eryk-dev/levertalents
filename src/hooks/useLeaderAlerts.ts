@@ -34,7 +34,7 @@ export function useLeaderAlerts(leaderId: string | undefined) {
         `)
         .eq('evaluator_user_id', leaderId)
         .eq('direction', 'leader_to_member')
-        .eq('status', 'completed')
+        .in('status', ['submitted', 'completed'])
         .order('updated_at', { ascending: false })
         .limit(10);
       if (lowScoresError) throw handleSupabaseError(lowScoresError, 'Falha ao carregar scores', { silent: true });

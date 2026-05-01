@@ -20,15 +20,19 @@ type QuestionType = TemplateSnapshot['sections'][number]['questions'][number]['t
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   scale_1_5: 'Nota 1 a 5',
+  scale_1_3: 'Nota 1 a 3',
   text: 'Texto livre',
   choice: 'Múltipla escolha',
 };
 
 const TYPE_ICON: Record<QuestionType, typeof CircleHelp> = {
   scale_1_5: BarChart3,
+  scale_1_3: BarChart3,
   text: CircleHelp,
   choice: ListChecks,
 };
+
+const QUESTION_TYPE_OPTIONS: QuestionType[] = ['scale_1_5', 'scale_1_3', 'text', 'choice'];
 
 const newId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -352,7 +356,7 @@ interface QuestionEditorProps {
 function QuestionEditor({ question, index, onChange, onDelete }: QuestionEditorProps) {
   const [label, setLabel] = useState(question.label);
   const [optionsText, setOptionsText] = useState((question.options ?? []).join(', '));
-  const Icon = TYPE_ICON[question.type];
+  const Icon = TYPE_ICON[question.type] ?? CircleHelp;
 
   useEffect(() => {
     setLabel(question.label);
@@ -396,7 +400,7 @@ function QuestionEditor({ question, index, onChange, onDelete }: QuestionEditorP
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(['scale_1_5', 'text', 'choice'] as QuestionType[]).map((k) => (
+                {QUESTION_TYPE_OPTIONS.map((k) => (
                   <SelectItem key={k} value={k}>
                     {TYPE_LABEL[k]}
                   </SelectItem>
